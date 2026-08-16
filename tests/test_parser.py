@@ -23,6 +23,9 @@ from app import (
     activity_snapshot,
     choose_active_log_from_activity,
     LogTailer,
+    TranslatorWorker,
+    TranslationServiceTemporaryError,
+    looks_like_translation_service_error,
 )
 
 
@@ -333,6 +336,79 @@ class ParserTests(unittest.TestCase):
             stop.set()
             tailer.join(timeout=1.0)
             self.assertEqual([(m.nickname, m.text) for m in messages], [("NewPlayer", "new message")])
+
+
+    def test_translation_error_page_is_not_treated_as_translation(self):
+        error_page = "Error 500 (Server Error)!!1500.That's an error.There was an error. Please try again later.That's all we know."
+        self.assertTrue(looks_like_translation_service_error(error_page))
+        self.assertTrue(looks_like_translation_service_error("<!DOCTYPE html><html><body>oops</body></html>"))
+        self.assertFalse(looks_like_translation_service_error("server error on our match?"))
+        self.assertFalse(looks_like_translation_service_error("ошибка сервера"))
+
+    def test_translator_retries_after_upstream_500_page(self):
+        worker = TranslatorWorker(
+            jobs=__import__("queue").Queue(),
+            ui_queue=__import__("queue").Queue(),
+            target_getter=lambda: "ru",
+            hide_same_getter=lambda: False,
+            slang_enabled_getter=lambda: False,
+            slang_style_getter=lambda: "live",
+            stop_event=threading.Event(),
+        )
+
+        class FakeTranslator:
+            def __init__(self, responses):
+                self.responses = list(responses)
+            def translate(self, text):
+                value = self.responses.pop(0)
+                if isinstance(value, Exception):
+                    raise value
+                return value
+
+        created = []
+        responses = [
+            "Error 500 (Server Error)!!1500.That's an error.There was an error. Please try again later.That's all we know.",
+            "да",
+        ]
+        def factory(_target):
+            fake = FakeTranslator([responses.pop(0)])
+            created.append(fake)
+            return fake
+
+        worker._new_translator = factory
+        original_sleep = time.sleep
+        try:
+            time.sleep = lambda _seconds: None
+            self.assertEqual(worker._translate("yes", "ru"), "да")
+        finally:
+            time.sleep = original_sleep
+        self.assertEqual(len(created), 2)
+        self.assertEqual(worker.cache[("ru", "yes")], "да")
+
+    def test_translator_never_caches_repeated_upstream_error_page(self):
+        worker = TranslatorWorker(
+            jobs=__import__("queue").Queue(),
+            ui_queue=__import__("queue").Queue(),
+            target_getter=lambda: "ru",
+            hide_same_getter=lambda: False,
+            slang_enabled_getter=lambda: False,
+            slang_style_getter=lambda: "live",
+            stop_event=threading.Event(),
+        )
+
+        class AlwaysBroken:
+            def translate(self, text):
+                return "Error 500 (Server Error). That's an error. Please try again later."
+
+        worker._new_translator = lambda _target: AlwaysBroken()
+        original_sleep = time.sleep
+        try:
+            time.sleep = lambda _seconds: None
+            with self.assertRaises(TranslationServiceTemporaryError):
+                worker._translate("hello", "ru")
+        finally:
+            time.sleep = original_sleep
+        self.assertNotIn(("ru", "hello"), worker.cache)
 
 
 if __name__ == "__main__":

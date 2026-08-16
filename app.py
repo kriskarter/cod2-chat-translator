@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.13.0"
+APP_VERSION = "1.13.1"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -184,7 +184,7 @@ UI_STRINGS = {
         "map_change_status": "Смена карты — старые переводы очищены", "translation_done": "Готово за {elapsed_ms} мс",
         "last_same_language": "{nickname}: {text}  →  уже выбранный язык, не показываю",
         "same_language_skipped": "Сообщение уже на выбранном языке — пропущено", "dedupe_status": "Без дублирования ({elapsed_ms} мс)",
-        "translation_unavailable": "Перевод недоступен: {error}", "update_postponed": "Обновление {version} отложено",
+        "translation_unavailable": "Перевод недоступен: {error}", "translation_service_busy": "Сервис перевода временно недоступен. Сообщение не переведено.", "update_postponed": "Обновление {version} отложено",
     },
     "en": {
         "subtitle": "Real-time translation from console_mp.log + a configurable overlay over CoD2.",
@@ -241,7 +241,7 @@ UI_STRINGS = {
         "map_change_status": "Map changed — old translations cleared", "translation_done": "Done in {elapsed_ms} ms",
         "last_same_language": "{nickname}: {text}  →  already in the selected language, hidden",
         "same_language_skipped": "Message is already in the selected language — skipped", "dedupe_status": "No duplicate output ({elapsed_ms} ms)",
-        "translation_unavailable": "Translation unavailable: {error}", "update_postponed": "Update {version} postponed",
+        "translation_unavailable": "Translation unavailable: {error}", "translation_service_busy": "The translation service is temporarily unavailable. The message was not translated.", "update_postponed": "Update {version} postponed",
     },
 }
 
@@ -1408,6 +1408,36 @@ class LogTailer(threading.Thread):
                 time.sleep(1.0)
 
 
+class TranslationServiceTemporaryError(RuntimeError):
+    """Raised when the upstream translation endpoint returns a temporary error page."""
+
+
+def looks_like_translation_service_error(result: str) -> bool:
+    """Reject HTML/server-error pages accidentally returned as translated text.
+
+    deep-translator normally raises for transport failures, but an upstream
+    endpoint can occasionally return a human-readable 5xx page as text.  Such
+    content must never be cached or displayed as a translation.
+    """
+    folded = re.sub(r"\s+", " ", str(result or "")).strip().casefold()
+    if not folded:
+        return False
+    if "<!doctype html" in folded or "<html" in folded:
+        return True
+    markers = (
+        "error 500",
+        "server error",
+        "that's an error",
+        "there was an error",
+        "please try again later",
+        "that's all we know",
+    )
+    hits = sum(1 for marker in markers if marker in folded)
+    return hits >= 2 or folded.startswith("error 500")
+
+
+
+
 class TranslatorWorker(threading.Thread):
     def __init__(
         self,
@@ -1441,6 +1471,10 @@ class TranslatorWorker(threading.Thread):
             return True
         return False
 
+    def _new_translator(self, target: str):
+        from deep_translator import GoogleTranslator
+        return GoogleTranslator(source="auto", target=target)
+
     def _translate(self, text: str, target: str) -> str:
         if self._skip_translation(text):
             return text
@@ -1449,18 +1483,31 @@ class TranslatorWorker(threading.Thread):
             self.cache.move_to_end(key)
             return self.cache[key]
 
-        from deep_translator import GoogleTranslator
+        last_error: Optional[Exception] = None
+        delays = (0.0, 0.35, 0.8)
+        for attempt, delay in enumerate(delays):
+            if delay:
+                time.sleep(delay)
+            if self._translator is None or self._translator_target != target:
+                self._translator = self._new_translator(target)
+                self._translator_target = target
+            try:
+                result = self._translator.translate(text=text) or text
+                if looks_like_translation_service_error(result):
+                    raise TranslationServiceTemporaryError("upstream server error")
+                self.cache[key] = result
+                self.cache.move_to_end(key)
+                while len(self.cache) > self.cache_limit:
+                    self.cache.popitem(last=False)
+                return result
+            except Exception as exc:
+                last_error = exc
+                self._translator = None
+                self._translator_target = None
+                if attempt == len(delays) - 1:
+                    break
 
-        if self._translator is None or self._translator_target != target:
-            self._translator = GoogleTranslator(source="auto", target=target)
-            self._translator_target = target
-
-        result = self._translator.translate(text=text) or text
-        self.cache[key] = result
-        self.cache.move_to_end(key)
-        while len(self.cache) > self.cache_limit:
-            self.cache.popitem(last=False)
-        return result
+        raise TranslationServiceTemporaryError("translation service temporarily unavailable") from last_error
 
     def run(self) -> None:
         while not self.stop_event.is_set():
@@ -1485,6 +1532,8 @@ class TranslatorWorker(threading.Thread):
                     self.ui_queue.put(("same_language", msg, elapsed_ms))
                 else:
                     self.ui_queue.put(("translation", msg, translated, elapsed_ms))
+            except TranslationServiceTemporaryError:
+                self.ui_queue.put(("translation_service_busy", msg))
             except Exception as exc:
                 self.ui_queue.put(("translation_error", msg, str(exc)))
             finally:
@@ -3200,6 +3249,10 @@ class ControlApp:
                     _, msg, elapsed_ms = item
                     self.last_var.set(self.t("last_same_language").format(nickname=msg.nickname, text=msg.text))
                     self.status_var.set(self.t("same_language_skipped") if elapsed_ms == 0 else self.t("dedupe_status").format(elapsed_ms=elapsed_ms))
+                elif event == "translation_service_busy":
+                    _, msg = item
+                    self.last_var.set(f"{msg.nickname}: {msg.text}")
+                    self.status_var.set(self.t("translation_service_busy"))
                 elif event == "translation_error":
                     _, msg, error = item
                     self.status_var.set(self.t("translation_unavailable").format(error=error))
