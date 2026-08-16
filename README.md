@@ -88,7 +88,7 @@ Updating the program should therefore keep your existing overlay setup and profi
 
 ## Updates
 
-The app can check GitHub Releases for a newer version. Update packages are verified with SHA256 before installation, and the updater attempts to roll back replaced files if installation fails.
+The app can check GitHub Releases for a newer version. Update packages are verified with SHA256 before installation, and the updater attempts to roll back replaced files if installation fails. If Setup is run over an older version that is still open, it closes the translator before replacing its files.
 
 ## Privacy
 

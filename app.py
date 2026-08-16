@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.12.0"
+APP_VERSION = "1.12.1"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -155,6 +155,31 @@ UI_STRINGS = {
         "custom_language": "Другой язык", "custom_prompt": "Введи код языка Google Translate, например: cs, ja, ro, ko, ar",
         "custom_invalid": "Нужен короткий код языка, например ja, cs, ro или zh-CN.",
         "style_clear": "Понятный", "style_live": "Живой", "style_raw": "Без цензуры",
+        "watching_log": "Слежу за логом: {path}", "waiting_log": "Жду появления console_mp.log…",
+        "choose_log_status": "Выбери console_mp.log", "log_missing_wait": "Лог пока не найден — жду запуска CoD2…",
+        "log_access_denied": "Нет доступа к логу. Запусти переводчик от обычного пользователя.",
+        "log_read_error": "Ошибка чтения лога: {error}", "translation_language_status": "Язык перевода: {code}",
+        "bg_only_on_status": "Фон будет появляться только вместе с сообщениями", "bg_only_off_status": "Фон остаётся видимым постоянно",
+        "compact_bg_on_status": "Подложка подстраивается под длину текста", "compact_bg_off_status": "Подложка использует всю ширину оверлея",
+        "fade_on_status": "Плавное появление/исчезновение включено", "fade_off_status": "Анимация отключена",
+        "preset_text_only_status": "Только текст: фон полностью прозрачный",
+        "preset_minimal_status": "Минимальный: шрифт 9, фон 15%, 2 сообщения",
+        "preset_readable_status": "Читаемый: шрифт 10, фон 12%, компактная подложка, 2 сообщения",
+        "overlay_default_status": "Оверлей возвращён в стандартное место слева",
+        "overlay_edit_status": "Настройка: перетаскивай окно, тяни угол ↘; Ctrl+колесо меняет шрифт",
+        "overlay_locked_status": "Оверлей зафиксирован: мышь проходит сквозь него",
+        "borderless_windows_only": "Borderless helper доступен только в Windows",
+        "cod2_not_found": "Окно CoD2 не найдено. Сначала запусти Multiplayer.",
+        "cod2_borderless_ok": "CoD2 в borderless ({detail}). Оверлей поднят поверх игры.",
+        "cod2_borderless_error": "Не удалось переключить CoD2: {detail}. Если игра exclusive fullscreen — /r_fullscreen 0 и /vid_restart.",
+        "translator_on_status": "Переводчик включён", "translator_off_status": "Переводчик выключен",
+        "overlay_shown_status": "F8: оверлей показан", "overlay_hidden_status": "F8: оверлей скрыт (перевод продолжается)",
+        "duplicate_skipped": "Повтор пропущен: {nickname}: {text}", "translating_status": "Перевожу: {nickname}: {text}",
+        "translation_queue_full": "Очередь перевода переполнена — пропускаю сообщение",
+        "map_change_status": "Смена карты — старые переводы очищены", "translation_done": "Готово за {elapsed_ms} мс",
+        "last_same_language": "{nickname}: {text}  →  уже выбранный язык, не показываю",
+        "same_language_skipped": "Сообщение уже на выбранном языке — пропущено", "dedupe_status": "Без дублирования ({elapsed_ms} мс)",
+        "translation_unavailable": "Перевод недоступен: {error}", "update_postponed": "Обновление {version} отложено",
     },
     "en": {
         "subtitle": "Real-time translation from console_mp.log + a configurable overlay over CoD2.",
@@ -183,6 +208,31 @@ UI_STRINGS = {
         "custom_language": "Other language", "custom_prompt": "Enter a Google Translate language code, for example: cs, ja, ro, ko, ar",
         "custom_invalid": "Enter a short language code such as ja, cs, ro or zh-CN.",
         "style_clear": "Clear", "style_live": "Natural", "style_raw": "Uncensored",
+        "watching_log": "Watching log: {path}", "waiting_log": "Waiting for console_mp.log…",
+        "choose_log_status": "Select console_mp.log", "log_missing_wait": "Log not found yet — waiting for CoD2 to start…",
+        "log_access_denied": "Cannot access the log. Run the translator as your normal Windows user.",
+        "log_read_error": "Log read error: {error}", "translation_language_status": "Translation language: {code}",
+        "bg_only_on_status": "Background will appear only with messages", "bg_only_off_status": "Background stays visible",
+        "compact_bg_on_status": "Background fits the text length", "compact_bg_off_status": "Background uses the full overlay width",
+        "fade_on_status": "Fade in/out enabled", "fade_off_status": "Animation disabled",
+        "preset_text_only_status": "Text only: fully transparent background",
+        "preset_minimal_status": "Minimal: font 9, background 15%, 2 messages",
+        "preset_readable_status": "Readable: font 10, background 12%, compact background, 2 messages",
+        "overlay_default_status": "Overlay returned to the default position on the left",
+        "overlay_edit_status": "Setup mode: drag the window, resize from the corner ↘; Ctrl+wheel changes font size",
+        "overlay_locked_status": "Overlay locked: mouse clicks pass through it",
+        "borderless_windows_only": "Borderless helper is available only on Windows",
+        "cod2_not_found": "CoD2 window not found. Start Multiplayer first.",
+        "cod2_borderless_ok": "CoD2 switched to borderless ({detail}). Overlay moved above the game.",
+        "cod2_borderless_error": "Could not switch CoD2: {detail}. If the game uses exclusive fullscreen, try /r_fullscreen 0 and /vid_restart.",
+        "translator_on_status": "Translator enabled", "translator_off_status": "Translator disabled",
+        "overlay_shown_status": "F8: overlay shown", "overlay_hidden_status": "F8: overlay hidden (translation continues)",
+        "duplicate_skipped": "Duplicate skipped: {nickname}: {text}", "translating_status": "Translating: {nickname}: {text}",
+        "translation_queue_full": "Translation queue is full — skipping message",
+        "map_change_status": "Map changed — old translations cleared", "translation_done": "Done in {elapsed_ms} ms",
+        "last_same_language": "{nickname}: {text}  →  already in the selected language, hidden",
+        "same_language_skipped": "Message is already in the selected language — skipped", "dedupe_status": "No duplicate output ({elapsed_ms} ms)",
+        "translation_unavailable": "Translation unavailable: {error}", "update_postponed": "Update {version} postponed",
     },
 }
 
@@ -1231,6 +1281,7 @@ class LogTailer(threading.Thread):
         on_status: Callable[[str], None],
         stop_event: threading.Event,
         on_control: Optional[Callable[[str, str], None]] = None,
+        status_text: Optional[Callable[[str], str]] = None,
         poll_seconds: float = 0.12,
     ):
         super().__init__(daemon=True, name="cod2-log-tailer")
@@ -1239,6 +1290,7 @@ class LogTailer(threading.Thread):
         self.on_status = on_status
         self.stop_event = stop_event
         self.on_control = on_control
+        self.status_text = status_text or (lambda key: key)
         self.poll_seconds = poll_seconds
         self.current_path: Optional[Path] = None
         self.position = 0
@@ -1250,16 +1302,16 @@ class LogTailer(threading.Thread):
         try:
             # V1 default: only new chat arriving after the translator starts.
             self.position = path.stat().st_size
-            self.on_status(f"Слежу за логом: {path}")
+            self.on_status(self.status_text("watching_log").format(path=path))
         except FileNotFoundError:
             self.position = 0
-            self.on_status("Жду появления console_mp.log…")
+            self.on_status(self.status_text("waiting_log"))
 
     def run(self) -> None:
         while not self.stop_event.is_set():
             path = self.path_getter()
             if path is None:
-                self.on_status("Выбери console_mp.log")
+                self.on_status(self.status_text("choose_log_status"))
                 time.sleep(0.5)
                 continue
 
@@ -1290,13 +1342,13 @@ class LogTailer(threading.Thread):
                             self.on_message(msg)
                 time.sleep(self.poll_seconds)
             except FileNotFoundError:
-                self.on_status("Лог пока не найден — жду запуска CoD2…")
+                self.on_status(self.status_text("log_missing_wait"))
                 time.sleep(0.5)
             except PermissionError:
-                self.on_status("Нет доступа к логу. Запусти переводчик от обычного пользователя.")
+                self.on_status(self.status_text("log_access_denied"))
                 time.sleep(1.0)
             except Exception as exc:
-                self.on_status(f"Ошибка чтения лога: {exc}")
+                self.on_status(self.status_text("log_read_error").format(error=exc))
                 time.sleep(1.0)
 
 
@@ -2180,6 +2232,7 @@ class ControlApp:
             on_status=lambda s: self.ui_queue.put(("status", s)),
             stop_event=self.stop_event,
             on_control=lambda kind, line: self.ui_queue.put((kind, line)),
+            status_text=self.t,
         )
         self.translator = TranslatorWorker(
             jobs=self.translation_jobs,
@@ -2474,7 +2527,7 @@ class ControlApp:
         self.target_name_var.set(label)
         self.config["target_language"] = code
         self._persist_settings()
-        self.status_var.set((f"Язык перевода: {code}" if self.ui_language == "ru" else f"Translation language: {code}"))
+        self.status_var.set(self.t("translation_language_status").format(code=code))
 
     def current_log_path(self) -> Optional[Path]:
         return self._active_log_path
@@ -2763,7 +2816,7 @@ class ControlApp:
         if hasattr(self, "overlay"):
             self.overlay.set_background_only_with_messages(enabled)
         self._persist_settings()
-        self.status_var.set("Фон будет появляться только вместе с сообщениями" if enabled else "Фон остаётся видимым постоянно")
+        self.status_var.set(self.t("bg_only_on_status") if enabled else self.t("bg_only_off_status"))
 
     def _compact_background_changed(self) -> None:
         enabled = bool(self.compact_bg_var.get())
@@ -2771,7 +2824,7 @@ class ControlApp:
         if hasattr(self, "overlay"):
             self.overlay.render()
         self._persist_settings()
-        self.status_var.set("Подложка подстраивается под длину текста" if enabled else "Подложка использует всю ширину оверлея")
+        self.status_var.set(self.t("compact_bg_on_status") if enabled else self.t("compact_bg_off_status"))
 
     def _fade_changed(self) -> None:
         enabled = bool(self.fade_var.get())
@@ -2780,7 +2833,7 @@ class ControlApp:
             self.overlay._cancel_fade()
             self.overlay._set_text_alpha(1.0)
         self._persist_settings()
-        self.status_var.set("Плавное появление/исчезновение включено" if enabled else "Анимация отключена")
+        self.status_var.set(self.t("fade_on_status") if enabled else self.t("fade_off_status"))
 
     def _ttl_slider(self, value) -> None:
         v = max(5, min(20, round(float(value))))
@@ -2817,13 +2870,13 @@ class ControlApp:
         self.status_var.set(label)
 
     def text_only_preset(self) -> None:
-        self._apply_preset(width=420, height=120, font=9, background=0, messages=2, ttl=10, label="Только текст: фон полностью прозрачный")
+        self._apply_preset(width=420, height=120, font=9, background=0, messages=2, ttl=10, label=self.t("preset_text_only_status"))
 
     def minimal_preset(self) -> None:
-        self._apply_preset(width=420, height=120, font=9, background=15, messages=2, ttl=10, label="Минимальный: шрифт 9, фон 15%, 2 сообщения")
+        self._apply_preset(width=420, height=120, font=9, background=15, messages=2, ttl=10, label=self.t("preset_minimal_status"))
 
     def readable_preset(self) -> None:
-        self._apply_preset(width=500, height=150, font=10, background=12, messages=2, ttl=10, label="Читаемый: шрифт 10, фон 12%, компактная подложка, 2 сообщения")
+        self._apply_preset(width=500, height=150, font=10, background=12, messages=2, ttl=10, label=self.t("preset_readable_status"))
 
     def reset_overlay_position(self) -> None:
         overlay = self.config["overlay"]
@@ -2834,36 +2887,36 @@ class ControlApp:
         self.overlay._apply_geometry(force_config_height=self.overlay.edit_mode)
         self.overlay._force_topmost_native()
         self._persist_settings()
-        self.status_var.set("Оверлей возвращён в стандартное место слева")
+        self.status_var.set(self.t("overlay_default_status"))
 
     def toggle_overlay_edit(self) -> None:
         self.overlay_editing = not self.overlay_editing
         self.overlay.set_edit_mode(self.overlay_editing)
         if self.overlay_editing:
             self.overlay_edit_button.configure(text=self.t("lock_overlay"))
-            self.status_var.set("Настройка: перетаскивай окно, тяни угол ↘; Ctrl+колесо меняет шрифт")
+            self.status_var.set(self.t("overlay_edit_status"))
             if not self.overlay.items:
                 self.test_overlay()
         else:
             self.overlay_edit_button.configure(text=self.t("configure_overlay"))
             self._persist_settings()
-            self.status_var.set("Оверлей зафиксирован: мышь проходит сквозь него")
+            self.status_var.set(self.t("overlay_locked_status"))
 
     def enable_cod2_borderless(self) -> None:
         if os.name != "nt":
-            self.status_var.set("Borderless helper доступен только в Windows")
+            self.status_var.set(self.t("borderless_windows_only"))
             return
         hwnd = find_cod2_window()
         if not hwnd:
-            self.status_var.set("Окно CoD2 не найдено. Сначала запусти Multiplayer.")
+            self.status_var.set(self.t("cod2_not_found"))
             return
         ok, detail = make_cod2_borderless(hwnd)
         if ok:
             self.overlay.set_visible(self.enabled)
             self.overlay._force_topmost_native()
-            self.status_var.set(f"CoD2 в borderless ({detail}). Оверлей поднят поверх игры.")
+            self.status_var.set(self.t("cod2_borderless_ok").format(detail=detail))
         else:
-            self.status_var.set(f"Не удалось переключить CoD2: {detail}. Если игра exclusive fullscreen — /r_fullscreen 0 и /vid_restart.")
+            self.status_var.set(self.t("cod2_borderless_error").format(detail=detail))
 
     def toggle_original(self) -> None:
         self.config["show_original"] = bool(self.show_original_var.get())
@@ -2873,12 +2926,12 @@ class ControlApp:
     def toggle_enabled(self) -> None:
         self.enabled = bool(self.enabled_var.get())
         self.overlay.set_visible(self.enabled and self.overlay_hotkey_visible)
-        self.status_var.set(("Переводчик включён" if self.enabled else "Переводчик выключен") if self.ui_language == "ru" else ("Translator enabled" if self.enabled else "Translator disabled"))
+        self.status_var.set(self.t("translator_on_status") if self.enabled else self.t("translator_off_status"))
 
     def toggle_overlay_hotkey_visibility(self) -> None:
         self.overlay_hotkey_visible = not self.overlay_hotkey_visible
         self.overlay.set_visible(self.enabled and self.overlay_hotkey_visible)
-        self.status_var.set(("F8: оверлей показан" if self.overlay_hotkey_visible else "F8: оверлей скрыт (перевод продолжается)") if self.ui_language == "ru" else ("F8: overlay shown" if self.overlay_hotkey_visible else "F8: overlay hidden (translation continues)"))
+        self.status_var.set(self.t("overlay_shown_status") if self.overlay_hotkey_visible else self.t("overlay_hidden_status"))
 
     def poll_global_hotkeys(self) -> None:
         if self.stop_event.is_set():
@@ -2911,13 +2964,13 @@ class ControlApp:
         if not self.enabled:
             return
         if self.dedupe_var.get() and self.duplicate_filter.is_duplicate(msg):
-            self.ui_queue.put(("status", f"Повтор пропущен: {msg.nickname}: {msg.text}"))
+            self.ui_queue.put(("status", self.t("duplicate_skipped").format(nickname=msg.nickname, text=msg.text)))
             return
         try:
             self.translation_jobs.put_nowait(msg)
-            self.ui_queue.put(("status", f"Перевожу: {msg.nickname}: {msg.text}"))
+            self.ui_queue.put(("status", self.t("translating_status").format(nickname=msg.nickname, text=msg.text)))
         except queue.Full:
-            self.ui_queue.put(("status", "Очередь перевода переполнена — пропускаю сообщение"))
+            self.ui_queue.put(("status", self.t("translation_queue_full")))
 
     def process_ui_queue(self) -> None:
         try:
@@ -2931,19 +2984,19 @@ class ControlApp:
                     self.overlay.items.clear()
                     self.overlay._set_text_alpha(1.0)
                     self.overlay.render()
-                    self.status_var.set("Смена карты — старые переводы очищены")
+                    self.status_var.set(self.t("map_change_status"))
                 elif event == "translation":
                     _, msg, translated, elapsed_ms = item
                     self.last_var.set(f"{msg.nickname}: {msg.text}  →  {translated}")
-                    self.status_var.set(f"Готово за {elapsed_ms} мс")
+                    self.status_var.set(self.t("translation_done").format(elapsed_ms=elapsed_ms))
                     self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=translated, created_at=time.monotonic()))
                 elif event == "same_language":
                     _, msg, elapsed_ms = item
-                    self.last_var.set(f"{msg.nickname}: {msg.text}  →  уже выбранный язык, не показываю")
-                    self.status_var.set("Сообщение уже на выбранном языке — пропущено" if elapsed_ms == 0 else f"Без дублирования ({elapsed_ms} мс)")
+                    self.last_var.set(self.t("last_same_language").format(nickname=msg.nickname, text=msg.text))
+                    self.status_var.set(self.t("same_language_skipped") if elapsed_ms == 0 else self.t("dedupe_status").format(elapsed_ms=elapsed_ms))
                 elif event == "translation_error":
                     _, msg, error = item
-                    self.status_var.set((f"Перевод недоступен: {error}" if self.ui_language == "ru" else f"Translation unavailable: {error}"))
+                    self.status_var.set(self.t("translation_unavailable").format(error=error))
                     self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=msg.text, created_at=time.monotonic()))
                 elif event == "update_result":
                     _, info, manual = item
@@ -2958,7 +3011,7 @@ class ControlApp:
                         if messagebox.askyesno(self.t("update_available_title"), prompt, parent=self.root):
                             self._launch_updater(info)
                         else:
-                            self.status_var.set((f"Обновление {info.version} отложено" if self.ui_language == "ru" else f"Update {info.version} postponed"))
+                            self.status_var.set(self.t("update_postponed").format(version=info.version))
                 elif event == "update_error_check":
                     _, error, manual = item
                     if manual:

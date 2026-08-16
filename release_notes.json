@@ -1,4 +1,4 @@
 {
-  "notes_ru": "Добавлены профили серверов. Переводчик теперь сам находит отдельные console_mp.log в мод-папках CoD2, замечает новые логи во время работы и может автоматически переключаться на активный профиль. Профили можно выбирать вручную и переименовывать.",
-  "notes_en": "Added server profiles. The translator now discovers separate console_mp.log files in CoD2 mod folders, notices new logs while running, and can automatically switch to the active profile. Profiles can also be selected manually and renamed."
+  "notes_ru": "Исправлено обновление поверх запущенной версии: установщик теперь принудительно закрывает CoD2 Chat Translator перед заменой файлов. Также полностью локализованы служебные статусы интерфейса — в английском режиме больше не появляются русские сообщения при переключении логов и настройке оверлея.",
+  "notes_en": "Fixed installing over a running version: Setup now force-closes CoD2 Chat Translator before replacing files. Status messages are also fully localized, so Russian text no longer appears in the English interface when switching logs or adjusting the overlay."
 }

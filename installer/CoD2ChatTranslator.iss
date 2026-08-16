@@ -1,6 +1,6 @@
 #define MyAppName "CoD2 Chat Translator"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.12.0"
+  #define MyAppVersion "1.12.1"
 #endif
 #define MyAppPublisher "kriskarter"
 #define MyAppPublisherURL "https://github.com/kriskarter"
@@ -18,6 +18,8 @@ DefaultDirName={localappdata}\Programs\CoD2ChatTranslator
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+CloseApplications=force
+RestartApplications=no
 OutputDir=..\release
 OutputBaseFilename=CoD2ChatTranslator_Setup_v{#MyAppVersion}
 SetupIconFile=..\assets\app.ico
