@@ -1,0 +1,10 @@
+.venv/
+.buildvenv/
+__pycache__/
+*.pyc
+build/
+dist/
+release/
+*.spec
+config.json
+config.backup.json

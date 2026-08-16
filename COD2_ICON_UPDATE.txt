@@ -1,0 +1,4 @@
+COD 2 icon source
+=================
+assets/source_icon.png is the canonical repository artwork.
+Run `python tools/build_assets.py` to generate app.ico, runtime PNG sizes, wizard.bmp and wizard_small.bmp before a Windows release build.

@@ -1,0 +1,7 @@
+{
+  "repository": "kriskarter/cod2-chat-translator",
+  "channel": "stable",
+  "check_on_start": true,
+  "developer": "kriskarter",
+  "developer_url": "https://github.com/kriskarter"
+}

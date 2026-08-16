@@ -1,0 +1,4 @@
+{
+  "notes_ru": "Исправлена опечатка в оформлении установщика. Обновлятор получил понятное окно прогресса, проверку SHA256 перед установкой, безопасную замену файлов и автоматический перезапуск программы. Кнопка ⭐ автоматически активируется после публикации проекта в GitHub.",
+  "notes_en": "Fixed a typo in the installer artwork. The updater now has a clear progress window, SHA256 verification before installation, safe file replacement, and automatic app restart. The ⭐ button activates automatically after the project is published on GitHub."
+}

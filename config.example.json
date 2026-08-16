@@ -1,0 +1,26 @@
+{
+  "ui_language": "ru",
+  "log_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log",
+  "target_language": "ru",
+  "show_original": false,
+  "hide_same_language": true,
+  "gaming_slang": true,
+  "slang_style": "live",
+  "deduplicate_messages": true,
+  "duplicate_window_seconds": 4,
+  "overlay": {
+    "x": 8,
+    "y": 360,
+    "width": 500,
+    "height": 150,
+    "max_messages": 2,
+    "font_size": 10,
+    "background_opacity": 0.15,
+    "background_only_with_messages": true,
+    "message_ttl_seconds": 10,
+    "auto_height": true,
+    "compact_background": true,
+    "fade_enabled": true,
+    "fade_ms": 220
+  }
+}
