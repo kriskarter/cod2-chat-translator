@@ -36,11 +36,11 @@ CoD2 servers with mods often use their own `fs_game` folders, which means differ
 
 ```text
 Call of Duty 2\main\console_mp.log
-Call of Duty 2\oboronay3\console_mp.log
+Call of Duty 2\example_mod\console_mp.log
 Call of Duty 2\vetdm\console_mp.log
 ```
 
-The app stores those paths as **profiles**. Use **Server / profile** to switch quickly, and rename a profile to something useful such as `OBRONA`.
+The app stores those paths as **profiles**. The first profile gets the neutral name **`Call of Duty 2`**, while additional mod profiles initially use their folder names. Any profile can be renamed manually.
 
 **Automatic active-server detection** is enabled by default. While the translator is running, it periodically rescans the CoD2 folder. If joining a new server creates a new mod folder and its `console_mp.log` starts changing, the profile is added and selected automatically.
 

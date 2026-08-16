@@ -15,6 +15,7 @@ from app import (
     read_log_messages,
     infer_cod2_root,
     default_profile_name,
+    apply_primary_profile_name,
     merge_server_profiles,
     discover_cod2_logs,
     activity_snapshot,
@@ -195,6 +196,27 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(infer_cod2_root(log).name, "Call of Duty 2")
         self.assertEqual(default_profile_name(log), "oboronay3")
         self.assertEqual(default_profile_name(log.parent.parent / "main" / "console_mp.log"), "Vanilla (main)")
+
+    def test_primary_profile_uses_generic_name(self):
+        log = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")
+        profiles = merge_server_profiles([], [log])
+        profiles = apply_primary_profile_name(profiles, log)
+        self.assertEqual(profiles[0]["name"], "Call of Duty 2")
+
+    def test_primary_profile_does_not_overwrite_user_rename(self):
+        log = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")
+        profiles = [{"name": "My server", "path": str(log)}]
+        profiles = apply_primary_profile_name(profiles, log)
+        self.assertEqual(profiles[0]["name"], "My server")
+
+    def test_primary_name_leaves_other_profiles_unchanged(self):
+        base = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")
+        other = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/vetdm/console_mp.log")
+        profiles = merge_server_profiles([], [base, other])
+        profiles = apply_primary_profile_name(profiles, base)
+        names = {Path(rec["path"]).parent.name: rec["name"] for rec in profiles}
+        self.assertEqual(names["oboronay3"], "Call of Duty 2")
+        self.assertEqual(names["vetdm"], "vetdm")
 
     def test_merge_profiles_preserves_user_name(self):
         with tempfile.TemporaryDirectory() as td:

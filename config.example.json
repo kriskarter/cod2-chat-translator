@@ -1,6 +1,6 @@
 {
   "ui_language": "ru",
-  "log_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log",
+  "log_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/main/console_mp.log",
   "target_language": "ru",
   "show_original": false,
   "hide_same_language": true,
@@ -25,13 +25,14 @@
   },
   "server_profiles": [
     {
-      "name": "OBRONA",
-      "path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log"
+      "name": "Call of Duty 2",
+      "path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/main/console_mp.log"
     }
   ],
-  "active_profile_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log",
+  "active_profile_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/main/console_mp.log",
   "auto_detect_profile": true,
   "cod2_roots": [
     "D:/SteamLibrary/steamapps/common/Call of Duty 2"
-  ]
+  ],
+  "primary_profile_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/main/console_mp.log"
 }

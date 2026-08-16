@@ -101,6 +101,7 @@ DEFAULT_CONFIG = {
     "log_path": "",
     "server_profiles": [],
     "active_profile_path": "",
+    "primary_profile_path": "",
     "auto_detect_profile": True,
     "cod2_roots": [],
     "target_language": "ru",
@@ -407,6 +408,24 @@ def default_profile_name(log_path: Path | str) -> str:
     if folder.lower() == "main":
         return "Vanilla (main)"
     return folder
+
+
+def apply_primary_profile_name(existing: object, primary_path: Path | str, name: str = "Call of Duty 2") -> list[dict]:
+    """Give the first/base profile a friendly generic name without overwriting user renames."""
+    records = [dict(item) for item in existing if isinstance(item, dict)] if isinstance(existing, list) else []
+    raw_primary = str(primary_path).strip()
+    if not raw_primary:
+        return records
+    primary_key = _path_key(raw_primary)
+    for rec in records:
+        raw = str(rec.get("path", "")).strip()
+        if not raw or _path_key(raw) != primary_key:
+            continue
+        current = str(rec.get("name", "")).strip()
+        if not current or current == default_profile_name(raw):
+            rec["name"] = name
+        break
+    return records
 
 
 def merge_server_profiles(existing: object, discovered: list[Path]) -> list[dict]:
@@ -2176,9 +2195,15 @@ class ControlApp:
         stored_profiles = self.config.get("server_profiles", [])
         if stored_log:
             stored_profiles = merge_server_profiles(stored_profiles, [Path(stored_log)])
-        self.config["server_profiles"] = stored_profiles
         if stored_log and not str(self.config.get("active_profile_path", "")).strip():
             self.config["active_profile_path"] = stored_log
+
+        primary_raw = str(self.config.get("primary_profile_path", "")).strip()
+        if not primary_raw:
+            primary_raw = str(self.config.get("active_profile_path", "")).strip() or stored_log
+            if primary_raw:
+                self.config["primary_profile_path"] = primary_raw
+        self.config["server_profiles"] = apply_primary_profile_name(stored_profiles, primary_raw)
 
         self.log_path_var = tk.StringVar(value=stored_log)
         self.profile_var = tk.StringVar(value="")
@@ -2640,6 +2665,12 @@ class ControlApp:
                 self._active_log_path = discovered[0]
                 self.config["active_profile_path"] = str(self._active_log_path)
                 self.config["log_path"] = str(self._active_log_path)
+
+        if self._active_log_path is not None and not str(self.config.get("primary_profile_path", "")).strip():
+            self.config["primary_profile_path"] = str(self._active_log_path)
+        self.config["server_profiles"] = apply_primary_profile_name(
+            self._profile_records(), self.config.get("primary_profile_path", "")
+        )
 
         if initial:
             self._profile_snapshot = activity_snapshot(discovered)

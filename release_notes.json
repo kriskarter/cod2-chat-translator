@@ -1,4 +1,4 @@
 {
-  "notes_ru": "Исправлено обновление поверх запущенной версии: установщик теперь принудительно закрывает CoD2 Chat Translator перед заменой файлов. Также полностью локализованы служебные статусы интерфейса — в английском режиме больше не появляются русские сообщения при переключении логов и настройке оверлея.",
-  "notes_en": "Fixed installing over a running version: Setup now force-closes CoD2 Chat Translator before replacing files. Status messages are also fully localized, so Russian text no longer appears in the English interface when switching logs or adjusting the overlay."
+  "notes_ru": "Исправлено обновление поверх запущенной версии: установщик теперь принудительно закрывает CoD2 Chat Translator перед заменой файлов. Также полностью локализованы служебные статусы интерфейса — в английском режиме больше не появляются русские сообщения при переключении логов и настройке оверлея. Базовый профиль теперь по умолчанию называется «Call of Duty 2», а не именем конкретной мод-папки.",
+  "notes_en": "Fixed installing over a running version: Setup now force-closes CoD2 Chat Translator before replacing files. Status messages are also fully localized, so Russian text no longer appears in the English interface when switching logs or adjusting the overlay. The base profile is now named “Call of Duty 2” by default instead of using a specific mod-folder name."
 }
