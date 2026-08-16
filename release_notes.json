@@ -1,4 +1,4 @@
 {
-  "notes_ru": "Исправлено оформление установщика и доработан механизм обновлений: проверка SHA256, безопасная замена файлов, откат при ошибке и автоматический перезапуск. Добавлен раздел «О программе» со ссылкой на GitHub проекта.",
-  "notes_en": "Fixed the installer artwork and improved the update flow: SHA256 verification, safer file replacement, rollback on failure, and automatic restart. Added an About section with a link to the project on GitHub."
+  "notes_ru": "Добавлены профили серверов. Переводчик теперь сам находит отдельные console_mp.log в мод-папках CoD2, замечает новые логи во время работы и может автоматически переключаться на активный профиль. Профили можно выбирать вручную и переименовывать.",
+  "notes_en": "Added server profiles. The translator now discovers separate console_mp.log files in CoD2 mod folders, notices new logs while running, and can automatically switch to the active profile. Profiles can also be selected manually and renamed."
 }

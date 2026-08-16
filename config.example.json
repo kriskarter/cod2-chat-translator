@@ -22,5 +22,16 @@
     "compact_background": true,
     "fade_enabled": true,
     "fade_ms": 220
-  }
+  },
+  "server_profiles": [
+    {
+      "name": "OBRONA",
+      "path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log"
+    }
+  ],
+  "active_profile_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log",
+  "auto_detect_profile": true,
+  "cod2_roots": [
+    "D:/SteamLibrary/steamapps/common/Call of Duty 2"
+  ]
 }

@@ -13,14 +13,14 @@ class UpdateClientTests(unittest.TestCase):
 
     def test_release_manifest(self):
         api_release = {
-            'tag_name': 'v1.11.1',
+            'tag_name': 'v1.12.0',
             'assets': [
                 {'name': 'update.json', 'browser_download_url': 'https://example.invalid/update.json'},
                 {'name': 'CoD2ChatTranslator_Update.zip', 'browser_download_url': 'https://example.invalid/update.zip'},
             ],
         }
         manifest = {
-            'version': '1.11.1',
+            'version': '1.12.0',
             'asset': 'CoD2ChatTranslator_Update.zip',
             'sha256': 'a' * 64,
             'notes_ru': 'Тест',
@@ -29,7 +29,7 @@ class UpdateClientTests(unittest.TestCase):
         with patch('update_client._get_json', side_effect=[api_release, manifest]):
             info = update_client.check_github_release('1.10.0', 'owner/repo')
         self.assertIsNotNone(info)
-        self.assertEqual(info.version, '1.11.1')
+        self.assertEqual(info.version, '1.12.0')
         self.assertEqual(info.sha256, 'a' * 64)
 
     def test_no_update_for_same_version(self):

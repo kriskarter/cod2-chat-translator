@@ -1,81 +1,102 @@
 # COD 2 Chat Translator
 
-**A small Windows app that translates Call of Duty 2 multiplayer chat while you play.**
+**A Windows chat translator for Call of Duty 2 Multiplayer that works while you play.**
 
-[Русское описание](README_RU.md)
+CoD2 still has players from many countries, so mixed-language chat is pretty common.
 
-I made this for a simple reason: CoD2 servers are still full of players from different countries, and chat can turn into a mix of English, Polish, Russian, Ukrainian, German and everything in between.
+COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages and shows the result in a small overlay over the game.
 
-COD 2 Chat Translator reads the game's own `console_mp.log`, picks out chat messages, translates them and shows the result in a small overlay over the game.
-
-No DLL injection. No game-memory modification.
+No DLL injection and no game-memory modification.
 
 ## How it works
 
-1. CoD2 writes console output to `console_mp.log`.
-2. The app watches new lines and ignores map-loading spam, dvars and other service output.
-3. When it finds a chat message, it detects the language and translates the message to the language you selected.
-4. The translation appears in the overlay for a few seconds.
+CoD2 can write its console output to `console_mp.log`. The translator watches new lines and filters player chat from map-loading output, dvars, file paths and other service messages.
 
-The original message can also be shown if you want it.
+When a player writes something, the app detects the source language, translates the message to your selected language and shows it in the overlay for a few seconds. The original message can also be shown if you want it.
 
-## Setup
+## First launch
 
-Download the latest Windows installer from **Releases** and run it.
+Install the app with `Setup.exe` and start it from the shortcut.
 
-If CoD2 logging is not enabled yet, open the in-game console and enter:
+If CoD2 logging is not enabled yet, enter this once in the in-game console:
 
 ```text
 /seta logfile 2
 ```
 
-On the first launch the app tries to find `console_mp.log` automatically. If it misses your CoD2 folder, use **Browse** and select the file yourself.
+The app will try to find available logs automatically. If the one you need is missing, click **Add…** and select `console_mp.log` manually.
 
-That's it: choose the language you want to read and start playing.
+Choose the language you want to read and start playing.
 
-> Translation uses an online translation service, so an internet connection is required.
+> Translation requires an internet connection. Only the extracted chat-message text is sent to the online translation service.
+
+## Servers and profiles
+
+CoD2 servers with mods often use their own `fs_game` folders, which means different servers or mods may write chat to different files, for example:
+
+```text
+Call of Duty 2\main\console_mp.log
+Call of Duty 2\oboronay3\console_mp.log
+Call of Duty 2\vetdm\console_mp.log
+```
+
+The app stores those paths as **profiles**. Use **Server / profile** to switch quickly, and rename a profile to something useful such as `OBRONA`.
+
+**Automatic active-server detection** is enabled by default. While the translator is running, it periodically rescans the CoD2 folder. If joining a new server creates a new mod folder and its `console_mp.log` starts changing, the profile is added and selected automatically.
+
+Only **one active log** is translated at a time. If several servers use the same mod folder, they share the same translator profile because the log path is the same.
+
+Automatic detection can be disabled if you prefer to choose profiles manually.
 
 ## Overlay
 
-The overlay is meant to stay out of the way while you play.
+The overlay can be moved, resized and tuned to stay out of the way.
 
-You can change the text size, background opacity, number of visible messages and how long they stay on screen. There are also a few ready-made presets if you do not want to tune everything by hand.
+You can change text size, background opacity, visible-message count and message lifetime. Ready-made presets are included as well.
 
-Use **Configure overlay** to move or resize it. Once fixed, the overlay becomes click-through so it does not steal the mouse from the game.
+After the overlay is locked, it becomes click-through so it does not steal the mouse from the game.
 
 `F8` hides or shows the overlay without stopping translation.
 
 ## Gaming slang
 
-Short FPS chat is not normal prose, so common gaming terms are handled before the regular translation.
+Normal machine translation often struggles with short FPS chat, so common gaming terms are handled before regular translation.
 
 Examples include `gg`, `wp`, `ns`, `nt`, `afk`, `brb`, `tk`, `nade`, `smoke`, `rush`, `camp`, `spawncamp`, `votekick`, `fps drop` and more.
 
 There are three styles:
 
-- **Clear** — easier to understand if you are not used to gaming slang.
-- **Live** — shorter, more natural game-chat wording.
-- **Uncensored** — keeps the rough tone when the original message is already rough. It does not add profanity to a neutral message.
+- **Clear** — simple wording without much gaming jargon.
+- **Natural** — shorter wording closer to normal game chat.
+- **Uncensored** — keeps rough language when the original is already rough. It does not add profanity to a neutral message.
 
 ## Languages
 
 The source language is detected automatically. You only choose the language you want to read.
 
-So a Russian message can be translated to English, an English message to Ukrainian, Polish to German, and so on.
+## Settings
+
+The app remembers the selected profile, overlay position, text size, background, language, slang style and other options.
+
+Installed-app settings are stored separately in:
+
+```text
+%APPDATA%\CoD2ChatTranslator
+```
+
+Updating the program should therefore keep your existing overlay setup and profile list.
 
 ## Updates
 
-The app can check GitHub Releases for a newer version.
-
-Update packages are verified with SHA256 before installation. The updater also keeps user settings separate from program files, so updating should not reset your overlay or language settings.
+The app can check GitHub Releases for a newer version. Update packages are verified with SHA256 before installation, and the updater attempts to roll back replaced files if installation fails.
 
 ## Privacy
 
-`console_mp.log` may contain more than chat — for example server parameters or passwords.
+`console_mp.log` can contain more than chat, including server parameters or passwords.
 
-**Do not upload or publish the whole log.**
+**Do not publish the complete log.**
 
-The app filters the log locally and sends only the extracted chat-message text to the translation service.
+The app filters it locally and sends only the extracted chat-message text to the translation service.
 
 ## Build from source
 
@@ -87,13 +108,13 @@ Run:
 BUILD_RELEASE.bat
 ```
 
-GitHub Actions also builds the Windows installer automatically.
+GitHub Actions also builds and checks the Windows installer automatically.
 
 ## Project
 
 Developer: **[kriskarter](https://github.com/kriskarter)**
 
-If the app is useful, a ⭐ on the repository helps other CoD2 players find it.
+If the app is useful, you can leave a ⭐ on the repository.
 
 ---
 

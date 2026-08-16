@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.11.1"
+APP_VERSION = "1.12.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -99,6 +99,10 @@ SLANG_STYLES = OrderedDict([
 DEFAULT_CONFIG = {
     "ui_language": "ru",
     "log_path": "",
+    "server_profiles": [],
+    "active_profile_path": "",
+    "auto_detect_profile": True,
+    "cod2_roots": [],
     "target_language": "ru",
     "show_original": False,
     "hide_same_language": True,
@@ -126,7 +130,12 @@ DEFAULT_CONFIG = {
 UI_STRINGS = {
     "ru": {
         "subtitle": "Автоперевод чата из console_mp.log + настраиваемый оверлей поверх CoD2.",
-        "log": "Лог CoD2:", "browse": "Выбрать…", "translate_to": "Переводить на:", "other": "Другой…",
+        "log": "Лог CoD2:", "profile": "Сервер / профиль:", "browse": "Добавить…", "rescan": "Обновить",
+        "rename_profile": "Переименовать…", "auto_profile": "автоматически определять активный сервер",
+        "profile_path": "Лог:", "profiles_updated": "Список профилей обновлён",
+        "profile_auto_status": "Активный профиль: {name} (определён автоматически)",
+        "profile_rename_title": "Имя профиля", "profile_rename_prompt": "Название профиля:",
+        "translate_to": "Переводить на:", "other": "Другой…",
         "show_original": "показывать оригинал", "hide_same": "не дублировать выбранный язык", "smart_chat": "Умный чат:",
         "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
         "hotkey": "F8 — скрыть/показать", "enabled": "Переводчик включён", "test": "Тест оверлея", "clear": "Очистить",
@@ -149,7 +158,12 @@ UI_STRINGS = {
     },
     "en": {
         "subtitle": "Real-time translation from console_mp.log + a configurable overlay over CoD2.",
-        "log": "CoD2 log:", "browse": "Browse…", "translate_to": "Translate to:", "other": "Other…",
+        "log": "CoD2 log:", "profile": "Server / profile:", "browse": "Add…", "rescan": "Refresh",
+        "rename_profile": "Rename…", "auto_profile": "automatically detect the active server",
+        "profile_path": "Log:", "profiles_updated": "Profile list refreshed",
+        "profile_auto_status": "Active profile: {name} (detected automatically)",
+        "profile_rename_title": "Profile name", "profile_rename_prompt": "Profile name:",
+        "translate_to": "Translate to:", "other": "Other…",
         "show_original": "show original", "hide_same": "hide messages already in target language", "smart_chat": "Smart chat:",
         "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
         "hotkey": "F8 — hide/show", "enabled": "Translator enabled", "test": "Test overlay", "clear": "Clear",
@@ -318,13 +332,77 @@ def _steam_library_paths() -> list[Path]:
     return expanded
 
 
-def discover_cod2_logs() -> list[Path]:
+def _path_key(path: Path | str) -> str:
+    try:
+        return os.path.normcase(str(Path(path).expanduser().resolve(strict=False)))
+    except Exception:
+        return os.path.normcase(str(path))
+
+
+def infer_cod2_root(log_path: Path | str) -> Path:
+    """Return the CoD2 game root for a console log path.
+
+    Most CoD2 logs live in a one-level fs_game folder such as ``main`` or
+    ``oboronay3``.  A direct log in the game root is also supported.
+    """
+    path = Path(log_path).expanduser().resolve(strict=False)
+    folder = path.parent
+    if folder.name.lower() == "call of duty 2" or (folder / "CoD2MP_s.exe").exists():
+        return folder
+    return folder.parent
+
+
+def default_profile_name(log_path: Path | str) -> str:
+    folder = Path(log_path).expanduser().resolve(strict=False).parent.name or "CoD2"
+    if folder.lower() == "main":
+        return "Vanilla (main)"
+    return folder
+
+
+def merge_server_profiles(existing: object, discovered: list[Path]) -> list[dict]:
+    """Merge newly discovered logs without losing user-renamed profiles."""
+    result: list[dict] = []
+    index: dict[str, dict] = {}
+    if isinstance(existing, list):
+        for item in existing:
+            if not isinstance(item, dict):
+                continue
+            raw = str(item.get("path", "")).strip()
+            if not raw:
+                continue
+            key = _path_key(raw)
+            if key in index:
+                continue
+            rec = {"name": str(item.get("name", "")).strip() or default_profile_name(raw), "path": str(Path(raw).expanduser().resolve(strict=False))}
+            result.append(rec)
+            index[key] = rec
+    for path in discovered:
+        key = _path_key(path)
+        if key in index:
+            continue
+        rec = {"name": default_profile_name(path), "path": str(path.resolve(strict=False))}
+        result.append(rec)
+        index[key] = rec
+    return result
+
+
+def discover_cod2_logs(extra_roots: Optional[list[Path | str]] = None) -> list[Path]:
     candidates: list[Path] = []
     seen: set[str] = set()
-    roots = _steam_library_paths()
-    # Include the portable/source folder as a compatibility fallback.
+    roots: list[Path] = list(_steam_library_paths())
     roots.extend([app_dir(), Path.cwd()])
+    for extra in extra_roots or []:
+        try:
+            roots.append(Path(extra))
+        except Exception:
+            pass
+
+    root_seen: set[str] = set()
     for root in roots:
+        root_key = _path_key(root)
+        if root_key in root_seen:
+            continue
+        root_seen.add(root_key)
         possible_game_dirs = [
             root / "steamapps" / "common" / "Call of Duty 2",
             root / "Call of Duty 2",
@@ -335,18 +413,66 @@ def discover_cod2_logs() -> list[Path]:
                 if not game.exists() or not game.is_dir():
                     continue
                 for log in game.glob("*/console_mp.log"):
-                    key = str(log.resolve()).lower()
+                    key = _path_key(log)
                     if key not in seen:
-                        seen.add(key); candidates.append(log.resolve())
+                        seen.add(key)
+                        candidates.append(log.resolve())
                 direct = game / "console_mp.log"
                 if direct.exists():
-                    key = str(direct.resolve()).lower()
+                    key = _path_key(direct)
                     if key not in seen:
-                        seen.add(key); candidates.append(direct.resolve())
+                        seen.add(key)
+                        candidates.append(direct.resolve())
             except Exception:
                 pass
-    candidates.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+    candidates.sort(key=lambda p: p.stat().st_mtime_ns if p.exists() else 0, reverse=True)
     return candidates
+
+
+def activity_snapshot(paths: list[Path]) -> dict[str, tuple[int, int]]:
+    snapshot: dict[str, tuple[int, int]] = {}
+    for path in paths:
+        try:
+            st = path.stat()
+            snapshot[_path_key(path)] = (int(st.st_mtime_ns), int(st.st_size))
+        except OSError:
+            pass
+    return snapshot
+
+
+def choose_active_log_from_activity(
+    paths: list[Path],
+    previous: dict[str, tuple[int, int]],
+    current_path: Optional[Path] = None,
+    now: Optional[float] = None,
+    recent_new_seconds: float = 12.0,
+) -> tuple[Optional[Path], dict[str, tuple[int, int]]]:
+    """Pick another log only when it actually starts changing.
+
+    A newly created log is considered active only when its mtime is recent.
+    This prevents an old mod folder from stealing focus during a rescan.
+    """
+    now = time.time() if now is None else float(now)
+    current_key = _path_key(current_path) if current_path else ""
+    snap = activity_snapshot(paths)
+    candidates: list[Path] = []
+    for path in paths:
+        key = _path_key(path)
+        state = snap.get(key)
+        if state is None:
+            continue
+        prev = previous.get(key)
+        changed = prev is not None and prev != state
+        newly_recent = prev is None and (now - (state[0] / 1_000_000_000)) <= recent_new_seconds
+        if changed or newly_recent:
+            candidates.append(path)
+    if not candidates:
+        return None, snap
+    candidates.sort(key=lambda p: snap.get(_path_key(p), (0, 0))[0], reverse=True)
+    chosen = candidates[0]
+    if _path_key(chosen) == current_key:
+        return None, snap
+    return chosen, snap
 
 
 def release_config_path() -> Path:
@@ -1994,7 +2120,23 @@ class ControlApp:
         self.ui_queue: "queue.Queue[tuple]" = queue.Queue()
         self.enabled = True
 
-        self.log_path_var = tk.StringVar(value=self.config.get("log_path", ""))
+        stored_log = str(self.config.get("log_path", "")).strip()
+        stored_profiles = self.config.get("server_profiles", [])
+        if stored_log:
+            stored_profiles = merge_server_profiles(stored_profiles, [Path(stored_log)])
+        self.config["server_profiles"] = stored_profiles
+        if stored_log and not str(self.config.get("active_profile_path", "")).strip():
+            self.config["active_profile_path"] = stored_log
+
+        self.log_path_var = tk.StringVar(value=stored_log)
+        self.profile_var = tk.StringVar(value="")
+        self.auto_profile_var = tk.BooleanVar(value=bool(self.config.get("auto_detect_profile", True)))
+        active_raw = str(self.config.get("active_profile_path", "")).strip() or stored_log
+        self._active_log_path: Optional[Path] = Path(active_raw).expanduser().resolve(strict=False) if active_raw else None
+        self._profile_label_to_path: dict[str, Path] = {}
+        self._profile_snapshot: dict[str, tuple[int, int]] = {}
+        self._profiles_initialized = False
+
         self.target_name_var = tk.StringVar(value=self._target_name_for_code(self.config["target_language"]))
         self.show_original_var = tk.BooleanVar(value=bool(self.config.get("show_original", False)))
         self.hide_same_var = tk.BooleanVar(value=bool(self.config.get("hide_same_language", True)))
@@ -2021,12 +2163,13 @@ class ControlApp:
         self.ttl_label_var = tk.StringVar(value=f"{self.ttl_var.get()} {'с' if self.ui_language == 'ru' else 's'}")
 
         root.title(f"{APP_NAME} v{APP_VERSION}")
-        root.geometry("1030x650")
+        root.geometry("1080x700")
         root.minsize(900, 560)
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._set_window_icon()
 
         self._build_ui()
+        self._refresh_server_profiles(initial=True)
         self.overlay = OverlayWindow(root, self.config, on_geometry_changed=self._on_overlay_geometry_changed, use_fresh_default_position=self.fresh_install)
         if self.fresh_install:
             self._persist_settings()
@@ -2052,12 +2195,7 @@ class ControlApp:
         self.root.after(80, self.process_ui_queue)
         self.root.after(500, self.expire_overlay)
         self.root.after(80, self.poll_global_hotkeys)
-
-        if not self.log_path_var.get().strip():
-            guess = self.guess_log_path()
-            if guess:
-                self.log_path_var.set(str(guess))
-                self._persist_settings()
+        self.root.after(900, self._profile_poll_tick)
 
         release_cfg = load_release_config(release_config_path())
         if bool(release_cfg.get("check_on_start", True)) and str(release_cfg.get("repository", "")).strip():
@@ -2102,11 +2240,23 @@ class ControlApp:
         ttk.Label(title_box, text=self.t("subtitle")).pack(anchor="w", pady=(2, 0))
         ttk.Label(header, text=f"v{APP_VERSION}", foreground="#666666").pack(side="right", anchor="n")
 
-        path_frame = ttk.Frame(outer)
-        path_frame.pack(fill="x", pady=(14, 0))
-        ttk.Label(path_frame, text=self.t("log"), width=15).pack(side="left")
-        ttk.Entry(path_frame, textvariable=self.log_path_var).pack(side="left", fill="x", expand=True, padx=(0, 8))
-        ttk.Button(path_frame, text=self.t("browse"), command=self.choose_log).pack(side="right")
+        profile_frame = ttk.Frame(outer)
+        profile_frame.pack(fill="x", pady=(14, 0))
+        ttk.Label(profile_frame, text=self.t("profile"), width=15).pack(side="left")
+        self.profile_combo = ttk.Combobox(profile_frame, state="readonly", textvariable=self.profile_var, width=28)
+        self.profile_combo.pack(side="left", fill="x", expand=True)
+        self.profile_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_profile_selected())
+        ttk.Button(profile_frame, text=self.t("browse"), command=self.choose_log).pack(side="left", padx=(8, 0))
+        ttk.Button(profile_frame, text=self.t("rename_profile"), command=self.rename_active_profile).pack(side="left", padx=(6, 0))
+        ttk.Button(profile_frame, text=self.t("rescan"), command=self.rescan_profiles).pack(side="left", padx=(6, 0))
+
+        profile_options = ttk.Frame(outer)
+        profile_options.pack(fill="x", pady=(6, 0))
+        ttk.Label(profile_options, text=self.t("profile_path"), width=15).pack(side="left")
+        ttk.Label(profile_options, textvariable=self.log_path_var, foreground="#666666").pack(side="left", fill="x", expand=True)
+        ttk.Checkbutton(
+            profile_options, text=self.t("auto_profile"), variable=self.auto_profile_var, command=self._auto_profile_changed
+        ).pack(side="right", padx=(12, 0))
 
         lang_frame = ttk.Frame(outer)
         lang_frame.pack(fill="x", pady=(10, 0))
@@ -2279,6 +2429,7 @@ class ControlApp:
         self.status_var.set(self.t("ready"))
         self.last_var.set(self.t("last"))
         self._build_ui()
+        self._rebuild_profile_combo()
 
     def _custom_language_label(self) -> str:
         code = str(self.config.get("target_language", "ru"))
@@ -2326,12 +2477,185 @@ class ControlApp:
         self.status_var.set((f"Язык перевода: {code}" if self.ui_language == "ru" else f"Translation language: {code}"))
 
     def current_log_path(self) -> Optional[Path]:
-        raw = self.log_path_var.get().strip()
-        return Path(raw) if raw else None
+        return self._active_log_path
 
     def guess_log_path(self) -> Optional[Path]:
-        candidates = discover_cod2_logs()
+        candidates = discover_cod2_logs(self.config.get("cod2_roots", []))
         return candidates[0] if candidates else None
+
+    def _profile_records(self) -> list[dict]:
+        records = self.config.get("server_profiles", [])
+        return records if isinstance(records, list) else []
+
+    def _ensure_cod2_root(self, path: Path) -> None:
+        root = str(infer_cod2_root(path))
+        roots = [str(x) for x in self.config.get("cod2_roots", []) if str(x).strip()]
+        keys = {_path_key(x) for x in roots}
+        if _path_key(root) not in keys:
+            roots.append(root)
+            self.config["cod2_roots"] = roots
+
+    def _profile_name_for_path(self, path: Path) -> str:
+        key = _path_key(path)
+        for rec in self._profile_records():
+            if _path_key(rec.get("path", "")) == key:
+                return str(rec.get("name", "")).strip() or default_profile_name(path)
+        return default_profile_name(path)
+
+    def _add_profile(self, path: Path, name: str = "") -> None:
+        path = path.expanduser().resolve(strict=False)
+        self._ensure_cod2_root(path)
+        records = merge_server_profiles(self._profile_records(), [path])
+        key = _path_key(path)
+        if name:
+            for rec in records:
+                if _path_key(rec.get("path", "")) == key:
+                    rec["name"] = name.strip()
+                    break
+        self.config["server_profiles"] = records
+
+    def _profile_labels(self) -> tuple[list[str], dict[str, Path]]:
+        records = self._profile_records()
+        counts: dict[str, int] = {}
+        for rec in records:
+            name = str(rec.get("name", "")).strip() or default_profile_name(rec.get("path", ""))
+            counts[name.casefold()] = counts.get(name.casefold(), 0) + 1
+        labels: list[str] = []
+        mapping: dict[str, Path] = {}
+        for rec in records:
+            raw = str(rec.get("path", "")).strip()
+            if not raw:
+                continue
+            path = Path(raw).expanduser().resolve(strict=False)
+            name = str(rec.get("name", "")).strip() or default_profile_name(path)
+            label = name
+            if counts.get(name.casefold(), 0) > 1:
+                label = f"{name} — {path.parent}"
+            suffix = 2
+            base = label
+            while label in mapping:
+                label = f"{base} ({suffix})"
+                suffix += 1
+            labels.append(label)
+            mapping[label] = path
+        return labels, mapping
+
+    def _rebuild_profile_combo(self) -> None:
+        labels, mapping = self._profile_labels()
+        self._profile_label_to_path = mapping
+        if hasattr(self, "profile_combo"):
+            self.profile_combo.configure(values=labels)
+        active_key = _path_key(self._active_log_path) if self._active_log_path else ""
+        selected = ""
+        for label, path in mapping.items():
+            if _path_key(path) == active_key:
+                selected = label
+                break
+        self.profile_var.set(selected)
+        self.log_path_var.set(str(self._active_log_path) if self._active_log_path else "")
+
+    def _set_active_profile(self, path: Path, automatic: bool = False, persist: bool = True) -> None:
+        path = path.expanduser().resolve(strict=False)
+        self._add_profile(path)
+        self._active_log_path = path
+        self.config["active_profile_path"] = str(path)
+        self.config["log_path"] = str(path)
+        self._rebuild_profile_combo()
+        if automatic:
+            self.status_var.set(self.t("profile_auto_status").format(name=self._profile_name_for_path(path)))
+        if persist:
+            self._persist_settings()
+
+    def _refresh_server_profiles(self, initial: bool = False) -> None:
+        before = json.dumps({
+            "server_profiles": self.config.get("server_profiles", []),
+            "cod2_roots": self.config.get("cod2_roots", []),
+            "active_profile_path": self.config.get("active_profile_path", ""),
+            "log_path": self.config.get("log_path", ""),
+        }, ensure_ascii=False, sort_keys=True)
+
+        discovered = discover_cod2_logs(self.config.get("cod2_roots", []))
+        self.config["server_profiles"] = merge_server_profiles(self._profile_records(), discovered)
+        for path in discovered:
+            self._ensure_cod2_root(path)
+
+        if self._active_log_path is None:
+            configured = str(self.config.get("active_profile_path", "")).strip() or str(self.config.get("log_path", "")).strip()
+            if configured:
+                self._active_log_path = Path(configured).expanduser().resolve(strict=False)
+            elif discovered:
+                self._active_log_path = discovered[0]
+                self.config["active_profile_path"] = str(self._active_log_path)
+                self.config["log_path"] = str(self._active_log_path)
+
+        if initial:
+            self._profile_snapshot = activity_snapshot(discovered)
+            self._profiles_initialized = True
+        elif self.auto_profile_var.get():
+            chosen, snapshot = choose_active_log_from_activity(
+                discovered, self._profile_snapshot, self._active_log_path
+            )
+            self._profile_snapshot = snapshot
+            if chosen is not None:
+                self._set_active_profile(chosen, automatic=True, persist=False)
+        else:
+            self._profile_snapshot = activity_snapshot(discovered)
+
+        self._rebuild_profile_combo()
+        after = json.dumps({
+            "server_profiles": self.config.get("server_profiles", []),
+            "cod2_roots": self.config.get("cod2_roots", []),
+            "active_profile_path": self.config.get("active_profile_path", ""),
+            "log_path": self.config.get("log_path", ""),
+        }, ensure_ascii=False, sort_keys=True)
+        if before != after:
+            self._persist_settings()
+
+    def _profile_poll_tick(self) -> None:
+        if self.stop_event.is_set():
+            return
+        try:
+            self._refresh_server_profiles(initial=False)
+        except Exception:
+            pass
+        if not self.stop_event.is_set():
+            self.root.after(900, self._profile_poll_tick)
+
+    def _on_profile_selected(self) -> None:
+        path = self._profile_label_to_path.get(self.profile_var.get())
+        if path is not None:
+            self._set_active_profile(path, automatic=False)
+
+    def _auto_profile_changed(self) -> None:
+        self.config["auto_detect_profile"] = bool(self.auto_profile_var.get())
+        self._persist_settings()
+        if self.auto_profile_var.get():
+            self._refresh_server_profiles(initial=False)
+
+    def rescan_profiles(self) -> None:
+        self._refresh_server_profiles(initial=False)
+        self.status_var.set(self.t("profiles_updated"))
+
+    def rename_active_profile(self) -> None:
+        if self._active_log_path is None:
+            return
+        from tkinter import simpledialog
+        current = self._profile_name_for_path(self._active_log_path)
+        name = simpledialog.askstring(
+            self.t("profile_rename_title"), self.t("profile_rename_prompt"), initialvalue=current, parent=self.root
+        )
+        if name is None:
+            return
+        name = name.strip()
+        if not name:
+            return
+        key = _path_key(self._active_log_path)
+        for rec in self._profile_records():
+            if _path_key(rec.get("path", "")) == key:
+                rec["name"] = name
+                break
+        self._rebuild_profile_combo()
+        self._persist_settings()
 
     def choose_log(self) -> None:
         path = filedialog.askopenfilename(
@@ -2339,8 +2663,8 @@ class ControlApp:
             filetypes=[("CoD2 log", "*.log"), (self.t("all_files"), "*.*")],
         )
         if path:
-            self.log_path_var.set(path)
-            self._persist_settings()
+            self._set_active_profile(Path(path), automatic=False)
+            self._refresh_server_profiles(initial=False)
 
     def _slang_style_name_for_code(self, code: str) -> str:
         return self._style_label(code)
@@ -2396,7 +2720,10 @@ class ControlApp:
 
     def _persist_settings(self) -> None:
         self.config["ui_language"] = self.ui_language
-        self.config["log_path"] = self.log_path_var.get().strip()
+        active = str(self._active_log_path) if self._active_log_path else self.log_path_var.get().strip()
+        self.config["log_path"] = active
+        self.config["active_profile_path"] = active
+        self.config["auto_detect_profile"] = bool(self.auto_profile_var.get())
         self.config["target_language"] = self.target_code()
         self.config["show_original"] = bool(self.show_original_var.get())
         self.config["hide_same_language"] = bool(self.hide_same_var.get())

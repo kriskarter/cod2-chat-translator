@@ -13,6 +13,12 @@ from app import (
     normalize_for_compare,
     parse_chat_line,
     read_log_messages,
+    infer_cod2_root,
+    default_profile_name,
+    merge_server_profiles,
+    discover_cod2_logs,
+    activity_snapshot,
+    choose_active_log_from_activity,
 )
 
 
@@ -183,6 +189,57 @@ class ParserTests(unittest.TestCase):
         self.assertIn("stop staying in one position waiting for enemies", prepared.lower())
         self.assertIsNone(direct)
 
+
+    def test_server_profile_root_and_default_name(self):
+        log = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")
+        self.assertEqual(infer_cod2_root(log).name, "Call of Duty 2")
+        self.assertEqual(default_profile_name(log), "oboronay3")
+        self.assertEqual(default_profile_name(log.parent.parent / "main" / "console_mp.log"), "Vanilla (main)")
+
+    def test_merge_profiles_preserves_user_name(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "Call of Duty 2"
+            old_log = game / "oboronay3" / "console_mp.log"
+            new_log = game / "vetdm" / "console_mp.log"
+            old_log.parent.mkdir(parents=True)
+            new_log.parent.mkdir(parents=True)
+            old_log.write_text("", encoding="utf-8")
+            new_log.write_text("", encoding="utf-8")
+            profiles = merge_server_profiles([{"name": "OBRONA", "path": str(old_log)}], [old_log, new_log])
+            by_path = {Path(x["path"]).name + ":" + Path(x["path"]).parent.name: x["name"] for x in profiles}
+            self.assertEqual(by_path["console_mp.log:oboronay3"], "OBRONA")
+            self.assertEqual(by_path["console_mp.log:vetdm"], "vetdm")
+
+    def test_rescan_finds_new_mod_log(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "Call of Duty 2"
+            main_log = game / "main" / "console_mp.log"
+            main_log.parent.mkdir(parents=True)
+            main_log.write_text("", encoding="utf-8")
+            first = discover_cod2_logs([game])
+            self.assertIn(main_log.resolve(), first)
+
+            mod_log = game / "new_mod" / "console_mp.log"
+            mod_log.parent.mkdir(parents=True)
+            mod_log.write_text("", encoding="utf-8")
+            second = discover_cod2_logs([game])
+            self.assertIn(mod_log.resolve(), second)
+
+    def test_activity_switches_to_log_that_started_updating(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "Call of Duty 2"
+            a = game / "oboronay3" / "console_mp.log"
+            b = game / "vetdm" / "console_mp.log"
+            a.parent.mkdir(parents=True)
+            b.parent.mkdir(parents=True)
+            a.write_text("old", encoding="utf-8")
+            b.write_text("old", encoding="utf-8")
+            previous = activity_snapshot([a, b])
+            # Make b observably different without relying on filesystem timestamp resolution.
+            b.write_text("new activity on server", encoding="utf-8")
+            chosen, current = choose_active_log_from_activity([a, b], previous, a, now=10_000_000_000)
+            self.assertEqual(chosen, b)
+            self.assertNotEqual(previous, current)
 
 
 if __name__ == "__main__":
