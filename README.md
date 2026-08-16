@@ -1,5 +1,11 @@
 # COD 2 Chat Translator
 
+<p align="center">
+  <img src="docs/images/logo.webp" width="220" alt="COD 2 Chat Translator">
+</p>
+
+<p align="center"><a href="README_RU.md">Русская версия</a></p>
+
 **A Windows chat translator for Call of Duty 2 Multiplayer that works while you play.**
 
 CoD2 still has players from many countries, so mixed-language chat is pretty common.
@@ -7,6 +13,19 @@ CoD2 still has players from many countries, so mixed-language chat is pretty com
 COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages and shows the result in a small overlay over the game.
 
 No DLL injection and no game-memory modification.
+
+## In game
+
+The original message stays in the CoD2 chat while the translation appears in a small overlay:
+
+![Regular chat translated in CoD2](docs/images/ingame_hi_all.webp)
+
+Long admin messages and short gaming slang work too:
+
+<p align="center">
+  <img src="docs/images/ingame_admin_warning.webp" width="49%" alt="Admin message translation">
+  <img src="docs/images/ingame_gg.webp" width="49%" alt="Gaming slang translation">
+</p>
 
 ## How it works
 
@@ -24,7 +43,9 @@ If CoD2 logging is not enabled yet, enter this once in the in-game console:
 /seta logfile 2
 ```
 
-The app will try to find available logs automatically. If the one you need is missing, click **Add…** and select `console_mp.log` manually.
+The app will try to find the active log automatically. In a normal setup you do not need to choose a file path yourself.
+
+If automatic detection cannot find the right log, open **Server settings…** and select `console_mp.log` manually.
 
 Choose the language you want to read and start playing.
 
@@ -40,13 +61,15 @@ Call of Duty 2\example_mod\console_mp.log
 Call of Duty 2\vetdm\console_mp.log
 ```
 
-The app stores those paths as **profiles**. The first profile gets the neutral name **`Call of Duty 2`**, while additional mod profiles initially use their folder names. Any profile can be renamed manually.
+**Automatic active-server detection** is enabled by default. In the main window this is reduced to a simple **“Server: ● Automatic”** status, so technical log paths and mod-folder names stay out of the way.
 
-**Automatic active-server detection** is enabled by default. While the translator is running, it periodically rescans the CoD2 folder. If joining a new server creates a new mod folder and its `console_mp.log` starts changing, the profile is added and selected automatically.
+While the translator is running, it periodically rescans the CoD2 folder. If a different `console_mp.log` starts changing after you join another server, the translator switches to it automatically. A newly created mod folder and log can also be discovered without restarting the app.
 
-Only **one active log** is translated at a time. If several servers use the same mod folder, they share the same translator profile because the log path is the same.
+Log paths are still stored internally as **profiles** for the manual fallback. Open **Server settings…** to choose a specific log, add one manually, rename a profile, or rescan CoD2 folders.
 
-Automatic detection can be disabled if you prefer to choose profiles manually.
+Only **one active log** is translated at a time. If several servers use the same mod folder, they share the same internal profile.
+
+Manual mode remains available for unusual CoD2 installations or servers that automatic detection cannot recognize.
 
 ## Overlay
 

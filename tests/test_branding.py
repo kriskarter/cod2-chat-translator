@@ -8,8 +8,8 @@ import app
 
 
 class BrandingTests(unittest.TestCase):
-    def test_v1121_branding(self):
-        self.assertEqual(app.APP_VERSION, "1.12.1")
+    def test_v1130_branding(self):
+        self.assertEqual(app.APP_VERSION, "1.13.0")
         self.assertEqual(app.PROJECT_AUTHOR, "kriskarter")
         self.assertEqual(app.PROJECT_PROFILE_URL, "https://github.com/kriskarter")
         self.assertEqual(app.UI_STRINGS["ru"]["about"], "О программе")
@@ -51,6 +51,9 @@ class BrandingTests(unittest.TestCase):
         self.assertEqual(en["watching_log"], "Watching log: {path}")
         self.assertEqual(en["overlay_locked_status"], "Overlay locked: mouse clicks pass through it")
         self.assertEqual(en["update_postponed"], "Update {version} postponed")
+        self.assertEqual(app.UI_STRINGS["ru"]["server_auto"], "● Автоматически")
+        self.assertEqual(app.UI_STRINGS["en"]["server_auto"], "● Automatic")
+        self.assertIn("server settings", app.UI_STRINGS["en"]["server_settings"].lower())
 
 
 if __name__ == "__main__":

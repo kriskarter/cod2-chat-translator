@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.12.1"
+APP_VERSION = "1.13.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -133,6 +133,10 @@ UI_STRINGS = {
         "subtitle": "Автоперевод чата из console_mp.log + настраиваемый оверлей поверх CoD2.",
         "log": "Лог CoD2:", "profile": "Сервер / профиль:", "browse": "Добавить…", "rescan": "Обновить",
         "rename_profile": "Переименовать…", "auto_profile": "автоматически определять активный сервер",
+        "server": "Сервер:", "server_auto": "● Автоматически", "server_manual": "● Ручной выбор · {name}",
+        "server_settings": "Настройки сервера…", "server_settings_title": "Сервер и журнал CoD2",
+        "server_settings_hint": "Обычно ничего выбирать не нужно: переводчик сам определяет активный console_mp.log при смене сервера.",
+        "use_selected_profile": "Использовать выбранный", "profile_list": "Профиль:",
         "profile_path": "Лог:", "profiles_updated": "Список профилей обновлён",
         "profile_auto_status": "Активный профиль: {name} (определён автоматически)",
         "profile_rename_title": "Имя профиля", "profile_rename_prompt": "Название профиля:",
@@ -186,6 +190,10 @@ UI_STRINGS = {
         "subtitle": "Real-time translation from console_mp.log + a configurable overlay over CoD2.",
         "log": "CoD2 log:", "profile": "Server / profile:", "browse": "Add…", "rescan": "Refresh",
         "rename_profile": "Rename…", "auto_profile": "automatically detect the active server",
+        "server": "Server:", "server_auto": "● Automatic", "server_manual": "● Manual · {name}",
+        "server_settings": "Server settings…", "server_settings_title": "CoD2 server and log",
+        "server_settings_hint": "Normally you do not need to choose anything: the translator detects the active console_mp.log when you change servers.",
+        "use_selected_profile": "Use selected", "profile_list": "Profile:",
         "profile_path": "Log:", "profiles_updated": "Profile list refreshed",
         "profile_auto_status": "Active profile: {name} (detected automatically)",
         "profile_rename_title": "Profile name", "profile_rename_prompt": "Profile name:",
@@ -2208,6 +2216,7 @@ class ControlApp:
         self.log_path_var = tk.StringVar(value=stored_log)
         self.profile_var = tk.StringVar(value="")
         self.auto_profile_var = tk.BooleanVar(value=bool(self.config.get("auto_detect_profile", True)))
+        self.server_summary_var = tk.StringVar(value="")
         active_raw = str(self.config.get("active_profile_path", "")).strip() or stored_log
         self._active_log_path: Optional[Path] = Path(active_raw).expanduser().resolve(strict=False) if active_raw else None
         self._profile_label_to_path: dict[str, Path] = {}
@@ -2318,23 +2327,11 @@ class ControlApp:
         ttk.Label(title_box, text=self.t("subtitle")).pack(anchor="w", pady=(2, 0))
         ttk.Label(header, text=f"v{APP_VERSION}", foreground="#666666").pack(side="right", anchor="n")
 
-        profile_frame = ttk.Frame(outer)
-        profile_frame.pack(fill="x", pady=(14, 0))
-        ttk.Label(profile_frame, text=self.t("profile"), width=15).pack(side="left")
-        self.profile_combo = ttk.Combobox(profile_frame, state="readonly", textvariable=self.profile_var, width=28)
-        self.profile_combo.pack(side="left", fill="x", expand=True)
-        self.profile_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_profile_selected())
-        ttk.Button(profile_frame, text=self.t("browse"), command=self.choose_log).pack(side="left", padx=(8, 0))
-        ttk.Button(profile_frame, text=self.t("rename_profile"), command=self.rename_active_profile).pack(side="left", padx=(6, 0))
-        ttk.Button(profile_frame, text=self.t("rescan"), command=self.rescan_profiles).pack(side="left", padx=(6, 0))
-
-        profile_options = ttk.Frame(outer)
-        profile_options.pack(fill="x", pady=(6, 0))
-        ttk.Label(profile_options, text=self.t("profile_path"), width=15).pack(side="left")
-        ttk.Label(profile_options, textvariable=self.log_path_var, foreground="#666666").pack(side="left", fill="x", expand=True)
-        ttk.Checkbutton(
-            profile_options, text=self.t("auto_profile"), variable=self.auto_profile_var, command=self._auto_profile_changed
-        ).pack(side="right", padx=(12, 0))
+        server_frame = ttk.Frame(outer)
+        server_frame.pack(fill="x", pady=(14, 0))
+        ttk.Label(server_frame, text=self.t("server"), width=15).pack(side="left")
+        ttk.Label(server_frame, textvariable=self.server_summary_var, font=("Segoe UI", 10, "bold")).pack(side="left")
+        ttk.Button(server_frame, text=self.t("server_settings"), command=self.show_server_settings).pack(side="right")
 
         lang_frame = ttk.Frame(outer)
         lang_frame.pack(fill="x", pady=(10, 0))
@@ -2621,8 +2618,6 @@ class ControlApp:
     def _rebuild_profile_combo(self) -> None:
         labels, mapping = self._profile_labels()
         self._profile_label_to_path = mapping
-        if hasattr(self, "profile_combo"):
-            self.profile_combo.configure(values=labels)
         active_key = _path_key(self._active_log_path) if self._active_log_path else ""
         selected = ""
         for label, path in mapping.items():
@@ -2631,6 +2626,158 @@ class ControlApp:
                 break
         self.profile_var.set(selected)
         self.log_path_var.set(str(self._active_log_path) if self._active_log_path else "")
+        self._update_server_summary()
+
+    def _update_server_summary(self) -> None:
+        if self.auto_profile_var.get():
+            self.server_summary_var.set(self.t("server_auto"))
+            return
+        name = self._profile_name_for_path(self._active_log_path) if self._active_log_path else "—"
+        self.server_summary_var.set(self.t("server_manual").format(name=name))
+
+    def _rename_profile_path(self, path: Path, parent: Optional["tk.Misc"] = None) -> None:
+        from tkinter import simpledialog
+        path = path.expanduser().resolve(strict=False)
+        current = self._profile_name_for_path(path)
+        name = simpledialog.askstring(
+            self.t("profile_rename_title"),
+            self.t("profile_rename_prompt"),
+            initialvalue=current,
+            parent=parent or self.root,
+        )
+        if name is None:
+            return
+        name = name.strip()
+        if not name:
+            return
+        key = _path_key(path)
+        records = self._profile_records()
+        for rec in records:
+            if _path_key(rec.get("path", "")) == key:
+                rec["name"] = name
+                break
+        self.config["server_profiles"] = records
+        self._rebuild_profile_combo()
+        self._persist_settings()
+
+    def show_server_settings(self) -> None:
+        win = tk.Toplevel(self.root)
+        win.title(self.t("server_settings_title"))
+        win.transient(self.root)
+        win.resizable(False, False)
+        win.grab_set()
+        try:
+            ico = resource_path("assets/app.ico")
+            if ico.exists():
+                win.iconbitmap(default=str(ico))
+        except Exception:
+            pass
+
+        body = ttk.Frame(win, padding=14)
+        body.pack(fill="both", expand=True)
+        ttk.Checkbutton(
+            body,
+            text=self.t("auto_profile"),
+            variable=self.auto_profile_var,
+            command=self._auto_profile_changed,
+        ).pack(anchor="w")
+        ttk.Label(
+            body,
+            text=self.t("server_settings_hint"),
+            foreground="#555555",
+            wraplength=560,
+        ).pack(anchor="w", pady=(6, 12))
+        ttk.Separator(body).pack(fill="x", pady=(0, 12))
+
+        row = ttk.Frame(body)
+        row.pack(fill="x")
+        ttk.Label(row, text=self.t("profile_list"), width=12).pack(side="left")
+        dialog_profile_var = tk.StringVar(value=self.profile_var.get())
+        combo = ttk.Combobox(row, state="readonly", textvariable=dialog_profile_var, width=52)
+        combo.pack(side="left", fill="x", expand=True)
+
+        path_row = ttk.Frame(body)
+        path_row.pack(fill="x", pady=(8, 0))
+        ttk.Label(path_row, text=self.t("profile_path"), width=12).pack(side="left", anchor="n")
+        dialog_path_var = tk.StringVar(value="")
+        ttk.Label(
+            path_row,
+            textvariable=dialog_path_var,
+            foreground="#666666",
+            wraplength=500,
+        ).pack(side="left", fill="x", expand=True)
+
+        def refresh_dialog(select_active: bool = True) -> None:
+            labels, mapping = self._profile_labels()
+            self._profile_label_to_path = mapping
+            combo.configure(values=labels)
+            selected = dialog_profile_var.get()
+            if select_active or selected not in mapping:
+                active_key = _path_key(self._active_log_path) if self._active_log_path else ""
+                selected = next((label for label, path in mapping.items() if _path_key(path) == active_key), "")
+                if not selected and labels:
+                    selected = labels[0]
+                dialog_profile_var.set(selected)
+            path = mapping.get(dialog_profile_var.get())
+            dialog_path_var.set(str(path) if path else "")
+
+        def on_selected(_event=None) -> None:
+            path = self._profile_label_to_path.get(dialog_profile_var.get())
+            dialog_path_var.set(str(path) if path else "")
+
+        def use_selected() -> None:
+            path = self._profile_label_to_path.get(dialog_profile_var.get())
+            if path is None:
+                return
+            self.auto_profile_var.set(False)
+            self._auto_profile_changed()
+            self._set_active_profile(path, automatic=False)
+            refresh_dialog(select_active=True)
+
+        def add_log() -> None:
+            path = filedialog.askopenfilename(
+                title=self.t("choose_log"),
+                filetypes=[("CoD2 log", "*.log"), (self.t("all_files"), "*.*")],
+                parent=win,
+            )
+            if not path:
+                return
+            self.auto_profile_var.set(False)
+            self._auto_profile_changed()
+            self._set_active_profile(Path(path), automatic=False)
+            self._refresh_server_profiles(initial=False)
+            refresh_dialog(select_active=True)
+
+        def rename_selected() -> None:
+            path = self._profile_label_to_path.get(dialog_profile_var.get())
+            if path is None:
+                return
+            self._rename_profile_path(path, parent=win)
+            refresh_dialog(select_active=True)
+
+        def rescan() -> None:
+            self._refresh_server_profiles(initial=False)
+            self.status_var.set(self.t("profiles_updated"))
+            refresh_dialog(select_active=True)
+
+        combo.bind("<<ComboboxSelected>>", on_selected)
+        refresh_dialog(select_active=True)
+
+        buttons = ttk.Frame(body)
+        buttons.pack(fill="x", pady=(14, 0))
+        ttk.Button(buttons, text=self.t("use_selected_profile"), command=use_selected).pack(side="left")
+        ttk.Button(buttons, text=self.t("browse"), command=add_log).pack(side="left", padx=(6, 0))
+        ttk.Button(buttons, text=self.t("rename_profile"), command=rename_selected).pack(side="left", padx=(6, 0))
+        ttk.Button(buttons, text=self.t("rescan"), command=rescan).pack(side="left", padx=(6, 0))
+        ttk.Button(buttons, text=self.t("close"), command=win.destroy).pack(side="right")
+
+        win.update_idletasks()
+        try:
+            x = self.root.winfo_rootx() + max(20, (self.root.winfo_width() - win.winfo_reqwidth()) // 2)
+            y = self.root.winfo_rooty() + max(20, (self.root.winfo_height() - win.winfo_reqheight()) // 3)
+            win.geometry(f"+{x}+{y}")
+        except Exception:
+            pass
 
     def _set_active_profile(self, path: Path, automatic: bool = False, persist: bool = True) -> None:
         path = path.expanduser().resolve(strict=False)
@@ -2712,6 +2859,7 @@ class ControlApp:
 
     def _auto_profile_changed(self) -> None:
         self.config["auto_detect_profile"] = bool(self.auto_profile_var.get())
+        self._update_server_summary()
         self._persist_settings()
         if self.auto_profile_var.get():
             self._refresh_server_profiles(initial=False)
@@ -2723,23 +2871,7 @@ class ControlApp:
     def rename_active_profile(self) -> None:
         if self._active_log_path is None:
             return
-        from tkinter import simpledialog
-        current = self._profile_name_for_path(self._active_log_path)
-        name = simpledialog.askstring(
-            self.t("profile_rename_title"), self.t("profile_rename_prompt"), initialvalue=current, parent=self.root
-        )
-        if name is None:
-            return
-        name = name.strip()
-        if not name:
-            return
-        key = _path_key(self._active_log_path)
-        for rec in self._profile_records():
-            if _path_key(rec.get("path", "")) == key:
-                rec["name"] = name
-                break
-        self._rebuild_profile_combo()
-        self._persist_settings()
+        self._rename_profile_path(self._active_log_path, parent=self.root)
 
     def choose_log(self) -> None:
         path = filedialog.askopenfilename(
@@ -2747,6 +2879,8 @@ class ControlApp:
             filetypes=[("CoD2 log", "*.log"), (self.t("all_files"), "*.*")],
         )
         if path:
+            self.auto_profile_var.set(False)
+            self._auto_profile_changed()
             self._set_active_profile(Path(path), automatic=False)
             self._refresh_server_profiles(initial=False)
 
