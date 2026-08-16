@@ -1309,6 +1309,7 @@ class LogTailer(threading.Thread):
         stop_event: threading.Event,
         on_control: Optional[Callable[[str, str], None]] = None,
         status_text: Optional[Callable[[str], str]] = None,
+        switch_position_getter: Optional[Callable[[Path], Optional[int]]] = None,
         poll_seconds: float = 0.12,
     ):
         super().__init__(daemon=True, name="cod2-log-tailer")
@@ -1318,17 +1319,43 @@ class LogTailer(threading.Thread):
         self.stop_event = stop_event
         self.on_control = on_control
         self.status_text = status_text or (lambda key: key)
+        self.switch_position_getter = switch_position_getter
         self.poll_seconds = poll_seconds
         self.current_path: Optional[Path] = None
         self.position = 0
         self.buffer = b""
+        self._resume_positions: dict[str, int] = {}
+
+    def _remember_position(self) -> None:
+        if self.current_path is not None:
+            self._resume_positions[_path_key(self.current_path)] = max(0, int(self.position))
 
     def _switch_path(self, path: Path) -> None:
+        self._remember_position()
         self.current_path = path
         self.buffer = b""
         try:
-            # V1 default: only new chat arriving after the translator starts.
-            self.position = path.stat().st_size
+            size = int(path.stat().st_size)
+            hint: Optional[int] = None
+            if self.switch_position_getter is not None:
+                try:
+                    hint = self.switch_position_getter(path)
+                except Exception:
+                    hint = None
+            if hint is not None:
+                # Auto-detection noticed this file grow. Start at the size from
+                # the previous activity snapshot so the line that triggered the
+                # switch is not skipped.
+                self.position = max(0, min(int(hint), size))
+            else:
+                resume = self._resume_positions.get(_path_key(path))
+                if resume is not None:
+                    self.position = max(0, min(int(resume), size))
+                else:
+                    # First normal/manual watch: only new chat arriving after
+                    # the translator starts, never replay an old full log.
+                    self.position = size
+            self._resume_positions[_path_key(path)] = self.position
             self.on_status(self.status_text("watching_log").format(path=path))
         except FileNotFoundError:
             self.position = 0
@@ -1350,12 +1377,14 @@ class LogTailer(threading.Thread):
                 if size < self.position:  # game restarted / log truncated
                     self.position = 0
                     self.buffer = b""
+                    self._resume_positions[_path_key(path)] = 0
 
                 if size > self.position:
                     with path.open("rb") as fh:
                         fh.seek(self.position)
                         chunk = fh.read(size - self.position)
                         self.position = fh.tell()
+                    self._resume_positions[_path_key(path)] = self.position
                     self.buffer += chunk
                     while b"\n" in self.buffer:
                         raw_line, self.buffer = self.buffer.split(b"\n", 1)
@@ -2221,6 +2250,7 @@ class ControlApp:
         self._active_log_path: Optional[Path] = Path(active_raw).expanduser().resolve(strict=False) if active_raw else None
         self._profile_label_to_path: dict[str, Path] = {}
         self._profile_snapshot: dict[str, tuple[int, int]] = {}
+        self._pending_log_switch_positions: dict[str, int] = {}
         self._profiles_initialized = False
 
         self.target_name_var = tk.StringVar(value=self._target_name_for_code(self.config["target_language"]))
@@ -2267,6 +2297,7 @@ class ControlApp:
             stop_event=self.stop_event,
             on_control=lambda kind, line: self.ui_queue.put((kind, line)),
             status_text=self.t,
+            switch_position_getter=self._consume_log_switch_position,
         )
         self.translator = TranslatorWorker(
             jobs=self.translation_jobs,
@@ -2554,6 +2585,9 @@ class ControlApp:
     def current_log_path(self) -> Optional[Path]:
         return self._active_log_path
 
+    def _consume_log_switch_position(self, path: Path) -> Optional[int]:
+        return self._pending_log_switch_positions.pop(_path_key(path), None)
+
     def guess_log_path(self) -> Optional[Path]:
         candidates = discover_cod2_logs(self.config.get("cod2_roots", []))
         return candidates[0] if candidates else None
@@ -2823,11 +2857,18 @@ class ControlApp:
             self._profile_snapshot = activity_snapshot(discovered)
             self._profiles_initialized = True
         elif self.auto_profile_var.get():
+            previous_snapshot = self._profile_snapshot
             chosen, snapshot = choose_active_log_from_activity(
-                discovered, self._profile_snapshot, self._active_log_path
+                discovered, previous_snapshot, self._active_log_path
             )
             self._profile_snapshot = snapshot
             if chosen is not None:
+                previous_state = previous_snapshot.get(_path_key(chosen))
+                # If the log already existed, read from its previous size. If it
+                # is a freshly-created mod log, start at 0 so the first chat
+                # lines written before discovery are not lost.
+                start_position = int(previous_state[1]) if previous_state is not None else 0
+                self._pending_log_switch_positions[_path_key(chosen)] = max(0, start_position)
                 self._set_active_profile(chosen, automatic=True, persist=False)
         else:
             self._profile_snapshot = activity_snapshot(discovered)

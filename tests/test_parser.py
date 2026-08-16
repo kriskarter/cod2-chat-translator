@@ -1,5 +1,7 @@
 from pathlib import Path
 import tempfile
+import threading
+import time
 import unittest
 
 from app import (
@@ -20,6 +22,7 @@ from app import (
     discover_cod2_logs,
     activity_snapshot,
     choose_active_log_from_activity,
+    LogTailer,
 )
 
 
@@ -262,6 +265,74 @@ class ParserTests(unittest.TestCase):
             chosen, current = choose_active_log_from_activity([a, b], previous, a, now=10_000_000_000)
             self.assertEqual(chosen, b)
             self.assertNotEqual(previous, current)
+
+    def test_log_tailer_auto_switch_reads_triggering_chat_line(self):
+        with tempfile.TemporaryDirectory() as td:
+            old_log = Path(td) / "old" / "console_mp.log"
+            new_log = Path(td) / "new" / "console_mp.log"
+            old_log.parent.mkdir(parents=True)
+            new_log.parent.mkdir(parents=True)
+            old_log.write_bytes(b"boot\n")
+            new_log.write_bytes(b"boot\n")
+
+            active = {"path": old_log}
+            hints: dict[str, int] = {}
+            messages = []
+            received = threading.Event()
+            stop = threading.Event()
+
+            def on_message(msg):
+                messages.append(msg)
+                received.set()
+
+            def switch_hint(path):
+                return hints.pop(str(path.resolve()), None)
+
+            tailer = LogTailer(
+                path_getter=lambda: active["path"],
+                on_message=on_message,
+                on_status=lambda _s: None,
+                stop_event=stop,
+                switch_position_getter=switch_hint,
+                poll_seconds=0.01,
+            )
+            tailer.start()
+            time.sleep(0.05)
+
+            previous_size = new_log.stat().st_size
+            with new_log.open("ab") as fh:
+                fh.write(b"VooDoo^7: ^7hi all\n")
+            hints[str(new_log.resolve())] = previous_size
+            active["path"] = new_log
+
+            self.assertTrue(received.wait(1.0), "auto-switch chat line was skipped")
+            stop.set()
+            tailer.join(timeout=1.0)
+            self.assertEqual([(m.nickname, m.text) for m in messages], [("VooDoo", "hi all")])
+
+    def test_log_tailer_manual_first_watch_does_not_replay_old_chat(self):
+        with tempfile.TemporaryDirectory() as td:
+            log = Path(td) / "console_mp.log"
+            log.write_bytes(b"OldPlayer^7: ^7old message\n")
+            messages = []
+            stop = threading.Event()
+            tailer = LogTailer(
+                path_getter=lambda: log,
+                on_message=messages.append,
+                on_status=lambda _s: None,
+                stop_event=stop,
+                poll_seconds=0.01,
+            )
+            tailer.start()
+            time.sleep(0.05)
+            with log.open("ab") as fh:
+                fh.write(b"NewPlayer^7: ^7new message\n")
+            deadline = time.time() + 1.0
+            while len(messages) < 1 and time.time() < deadline:
+                time.sleep(0.01)
+            stop.set()
+            tailer.join(timeout=1.0)
+            self.assertEqual([(m.nickname, m.text) for m in messages], [("NewPlayer", "new message")])
 
 
 if __name__ == "__main__":
