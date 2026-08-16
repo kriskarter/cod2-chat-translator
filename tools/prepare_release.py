@@ -59,4 +59,4 @@ manifest = {
 }
 (RELEASE / "update.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 (RELEASE / "CoD2ChatTranslator_Update.zip.sha256").write_text(f"{sha}  {package.name}\n", encoding="utf-8")
-print(json.dumps(manifest, ensure_ascii=False, indent=2))
+print(json.dumps(manifest, ensure_ascii=True, indent=2))
