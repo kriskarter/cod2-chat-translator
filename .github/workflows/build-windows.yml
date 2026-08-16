@@ -55,6 +55,28 @@ jobs:
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
 
+      - name: Prepare concise GitHub Release notes
+        shell: pwsh
+        run: |
+          $notes = Get-Content release_notes.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          $version = python app.py --version
+          $body = @"
+          ## Что нового
+
+          $($notes.notes_ru)
+
+          ## What's new
+
+          $($notes.notes_en)
+
+          ---
+
+          Для обычной установки скачай CoD2ChatTranslator_Setup_v$version.exe из списка файлов ниже.
+
+          For a normal installation, download CoD2ChatTranslator_Setup_v$version.exe from the files below.
+          "@
+          $body | Set-Content -Encoding UTF8 release\RELEASE_NOTES.md
+
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup --no-progress -y
@@ -83,7 +105,9 @@ jobs:
           $tag = "${{ github.ref_name }}"
           gh release view $tag *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "CoD2 Chat Translator $tag" --generate-notes
+            gh release create $tag --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
+          } else {
+            gh release edit $tag --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
           }
           gh release upload $tag (Get-ChildItem release/CoD2ChatTranslator_Setup_v*.exe).FullName release/CoD2ChatTranslator_Update.zip release/CoD2ChatTranslator_Update.zip.sha256 release/update.json --clobber
 
@@ -97,6 +121,8 @@ jobs:
           $tag = "v$version"
           gh release view $tag *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --target "${{ github.sha }}" --title "CoD2 Chat Translator $tag" --notes-file README_RU.md
+            gh release create $tag --target "${{ github.sha }}" --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
+          } else {
+            gh release edit $tag --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
           }
           gh release upload $tag (Get-ChildItem release/CoD2ChatTranslator_Setup_v*.exe).FullName release/CoD2ChatTranslator_Update.zip release/CoD2ChatTranslator_Update.zip.sha256 release/update.json --clobber
