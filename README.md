@@ -1,61 +1,85 @@
 # COD 2 Chat Translator
 
-**Real-time multiplayer chat translation overlay for Call of Duty 2.**  
-**Разработчик / Developer:** [kriskarter](https://github.com/kriskarter)
+**A small Windows app that translates Call of Duty 2 multiplayer chat while you play.**
 
-> Unofficial fan-made utility. Not affiliated with or endorsed by Activision. Call of Duty and related marks belong to their respective owners.
+[Русское описание](README_RU.md)
 
-## What it does
+I made this for a simple reason: CoD2 servers are still full of players from different countries, and chat can turn into a mix of English, Polish, Russian, Ukrainian, German and everything in between.
 
-COD 2 Chat Translator watches the local `console_mp.log`, extracts only chat messages, detects the source language automatically, translates them to the language selected by the player, and displays the result in a compact click-through overlay over the game.
+COD 2 Chat Translator reads the game's own `console_mp.log`, picks out chat messages, translates them and shows the result in a small overlay over the game.
 
-It does **not** inject a DLL into the game and does not modify game memory.
+No DLL injection. No game-memory modification.
 
-### Highlights
+## How it works
 
-- automatic source-language detection;
-- Russian and English application interface;
-- translation to many target languages;
-- compact draggable overlay with adjustable text size, background opacity and lifetime;
-- gaming-slang handling for common CoD/FPS abbreviations such as `gg`, `wp`, `ns`, `afk`, `camp`, `rush`, `spawn`, `nade`, `tk` and more;
-- three slang styles: clear, live, and uncensored-preserving;
-- bilingual Windows installer (`Русский / English`);
-- settings stored in `%APPDATA%\\CoD2ChatTranslator` so updates do not overwrite them;
-- built-in GitHub Release update checker with SHA256 verification and rollback support;
-- Windows builds produced by GitHub Actions.
+1. CoD2 writes console output to `console_mp.log`.
+2. The app watches new lines and ignores map-loading spam, dvars and other service output.
+3. When it finds a chat message, it detects the language and translates the message to the language you selected.
+4. The translation appears in the overlay for a few seconds.
 
-## Install
+The original message can also be shown if you want it.
 
-Download the latest Windows installer from **Releases** and run:
+## Setup
 
-`CoD2ChatTranslator_Setup_vX.Y.Z.exe`
+Download the latest Windows installer from **Releases** and run it.
 
-On first use, enable CoD2 console logging if needed:
+If CoD2 logging is not enabled yet, open the in-game console and enter:
 
 ```text
 /seta logfile 2
 ```
 
-If the program cannot locate `console_mp.log` automatically, select it manually.
+On the first launch the app tries to find `console_mp.log` automatically. If it misses your CoD2 folder, use **Browse** and select the file yourself.
 
-## Privacy
+That's it: choose the language you want to read and start playing.
 
-`console_mp.log` can contain service parameters and server passwords. **Do not publish the full log.** The application filters the file locally and sends only the extracted chat-message text to the translation service.
+> Translation uses an online translation service, so an internet connection is required.
+
+## Overlay
+
+The overlay is meant to stay out of the way while you play.
+
+You can change the text size, background opacity, number of visible messages and how long they stay on screen. There are also a few ready-made presets if you do not want to tune everything by hand.
+
+Use **Configure overlay** to move or resize it. Once fixed, the overlay becomes click-through so it does not steal the mouse from the game.
+
+`F8` hides or shows the overlay without stopping translation.
+
+## Gaming slang
+
+Short FPS chat is not normal prose, so common gaming terms are handled before the regular translation.
+
+Examples include `gg`, `wp`, `ns`, `nt`, `afk`, `brb`, `tk`, `nade`, `smoke`, `rush`, `camp`, `spawncamp`, `votekick`, `fps drop` and more.
+
+There are three styles:
+
+- **Clear** — easier to understand if you are not used to gaming slang.
+- **Live** — shorter, more natural game-chat wording.
+- **Uncensored** — keeps the rough tone when the original message is already rough. It does not add profanity to a neutral message.
+
+## Languages
+
+The source language is detected automatically. You only choose the language you want to read.
+
+So a Russian message can be translated to English, an English message to Ukrainian, Polish to German, and so on.
 
 ## Updates
 
-The application checks the latest GitHub Release. Update packages include a SHA256 hash; the updater verifies the package before replacing program files and attempts rollback if installation fails. User settings are stored separately and are not part of the update package.
+The app can check GitHub Releases for a newer version.
 
-## Русское описание
+Update packages are verified with SHA256 before installation. The updater also keeps user settings separate from program files, so updating should not reset your overlay or language settings.
 
-Подробное описание возможностей, сленга, оверлея и установки: **[README_RU.md](README_RU.md)**.
+## Privacy
 
-## Build from source on Windows
+`console_mp.log` may contain more than chat — for example server parameters or passwords.
 
-Requirements:
+**Do not upload or publish the whole log.**
 
-- Python 3.12+
-- Inno Setup 6
+The app filters the log locally and sends only the extracted chat-message text to the translation service.
+
+## Build from source
+
+For a local Windows build you need Python 3.12+ and Inno Setup.
 
 Run:
 
@@ -63,8 +87,14 @@ Run:
 BUILD_RELEASE.bat
 ```
 
-The build runs tests, creates `CoD2ChatTranslator.exe`, `CoD2ChatTranslatorUpdater.exe`, the update ZIP/manifest, and the bilingual installer.
+GitHub Actions also builds the Windows installer automatically.
 
-## Support the project
+## Project
 
-If the translator is useful to you, a ⭐ on this repository helps other Call of Duty 2 players find it.
+Developer: **[kriskarter](https://github.com/kriskarter)**
+
+If the app is useful, a ⭐ on the repository helps other CoD2 players find it.
+
+---
+
+Unofficial fan-made utility. Not affiliated with or endorsed by Activision. Call of Duty and related marks belong to their respective owners.
