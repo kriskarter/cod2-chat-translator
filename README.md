@@ -43,9 +43,11 @@ If CoD2 logging is not enabled yet, enter this once in the in-game console:
 /seta logfile 2
 ```
 
-The app will try to find the active log automatically. In a normal setup you do not need to choose a file path yourself.
+The app tries to find CoD2 and its logs automatically. Steam may be installed on any drive: the translator reads registered Steam locations and `libraryfolders.vdf`. If Multiplayer is running, the app also resolves the full install path directly from the `CoD2MP_s.exe` process, which works for Steam, portable and many non-Steam copies.
 
-If automatic detection cannot find the right log, open **Server settings…** and select `console_mp.log` manually.
+For non-Steam installs it also checks common `Games`, `COD2` and `Call of Duty 2` locations on local fixed drives without recursively scanning the whole computer.
+
+If automatic detection still fails, open **Server settings… → Choose game folder…** and select the folder containing `CoD2MP_s.exe` once. The translator will then find `console_mp.log` files for mods and servers inside that install automatically. Picking an individual `.log` remains an advanced fallback.
 
 Choose the language you want to read and start playing.
 
@@ -65,7 +67,7 @@ Call of Duty 2\vetdm\console_mp.log
 
 While the translator is running, it periodically rescans the CoD2 folder. If a different `console_mp.log` starts changing after you join another server, the translator switches to it automatically. A newly created mod folder and log can also be discovered without restarting the app.
 
-Log paths are still stored internally as **profiles** for the manual fallback. Open **Server settings…** to choose a specific log, add one manually, rename a profile, or rescan CoD2 folders.
+Log paths are still stored internally as **profiles** for the manual fallback. Open **Server settings…** to choose the game folder once, select a specific log, rename a profile, or run automatic discovery again.
 
 Only **one active log** is translated at a time. If several servers use the same mod folder, they share the same internal profile.
 

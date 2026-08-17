@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.13.1"
+APP_VERSION = "1.14.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -46,6 +46,10 @@ SENSITIVE_LINE_TOKENS = (
     "password ",
     "logininfo.cfg",
 )
+
+COD2_EXECUTABLE_NAMES = {"cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe"}
+STEAM_EXECUTABLE_NAMES = {"steam.exe"}
+
 
 TARGET_LANGUAGES = OrderedDict([
     ("Русский", "ru"),
@@ -135,7 +139,12 @@ UI_STRINGS = {
         "rename_profile": "Переименовать…", "auto_profile": "автоматически определять активный сервер",
         "server": "Сервер:", "server_auto": "● Автоматически", "server_manual": "● Ручной выбор · {name}",
         "server_settings": "Настройки сервера…", "server_settings_title": "Сервер и журнал CoD2",
-        "server_settings_hint": "Обычно ничего выбирать не нужно: переводчик сам определяет активный console_mp.log при смене сервера.",
+        "server_settings_hint": "Обычно ничего выбирать не нужно: переводчик сам определяет папку запущенной CoD2 и активный console_mp.log при смене сервера.",
+        "game_folder": "Папка игры:", "choose_game_folder": "Указать папку игры…",
+        "game_folder_hint": "Steam можно установить на любой диск. Для Steam, non-Steam или portable CoD2 проще всего запустить Multiplayer — переводчик сам найдёт папку по CoD2MP_s.exe. Если не получилось, укажи папку игры один раз вручную.",
+        "game_folder_invalid": "В выбранной папке не найдена Call of Duty 2. Выбери папку, где находится CoD2MP_s.exe.",
+        "game_folder_saved": "Папка CoD2 сохранена: {path}", "game_folder_auto": "CoD2 найдена автоматически: {path}",
+        "game_folder_wait_log": "Папка CoD2 найдена. Жду появления console_mp.log — запусти Multiplayer и зайди на сервер.",
         "use_selected_profile": "Использовать выбранный", "profile_list": "Профиль:",
         "profile_path": "Лог:", "profiles_updated": "Список профилей обновлён",
         "profile_auto_status": "Активный профиль: {name} (определён автоматически)",
@@ -192,7 +201,12 @@ UI_STRINGS = {
         "rename_profile": "Rename…", "auto_profile": "automatically detect the active server",
         "server": "Server:", "server_auto": "● Automatic", "server_manual": "● Manual · {name}",
         "server_settings": "Server settings…", "server_settings_title": "CoD2 server and log",
-        "server_settings_hint": "Normally you do not need to choose anything: the translator detects the active console_mp.log when you change servers.",
+        "server_settings_hint": "Normally you do not need to choose anything: the translator detects the running CoD2 folder and the active console_mp.log when you change servers.",
+        "game_folder": "Game folder:", "choose_game_folder": "Choose game folder…",
+        "game_folder_hint": "Steam may be installed on any drive. For a regular or non-Steam CoD2 copy, the easiest method is to start Multiplayer — the translator detects the folder from CoD2MP_s.exe. If that fails, choose the game folder once manually.",
+        "game_folder_invalid": "Call of Duty 2 was not found in the selected folder. Choose the folder that contains CoD2MP_s.exe.",
+        "game_folder_saved": "CoD2 folder saved: {path}", "game_folder_auto": "CoD2 detected automatically: {path}",
+        "game_folder_wait_log": "CoD2 folder found. Waiting for console_mp.log — start Multiplayer and join a server.",
         "use_selected_profile": "Use selected", "profile_list": "Profile:",
         "profile_path": "Log:", "profiles_updated": "Profile list refreshed",
         "profile_auto_status": "Active profile: {name} (detected automatically)",
@@ -352,7 +366,208 @@ def save_config(config: dict) -> None:
 
 
 
-def _steam_library_paths() -> list[Path]:
+def _windows_running_process_images(names: Optional[set[str]] = None) -> list[Path]:
+    """Return full image paths for selected running processes on Windows.
+
+    Native Toolhelp + QueryFullProcessImageName avoids shelling out to PowerShell
+    or WMIC and works for Steam, portable copies and non-Steam CoD2 installs.
+    Access failures for protected processes are ignored.
+    """
+    if os.name != "nt":
+        return []
+    wanted = {name.casefold() for name in names} if names else set()
+    try:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        TH32CS_SNAPPROCESS = 0x00000002
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD),
+                ("th32DefaultHeapID", ctypes.c_size_t),
+                ("th32ModuleID", wintypes.DWORD),
+                ("cntThreads", wintypes.DWORD),
+                ("th32ParentProcessID", wintypes.DWORD),
+                ("pcPriClassBase", wintypes.LONG),
+                ("dwFlags", wintypes.DWORD),
+                ("szExeFile", wintypes.WCHAR * 260),
+            ]
+
+        create_snapshot = kernel32.CreateToolhelp32Snapshot
+        create_snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+        create_snapshot.restype = wintypes.HANDLE
+        process_first = kernel32.Process32FirstW
+        process_first.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+        process_first.restype = wintypes.BOOL
+        process_next = kernel32.Process32NextW
+        process_next.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+        process_next.restype = wintypes.BOOL
+        open_process = kernel32.OpenProcess
+        open_process.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        open_process.restype = wintypes.HANDLE
+        query_image = kernel32.QueryFullProcessImageNameW
+        query_image.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+        query_image.restype = wintypes.BOOL
+        close_handle = kernel32.CloseHandle
+        close_handle.argtypes = [wintypes.HANDLE]
+        close_handle.restype = wintypes.BOOL
+
+        snapshot = create_snapshot(TH32CS_SNAPPROCESS, 0)
+        if not snapshot or snapshot == INVALID_HANDLE_VALUE:
+            return []
+        found: list[Path] = []
+        seen: set[str] = set()
+        try:
+            entry = PROCESSENTRY32W()
+            entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            ok = process_first(snapshot, ctypes.byref(entry))
+            while ok:
+                exe_name = str(entry.szExeFile).casefold()
+                if not wanted or exe_name in wanted:
+                    handle = open_process(PROCESS_QUERY_LIMITED_INFORMATION, False, entry.th32ProcessID)
+                    if handle:
+                        try:
+                            size = wintypes.DWORD(32768)
+                            buffer = ctypes.create_unicode_buffer(size.value)
+                            if query_image(handle, 0, buffer, ctypes.byref(size)):
+                                path = Path(buffer.value).expanduser().resolve(strict=False)
+                                key = os.path.normcase(str(path))
+                                if key not in seen:
+                                    seen.add(key)
+                                    found.append(path)
+                        finally:
+                            close_handle(handle)
+                ok = process_next(snapshot, ctypes.byref(entry))
+        finally:
+            close_handle(snapshot)
+        return found
+    except Exception:
+        return []
+
+
+def cod2_root_from_executable(executable: Path | str) -> Optional[Path]:
+    path = Path(executable).expanduser().resolve(strict=False)
+    if path.name.casefold() not in COD2_EXECUTABLE_NAMES:
+        return None
+    return path.parent
+
+
+def discover_running_cod2_roots(process_images: Optional[list[Path | str]] = None) -> list[Path]:
+    images = process_images
+    if images is None:
+        images = _windows_running_process_images(COD2_EXECUTABLE_NAMES)
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for image in images:
+        root = cod2_root_from_executable(image)
+        if root is None:
+            continue
+        key = os.path.normcase(str(root))
+        if key not in seen:
+            seen.add(key)
+            roots.append(root)
+    return roots
+
+
+def _windows_fixed_drive_roots() -> list[Path]:
+    if os.name != "nt":
+        return []
+    try:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        mask = int(kernel32.GetLogicalDrives())
+        get_drive_type = kernel32.GetDriveTypeW
+        get_drive_type.argtypes = [wintypes.LPCWSTR]
+        get_drive_type.restype = wintypes.UINT
+        DRIVE_FIXED = 3
+        roots: list[Path] = []
+        for index in range(26):
+            if not (mask & (1 << index)):
+                continue
+            root = f"{chr(ord('A') + index)}:\\"
+            if get_drive_type(root) == DRIVE_FIXED:
+                roots.append(Path(root))
+        return roots
+    except Exception:
+        return []
+
+
+def _looks_like_cod2_root(path: Path | str) -> bool:
+    root = Path(path).expanduser().resolve(strict=False)
+    try:
+        if any((root / name).exists() for name in ("CoD2MP_s.exe", "CoD2MP.exe", "cod2mp_s.exe")):
+            return True
+        if (root / "main").is_dir():
+            return True
+        return any(root.glob("*/console_mp.log"))
+    except Exception:
+        return False
+
+
+def _common_cod2_install_candidates(drive_roots: Optional[list[Path | str]] = None) -> list[Path]:
+    """Cheap non-recursive fallback for common portable/pirated install layouts."""
+    drives = [Path(p) for p in drive_roots] if drive_roots is not None else _windows_fixed_drive_roots()
+    folder_names = ("Call of Duty 2", "COD2", "CoD2", "cod2")
+    result: list[Path] = []
+    seen: set[str] = set()
+    for drive in drives:
+        parents = [
+            drive,
+            drive / "Games",
+            drive / "Game",
+            drive / "Игры",
+            drive / "Program Files",
+            drive / "Program Files (x86)",
+            drive / "Program Files" / "Activision",
+            drive / "Program Files (x86)" / "Activision",
+            drive / "SteamLibrary" / "steamapps" / "common",
+            drive / "Steam" / "steamapps" / "common",
+        ]
+        for parent in parents:
+            for name in folder_names:
+                candidate = (parent / name).expanduser().resolve(strict=False)
+                key = os.path.normcase(str(candidate))
+                if key in seen:
+                    continue
+                seen.add(key)
+                if _looks_like_cod2_root(candidate):
+                    result.append(candidate)
+    return result
+
+
+def _common_steam_roots(drive_roots: Optional[list[Path | str]] = None) -> list[Path]:
+    """Find obvious Steam/library roots on fixed drives without recursive scanning."""
+    drives = [Path(p) for p in drive_roots] if drive_roots is not None else _windows_fixed_drive_roots()
+    result: list[Path] = []
+    seen: set[str] = set()
+    for drive in drives:
+        candidates = [
+            drive / "Steam",
+            drive / "SteamLibrary",
+            drive / "Games" / "Steam",
+            drive / "Program Files" / "Steam",
+            drive / "Program Files (x86)" / "Steam",
+        ]
+        for candidate in candidates:
+            path = candidate.expanduser().resolve(strict=False)
+            key = os.path.normcase(str(path))
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                if (path / "steam.exe").exists() or (path / "steamapps").is_dir():
+                    result.append(path)
+            except Exception:
+                pass
+    return result
+
+
+def _steam_library_paths(
+    process_images: Optional[list[Path | str]] = None,
+    drive_roots: Optional[list[Path | str]] = None,
+) -> list[Path]:
     paths: list[Path] = []
     if os.name == "nt":
         try:
@@ -374,21 +589,121 @@ def _steam_library_paths() -> list[Path]:
             base = os.environ.get(env_name)
             if base:
                 paths.append(Path(base) / "Steam")
+
+    images = process_images
+    if images is None and os.name == "nt":
+        images = _windows_running_process_images(STEAM_EXECUTABLE_NAMES)
+    for image in images or []:
+        image_path = Path(image).expanduser().resolve(strict=False)
+        if image_path.name.casefold() in STEAM_EXECUTABLE_NAMES:
+            paths.append(image_path.parent)
+
+    paths.extend(_common_steam_roots(drive_roots))
+
     # Parse Steam libraryfolders.vdf using a forgiving quoted-path scan.
     expanded: list[Path] = []
+    expanded_keys: set[str] = set()
     for steam in paths:
-        if steam not in expanded:
+        steam = steam.expanduser().resolve(strict=False)
+        key = os.path.normcase(str(steam))
+        if key not in expanded_keys:
             expanded.append(steam)
+            expanded_keys.add(key)
         vdf = steam / "steamapps" / "libraryfolders.vdf"
         try:
             text = vdf.read_text(encoding="utf-8", errors="ignore")
             for match in re.finditer(r'"path"\s+"([^"]+)"', text, flags=re.I):
-                lib = Path(match.group(1).replace("\\\\", "\\"))
-                if lib not in expanded:
+                lib = Path(match.group(1).replace("\\\\", "\\")).expanduser().resolve(strict=False)
+                lib_key = os.path.normcase(str(lib))
+                if lib_key not in expanded_keys:
                     expanded.append(lib)
+                    expanded_keys.add(lib_key)
         except Exception:
             pass
     return expanded
+
+
+def discover_cod2_game_roots(
+    extra_roots: Optional[list[Path | str]] = None,
+    process_images: Optional[list[Path | str]] = None,
+    drive_roots: Optional[list[Path | str]] = None,
+) -> list[Path]:
+    """Find CoD2 installs without assuming Steam or a specific drive letter."""
+    images = process_images
+    if images is None:
+        images = _windows_running_process_images(COD2_EXECUTABLE_NAMES | STEAM_EXECUTABLE_NAMES)
+
+    fixed_drives = [Path(p) for p in drive_roots] if drive_roots is not None else _windows_fixed_drive_roots()
+    roots: list[Path] = []
+    seen: set[str] = set()
+
+    def add(candidate: Path | str, require_marker: bool = True) -> None:
+        path = Path(candidate).expanduser().resolve(strict=False)
+        key = os.path.normcase(str(path))
+        if key in seen:
+            return
+        if require_marker and not _looks_like_cod2_root(path):
+            return
+        seen.add(key)
+        roots.append(path)
+
+    # Highest-confidence source: the actually running Multiplayer executable.
+    for root in discover_running_cod2_roots(images):
+        add(root, require_marker=False)
+
+    # Steam itself may live anywhere; libraryfolders.vdf may point to other drives.
+    for steam_or_library in _steam_library_paths(images, fixed_drives):
+        for game in (
+            steam_or_library / "steamapps" / "common" / "Call of Duty 2",
+            steam_or_library / "Call of Duty 2",
+            steam_or_library,
+        ):
+            add(game)
+
+    # Remembered/manual roots are trusted even when the game is not running yet.
+    for root in extra_roots or []:
+        try:
+            add(root, require_marker=False)
+        except Exception:
+            pass
+
+    # Fast fallback for common portable/non-Steam layouts; no whole-disk recursion.
+    for root in _common_cod2_install_candidates(fixed_drives):
+        add(root)
+
+    return roots
+
+
+def _console_logs_in_game_roots(game_roots: list[Path | str]) -> list[Path]:
+    candidates: list[Path] = []
+    seen: set[str] = set()
+    for raw_root in game_roots:
+        game = Path(raw_root).expanduser().resolve(strict=False)
+        try:
+            if not game.exists() or not game.is_dir():
+                continue
+            for log in game.glob("*/console_mp.log"):
+                key = os.path.normcase(str(log.resolve(strict=False)))
+                if key not in seen:
+                    seen.add(key)
+                    candidates.append(log.resolve())
+            direct = game / "console_mp.log"
+            if direct.exists():
+                key = os.path.normcase(str(direct.resolve(strict=False)))
+                if key not in seen:
+                    seen.add(key)
+                    candidates.append(direct.resolve())
+        except Exception:
+            pass
+    candidates.sort(key=lambda p: p.stat().st_mtime_ns if p.exists() else 0, reverse=True)
+    return candidates
+
+
+def discover_cod2_logs(extra_roots: Optional[list[Path | str]] = None) -> list[Path]:
+    roots = discover_cod2_game_roots(extra_roots)
+    roots.extend([app_dir(), Path.cwd()])
+    # app_dir/cwd are legacy fallbacks; only their direct/one-level logs are scanned.
+    return _console_logs_in_game_roots(roots)
 
 
 def _path_key(path: Path | str) -> str:
@@ -461,49 +776,6 @@ def merge_server_profiles(existing: object, discovered: list[Path]) -> list[dict
         result.append(rec)
         index[key] = rec
     return result
-
-
-def discover_cod2_logs(extra_roots: Optional[list[Path | str]] = None) -> list[Path]:
-    candidates: list[Path] = []
-    seen: set[str] = set()
-    roots: list[Path] = list(_steam_library_paths())
-    roots.extend([app_dir(), Path.cwd()])
-    for extra in extra_roots or []:
-        try:
-            roots.append(Path(extra))
-        except Exception:
-            pass
-
-    root_seen: set[str] = set()
-    for root in roots:
-        root_key = _path_key(root)
-        if root_key in root_seen:
-            continue
-        root_seen.add(root_key)
-        possible_game_dirs = [
-            root / "steamapps" / "common" / "Call of Duty 2",
-            root / "Call of Duty 2",
-            root,
-        ]
-        for game in possible_game_dirs:
-            try:
-                if not game.exists() or not game.is_dir():
-                    continue
-                for log in game.glob("*/console_mp.log"):
-                    key = _path_key(log)
-                    if key not in seen:
-                        seen.add(key)
-                        candidates.append(log.resolve())
-                direct = game / "console_mp.log"
-                if direct.exists():
-                    key = _path_key(direct)
-                    if key not in seen:
-                        seen.add(key)
-                        candidates.append(direct.resolve())
-            except Exception:
-                pass
-    candidates.sort(key=lambda p: p.stat().st_mtime_ns if p.exists() else 0, reverse=True)
-    return candidates
 
 
 def activity_snapshot(paths: list[Path]) -> dict[str, tuple[int, int]]:
@@ -2301,6 +2573,8 @@ class ControlApp:
         self._profile_snapshot: dict[str, tuple[int, int]] = {}
         self._pending_log_switch_positions: dict[str, int] = {}
         self._profiles_initialized = False
+        self._last_root_discovery_at = 0.0
+        self._detected_game_roots: list[Path] = []
 
         self.target_name_var = tk.StringVar(value=self._target_name_for_code(self.config["target_language"]))
         self.show_original_var = tk.BooleanVar(value=bool(self.config.get("show_original", False)))
@@ -2645,13 +2919,24 @@ class ControlApp:
         records = self.config.get("server_profiles", [])
         return records if isinstance(records, list) else []
 
-    def _ensure_cod2_root(self, path: Path) -> None:
-        root = str(infer_cod2_root(path))
+    def _remember_cod2_root(self, root: Path | str) -> bool:
+        root_path = Path(root).expanduser().resolve(strict=False)
         roots = [str(x) for x in self.config.get("cod2_roots", []) if str(x).strip()]
         keys = {_path_key(x) for x in roots}
-        if _path_key(root) not in keys:
-            roots.append(root)
-            self.config["cod2_roots"] = roots
+        if _path_key(root_path) in keys:
+            return False
+        roots.append(str(root_path))
+        self.config["cod2_roots"] = roots
+        return True
+
+    def _ensure_cod2_root(self, path: Path) -> None:
+        self._remember_cod2_root(infer_cod2_root(path))
+
+    def _preferred_game_root(self) -> Optional[Path]:
+        if self._active_log_path is not None:
+            return infer_cod2_root(self._active_log_path)
+        roots = [str(x).strip() for x in self.config.get("cod2_roots", []) if str(x).strip()]
+        return Path(roots[0]).expanduser().resolve(strict=False) if roots else None
 
     def _profile_name_for_path(self, path: Path) -> str:
         key = _path_key(path)
@@ -2770,6 +3055,24 @@ class ControlApp:
             foreground="#555555",
             wraplength=560,
         ).pack(anchor="w", pady=(6, 12))
+        ttk.Label(
+            body,
+            text=self.t("game_folder_hint"),
+            foreground="#555555",
+            wraplength=560,
+        ).pack(anchor="w", pady=(0, 10))
+
+        game_row = ttk.Frame(body)
+        game_row.pack(fill="x", pady=(0, 10))
+        ttk.Label(game_row, text=self.t("game_folder"), width=12).pack(side="left", anchor="n")
+        dialog_game_root_var = tk.StringVar(value=str(self._preferred_game_root() or ""))
+        ttk.Label(
+            game_row,
+            textvariable=dialog_game_root_var,
+            foreground="#666666",
+            wraplength=390,
+        ).pack(side="left", fill="x", expand=True)
+
         ttk.Separator(body).pack(fill="x", pady=(0, 12))
 
         row = ttk.Frame(body)
@@ -2803,6 +3106,7 @@ class ControlApp:
                 dialog_profile_var.set(selected)
             path = mapping.get(dialog_profile_var.get())
             dialog_path_var.set(str(path) if path else "")
+            dialog_game_root_var.set(str(self._preferred_game_root() or ""))
 
         def on_selected(_event=None) -> None:
             path = self._profile_label_to_path.get(dialog_profile_var.get())
@@ -2815,6 +3119,35 @@ class ControlApp:
             self.auto_profile_var.set(False)
             self._auto_profile_changed()
             self._set_active_profile(path, automatic=False)
+            refresh_dialog(select_active=True)
+
+        def choose_game_folder() -> None:
+            selected = filedialog.askdirectory(
+                title=self.t("choose_game_folder"),
+                parent=win,
+                mustexist=True,
+            )
+            if not selected:
+                return
+            root_path = Path(selected).expanduser().resolve(strict=False)
+            if not _looks_like_cod2_root(root_path):
+                messagebox.showwarning(
+                    self.t("server_settings_title"),
+                    self.t("game_folder_invalid"),
+                    parent=win,
+                )
+                return
+            self._remember_cod2_root(root_path)
+            self.auto_profile_var.set(True)
+            self.config["auto_detect_profile"] = True
+            found = _console_logs_in_game_roots([root_path])
+            if found:
+                self._set_active_profile(found[0], automatic=True, persist=False)
+                self.status_var.set(self.t("game_folder_saved").format(path=root_path))
+            else:
+                self.status_var.set(self.t("game_folder_wait_log"))
+            self._refresh_server_profiles(initial=False, force_root_discovery=True)
+            self._persist_settings()
             refresh_dialog(select_active=True)
 
         def add_log() -> None:
@@ -2839,7 +3172,7 @@ class ControlApp:
             refresh_dialog(select_active=True)
 
         def rescan() -> None:
-            self._refresh_server_profiles(initial=False)
+            self._refresh_server_profiles(initial=False, force_root_discovery=True)
             self.status_var.set(self.t("profiles_updated"))
             refresh_dialog(select_active=True)
 
@@ -2848,7 +3181,8 @@ class ControlApp:
 
         buttons = ttk.Frame(body)
         buttons.pack(fill="x", pady=(14, 0))
-        ttk.Button(buttons, text=self.t("use_selected_profile"), command=use_selected).pack(side="left")
+        ttk.Button(buttons, text=self.t("choose_game_folder"), command=choose_game_folder).pack(side="left")
+        ttk.Button(buttons, text=self.t("use_selected_profile"), command=use_selected).pack(side="left", padx=(6, 0))
         ttk.Button(buttons, text=self.t("browse"), command=add_log).pack(side="left", padx=(6, 0))
         ttk.Button(buttons, text=self.t("rename_profile"), command=rename_selected).pack(side="left", padx=(6, 0))
         ttk.Button(buttons, text=self.t("rescan"), command=rescan).pack(side="left", padx=(6, 0))
@@ -2874,7 +3208,7 @@ class ControlApp:
         if persist:
             self._persist_settings()
 
-    def _refresh_server_profiles(self, initial: bool = False) -> None:
+    def _refresh_server_profiles(self, initial: bool = False, force_root_discovery: bool = False) -> None:
         before = json.dumps({
             "server_profiles": self.config.get("server_profiles", []),
             "cod2_roots": self.config.get("cod2_roots", []),
@@ -2882,7 +3216,17 @@ class ControlApp:
             "log_path": self.config.get("log_path", ""),
         }, ensure_ascii=False, sort_keys=True)
 
-        discovered = discover_cod2_logs(self.config.get("cod2_roots", []))
+        now = time.monotonic()
+        if initial or force_root_discovery or (now - self._last_root_discovery_at) >= 3.0:
+            saved_roots = self.config.get("cod2_roots", [])
+            detected_roots = discover_cod2_game_roots(saved_roots)
+            self._detected_game_roots = detected_roots
+            self._last_root_discovery_at = now
+            for root in detected_roots:
+                if self._remember_cod2_root(root) and _looks_like_cod2_root(root):
+                    self.status_var.set(self.t("game_folder_auto").format(path=root))
+        game_roots = [Path(x).expanduser().resolve(strict=False) for x in self.config.get("cod2_roots", []) if str(x).strip()]
+        discovered = _console_logs_in_game_roots(game_roots)
         self.config["server_profiles"] = merge_server_profiles(self._profile_records(), discovered)
         for path in discovered:
             self._ensure_cod2_root(path)
@@ -2955,7 +3299,7 @@ class ControlApp:
             self._refresh_server_profiles(initial=False)
 
     def rescan_profiles(self) -> None:
-        self._refresh_server_profiles(initial=False)
+        self._refresh_server_profiles(initial=False, force_root_discovery=True)
         self.status_var.set(self.t("profiles_updated"))
 
     def rename_active_profile(self) -> None:

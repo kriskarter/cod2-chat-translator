@@ -1,4 +1,6 @@
 from pathlib import Path
+import os
+import sys
 import tempfile
 import threading
 import time
@@ -20,6 +22,15 @@ from app import (
     apply_primary_profile_name,
     merge_server_profiles,
     discover_cod2_logs,
+    cod2_root_from_executable,
+    discover_running_cod2_roots,
+    discover_cod2_game_roots,
+    _common_cod2_install_candidates,
+    _steam_library_paths,
+    _common_steam_roots,
+    _console_logs_in_game_roots,
+    _windows_running_process_images,
+    _windows_fixed_drive_roots,
     activity_snapshot,
     choose_active_log_from_activity,
     LogTailer,
@@ -252,6 +263,85 @@ class ParserTests(unittest.TestCase):
             mod_log.write_text("", encoding="utf-8")
             second = discover_cod2_logs([game])
             self.assertIn(mod_log.resolve(), second)
+
+
+    @unittest.skipUnless(os.name == "nt", "Windows process API smoke test")
+    def test_windows_native_process_discovery_finds_current_python(self):
+        exe_name = Path(sys.executable).name
+        images = _windows_running_process_images({exe_name})
+        self.assertTrue(any(path.name.casefold() == exe_name.casefold() for path in images))
+        self.assertTrue(_windows_fixed_drive_roots())
+
+    def test_running_cod2_process_finds_arbitrary_nonsteam_root(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "Weird Folder" / "Old COD2 Copy"
+            exe = root / "CoD2MP_s.exe"
+            roots = discover_running_cod2_roots([exe])
+            self.assertEqual(roots, [root.resolve()])
+            self.assertEqual(cod2_root_from_executable(exe), root.resolve())
+
+    def test_running_process_filter_ignores_steam_for_cod2_root(self):
+        with tempfile.TemporaryDirectory() as td:
+            steam = Path(td) / "PortableSteam" / "steam.exe"
+            game = Path(td) / "Games" / "Call of Duty 2" / "CoD2MP_s.exe"
+            roots = discover_running_cod2_roots([steam, game])
+            self.assertEqual(roots, [game.parent.resolve()])
+
+    def test_common_nonsteam_layout_is_found_without_recursive_disk_scan(self):
+        with tempfile.TemporaryDirectory() as td:
+            drive = Path(td)
+            game = drive / "Games" / "COD2"
+            game.mkdir(parents=True)
+            (game / "CoD2MP_s.exe").write_bytes(b"")
+            found = _common_cod2_install_candidates([drive])
+            self.assertIn(game.resolve(), found)
+
+    def test_running_portable_game_root_exposes_mod_logs(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "anything" / "portable_cod2"
+            exe = game / "CoD2MP_s.exe"
+            log = game / "custom_mod" / "console_mp.log"
+            log.parent.mkdir(parents=True)
+            exe.write_bytes(b"")
+            log.write_text("", encoding="utf-8")
+            roots = discover_cod2_game_roots(process_images=[exe], drive_roots=[])
+            logs = _console_logs_in_game_roots(roots)
+            self.assertIn(game.resolve(), roots)
+            self.assertIn(log.resolve(), logs)
+
+    def test_common_steam_root_on_other_drive_is_found(self):
+        with tempfile.TemporaryDirectory() as td:
+            drive = Path(td)
+            steam = drive / "Steam"
+            (steam / "steamapps").mkdir(parents=True)
+            found = _common_steam_roots([drive])
+            self.assertIn(steam.resolve(), found)
+
+    def test_running_portable_steam_discovers_library_on_other_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            steam = base / "StrangeSteamLocation"
+            library = base / "AnotherDiskLibrary"
+            game = library / "steamapps" / "common" / "Call of Duty 2"
+            (steam / "steamapps").mkdir(parents=True)
+            (game / "main").mkdir(parents=True)
+            (steam / "steam.exe").write_bytes(b"")
+            (game / "CoD2MP_s.exe").write_bytes(b"")
+            # Steam stores backslashes escaped on Windows; a normal path is also
+            # accepted by the forgiving parser used in tests and on Windows.
+            vdf_path = str(library).replace("\\", "\\\\")
+            (steam / "steamapps" / "libraryfolders.vdf").write_text(
+                f'"libraryfolders"\n{{\n  "1" {{ "path" "{vdf_path}" }}\n}}\n',
+                encoding="utf-8",
+            )
+            libraries = _steam_library_paths([steam / "steam.exe"], drive_roots=[])
+            self.assertIn(steam.resolve(), libraries)
+            self.assertIn(library.resolve(), libraries)
+            roots = discover_cod2_game_roots(
+                process_images=[steam / "steam.exe"],
+                drive_roots=[],
+            )
+            self.assertIn(game.resolve(), roots)
 
     def test_activity_switches_to_log_that_started_updating(self):
         with tempfile.TemporaryDirectory() as td:
