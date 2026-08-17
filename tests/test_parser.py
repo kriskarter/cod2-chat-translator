@@ -1,4 +1,5 @@
 from pathlib import Path
+from collections import deque
 import os
 import sys
 import tempfile
@@ -9,6 +10,7 @@ import unittest
 from app import (
     ChatMessage,
     compact_background_size,
+    recommended_overlay_height,
     default_overlay_position,
     RecentDuplicateFilter,
     gaming_slang_transform,
@@ -38,6 +40,7 @@ from app import (
     activity_snapshot,
     choose_active_log_from_activity,
     LogTailer,
+    OverlayWindow,
     TranslatorWorker,
     TranslationServiceTemporaryError,
     looks_like_translation_service_error,
@@ -216,7 +219,72 @@ class ParserTests(unittest.TestCase):
         log = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")
         self.assertEqual(infer_cod2_root(log).name, "Call of Duty 2")
         self.assertEqual(default_profile_name(log), "oboronay3")
-        self.assertEqual(default_profile_name(log.parent.parent / "main" / "console_mp.log"), "Vanilla (main)")
+        self.assertEqual(default_profile_name(log.parent.parent / "main" / "console_mp.log"), "Call of Duty 2")
+
+    def test_main_profile_takes_friendly_name_and_legacy_mod_name_is_migrated(self):
+        base = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")
+        main = base.parent.parent / "main" / "console_mp.log"
+        profiles = [
+            {"name": "Call of Duty 2", "path": str(base)},
+            {"name": "Vanilla (main)", "path": str(main)},
+        ]
+        profiles = apply_primary_profile_name(profiles, base)
+        names = {Path(rec["path"]).parent.name: rec["name"] for rec in profiles}
+        self.assertEqual(names["main"], "Call of Duty 2")
+        self.assertEqual(names["oboronay3"], "oboronay3")
+
+    def test_recommended_height_grows_for_busy_chat(self):
+        self.assertGreater(recommended_overlay_height(5, 10), recommended_overlay_height(3, 10))
+        self.assertEqual(recommended_overlay_height(99, 10), recommended_overlay_height(5, 10))
+
+    def test_visible_background_is_not_deiconified_on_every_redraw(self):
+        class FakeWindow:
+            def __init__(self, state="normal"):
+                self._state = state
+                self.deiconify_calls = 0
+                self.withdraw_calls = 0
+                self.alpha = None
+
+            def state(self):
+                return self._state
+
+            def attributes(self, name, value):
+                if name == "-alpha":
+                    self.alpha = value
+
+            def deiconify(self):
+                self.deiconify_calls += 1
+                self._state = "normal"
+
+            def withdraw(self):
+                self.withdraw_calls += 1
+                self._state = "withdrawn"
+
+        overlay = OverlayWindow.__new__(OverlayWindow)
+        overlay.config = {
+            "overlay": {
+                "background_opacity": 0.15,
+                "background_only_with_messages": True,
+            }
+        }
+        overlay.window = FakeWindow("normal")
+        overlay.bg_window = FakeWindow("normal")
+        overlay.items = deque([object()])
+        overlay.edit_mode = False
+        overlay._fade_alpha = 1.0
+        topmost_calls = []
+        overlay._set_click_through_window = lambda *_args, **_kwargs: None
+        overlay._force_topmost_native = lambda: topmost_calls.append(True)
+
+        overlay._apply_background_visibility()
+        overlay._apply_background_visibility()
+        self.assertEqual(overlay.bg_window.deiconify_calls, 0)
+        self.assertEqual(len(topmost_calls), 0)
+
+        overlay.bg_window._state = "withdrawn"
+        overlay._apply_background_visibility()
+        self.assertEqual(overlay.bg_window.deiconify_calls, 1)
+        self.assertEqual(len(topmost_calls), 1)
 
     def test_primary_profile_uses_generic_name(self):
         log = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")

@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.15.0"
+APP_VERSION = "1.15.1"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -51,6 +51,7 @@ COD2_EXECUTABLE_NAMES = {"cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe"}
 STEAM_EXECUTABLE_NAMES = {"steam.exe"}
 COD2_CONFIG_NAME = "config_mp.cfg"
 COD2_LOGFILE_VALUE = 2
+MAX_OVERLAY_MESSAGES = 5
 
 
 TARGET_LANGUAGES = OrderedDict([
@@ -1038,17 +1039,48 @@ def infer_cod2_root(log_path: Path | str) -> Path:
 def default_profile_name(log_path: Path | str) -> str:
     folder = Path(log_path).expanduser().resolve(strict=False).parent.name or "CoD2"
     if folder.lower() == "main":
-        return "Vanilla (main)"
+        return "Call of Duty 2"
     return folder
 
 
 def apply_primary_profile_name(existing: object, primary_path: Path | str, name: str = "Call of Duty 2") -> list[dict]:
-    """Give the first/base profile a friendly generic name without overwriting user renames."""
+    """Keep the friendly generic name on ``main`` when it exists.
+
+    Older releases could attach ``Call of Duty 2`` to the first discovered mod
+    log (for example ``oboronay3``). Once the real ``main`` log is available,
+    migrate that legacy generated name back to the mod folder name and show the
+    friendly label on ``main`` instead. User-defined names other than the legacy
+    generic label are preserved.
+    """
     records = [dict(item) for item in existing if isinstance(item, dict)] if isinstance(existing, list) else []
     raw_primary = str(primary_path).strip()
+    primary_key = _path_key(raw_primary) if raw_primary else ""
+
+    main_record = None
+    for rec in records:
+        raw = str(rec.get("path", "")).strip()
+        if raw and Path(raw).expanduser().resolve(strict=False).parent.name.casefold() == "main":
+            main_record = rec
+            break
+
+    if main_record is not None:
+        # Undo only the legacy generic name on the previous primary mod path.
+        if primary_key:
+            for rec in records:
+                raw = str(rec.get("path", "")).strip()
+                if not raw or _path_key(raw) != primary_key:
+                    continue
+                if rec is not main_record and str(rec.get("name", "")).strip() == name:
+                    rec["name"] = default_profile_name(raw)
+                break
+
+        current = str(main_record.get("name", "")).strip()
+        if not current or current in {"Vanilla (main)", default_profile_name(main_record.get("path", ""))}:
+            main_record["name"] = name
+        return records
+
     if not raw_primary:
         return records
-    primary_key = _path_key(raw_primary)
     for rec in records:
         raw = str(rec.get("path", "")).strip()
         if not raw or _path_key(raw) != primary_key:
@@ -2136,6 +2168,19 @@ def compact_background_size(max_right: int, content_bottom: int, configured_widt
     return width, height
 
 
+def recommended_overlay_height(message_count: int, font_size: int = 10) -> int:
+    """Reasonable maximum overlay height for a busy chat history.
+
+    Auto-height still shrinks the window to the real content, so increasing this
+    limit does not create a large empty panel. It only gives 4-5 selected
+    messages enough room when chat is active.
+    """
+    count = max(1, min(int(message_count), MAX_OVERLAY_MESSAGES))
+    size = max(7, min(int(font_size), 20))
+    per_message = max(36, size * 3 + 8)
+    return max(70, 30 + count * per_message)
+
+
 def default_overlay_position(screen_width: int, screen_height: int, width: int = 500, height: int = 150) -> tuple[int, int]:
     """Default position chosen from real CoD2 play testing: left side, a little above mid-screen.
 
@@ -2333,20 +2378,31 @@ class OverlayWindow:
     def _apply_background_visibility(self) -> None:
         opacity = self._background_opacity()
         only_with_messages = bool(self._overlay_cfg().get("background_only_with_messages", True))
-        if (
+        should_show = not (
             self.window.state() == "withdrawn"
             or opacity <= 0.001
             or (only_with_messages and not self.items and not self.edit_mode)
-        ):
-            self.bg_window.withdraw()
+        )
+        bg_hidden = self.bg_window.state() == "withdrawn"
+
+        if not should_show:
+            # Avoid repeatedly withdrawing an already-hidden layered window.
+            if not bg_hidden:
+                self.bg_window.withdraw()
             return
+
         try:
             self.bg_window.attributes("-alpha", opacity * self._fade_alpha)
         except Exception:
             pass
-        self.bg_window.deiconify()
-        self._set_click_through_window(self.bg_window, True)
-        self._force_topmost_native()
+
+        # Deiconifying a layered topmost window can briefly place its black
+        # rectangle above the text layer. Do it only on the hidden -> visible
+        # transition, then immediately restore the correct z-order once.
+        if bg_hidden:
+            self.bg_window.deiconify()
+            self._set_click_through_window(self.bg_window, True)
+            self._force_topmost_native()
 
     def _set_text_alpha(self, alpha: float) -> None:
         self._fade_alpha = max(0.0, min(float(alpha), 1.0))
@@ -2442,22 +2498,57 @@ class OverlayWindow:
         self._overlay_cfg()["message_ttl_seconds"] = max(5, min(int(seconds), 20))
 
     def set_max_messages(self, count: int) -> None:
-        self._overlay_cfg()["max_messages"] = max(1, min(int(count), 3))
-        while len(self.items) > self._overlay_cfg()["max_messages"]:
+        overlay = self._overlay_cfg()
+        value = max(1, min(int(count), MAX_OVERLAY_MESSAGES))
+        overlay["max_messages"] = value
+        # 4-5 messages need more headroom than the historical 150 px cap.
+        # Auto-height still keeps the visible panel compact with short history.
+        if value > 3:
+            overlay["height"] = max(
+                int(overlay.get("height", 150)),
+                recommended_overlay_height(value, int(overlay.get("font_size", 10))),
+            )
+        while len(self.items) > value:
             self.items.popleft()
         self.render()
 
     def add(self, item: OverlayItem) -> None:
         was_empty = not self.items
+        previous_alpha = self._fade_alpha
         self._cancel_fade()
-        self._set_text_alpha(1.0)
+
+        fade_enabled = bool(self._overlay_cfg().get("fade_enabled", True)) and not self.edit_mode
+        if was_empty and fade_enabled:
+            # Set the initial alpha before the background is deiconified. The
+            # old order rendered a full-opacity black panel for one frame and
+            # only then started fading from 5%, which looked like a flash.
+            self._set_text_alpha(0.05)
+
         self.items.append(item)
-        max_messages = int(self._overlay_cfg().get("max_messages", 3))
+        max_messages = max(
+            1,
+            min(int(self._overlay_cfg().get("max_messages", 3)), MAX_OVERLAY_MESSAGES),
+        )
         while len(self.items) > max_messages:
             self.items.popleft()
         self.render()
-        if was_empty and not self.edit_mode:
-            self._fade_in()
+
+        if self.edit_mode or not fade_enabled:
+            self._set_text_alpha(1.0)
+        elif was_empty:
+            self._animate_alpha(
+                self._fade_alpha,
+                1.0,
+                max(100, int(self._overlay_cfg().get("fade_ms", 220))),
+            )
+        elif previous_alpha < 0.995:
+            # A new chat line may arrive while the previous history is fading
+            # out. Resume smoothly from the current alpha instead of snapping
+            # the black background back to full opacity.
+            resume_ms = max(90, min(160, int(self._overlay_cfg().get("fade_ms", 220))))
+            self._animate_alpha(previous_alpha, 1.0, resume_ms)
+        else:
+            self._set_text_alpha(1.0)
 
     def expire(self) -> None:
         ttl = float(self._overlay_cfg().get("message_ttl_seconds", 11))
@@ -2624,7 +2715,6 @@ class OverlayWindow:
 
         self._apply_geometry(force_config_height=self.edit_mode)
         self._apply_background_visibility()
-        self._force_topmost_native()
 
 def _win32_api():
     """Return Win32 functions with pointer-safe ctypes signatures.
@@ -3057,7 +3147,7 @@ class ControlApp:
 
         row4 = ttk.Frame(box); row4.pack(fill="x", pady=(6, 0))
         ttk.Label(row4, text=self.t("messages"), width=18).pack(side="left")
-        msg_combo = ttk.Combobox(row4, state="readonly", values=[1, 2, 3], textvariable=self.max_messages_var, width=5)
+        msg_combo = ttk.Combobox(row4, state="readonly", values=list(range(1, MAX_OVERLAY_MESSAGES + 1)), textvariable=self.max_messages_var, width=5)
         msg_combo.pack(side="left"); msg_combo.bind("<<ComboboxSelected>>", lambda _e: self._max_messages_changed())
         ttk.Button(row4, text=self.t("text_only"), command=self.text_only_preset).pack(side="left", padx=(18, 0))
         ttk.Button(row4, text=self.t("minimal"), command=self.minimal_preset).pack(side="left", padx=(6, 0))
@@ -3813,7 +3903,7 @@ class ControlApp:
             self._persist_settings()
 
     def _max_messages_changed(self) -> None:
-        v = max(1, min(3, int(self.max_messages_var.get())))
+        v = max(1, min(MAX_OVERLAY_MESSAGES, int(self.max_messages_var.get())))
         self.config["overlay"]["max_messages"] = v
         if hasattr(self, "overlay"):
             self.overlay.set_max_messages(v)

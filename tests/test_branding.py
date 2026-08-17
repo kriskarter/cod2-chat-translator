@@ -8,12 +8,15 @@ import app
 
 
 class BrandingTests(unittest.TestCase):
-    def test_v1150_branding(self):
-        self.assertEqual(app.APP_VERSION, "1.15.0")
+    def test_v1151_branding(self):
+        self.assertEqual(app.APP_VERSION, "1.15.1")
         self.assertEqual(app.PROJECT_AUTHOR, "kriskarter")
         self.assertEqual(app.PROJECT_PROFILE_URL, "https://github.com/kriskarter")
         self.assertEqual(app.UI_STRINGS["ru"]["about"], "О программе")
         self.assertEqual(app.UI_STRINGS["en"]["about"], "About")
+
+        self.assertEqual(app.MAX_OVERLAY_MESSAGES, 5)
+        self.assertGreaterEqual(app.recommended_overlay_height(5, 10), 200)
 
     def test_release_config_keeps_developer_metadata(self):
         root = Path(__file__).resolve().parents[1]
