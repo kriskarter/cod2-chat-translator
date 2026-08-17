@@ -59,6 +59,10 @@ When a player writes something, the app detects the source language, translates 
 
 Install the app with `Setup.exe` and start it from the shortcut.
 
+<p align="center">
+  <img src="docs/images/showcase_main_window.webp" width="100%" alt="CoD2 Chat Translator main window">
+</p>
+
 Starting with v1.15.0 you no longer need to enter `/seta logfile 2` manually. The translator discovers `config_mp.cfg` inside the detected CoD2 installation and enables `logfile 2` itself. No profile name or drive letter is hard-coded: `main`, direct mod folders, nested `mods\<name>` layouts and compatible portable/non-Steam copies are checked. An original backup is kept before a config is changed.
 
 If Multiplayer is already running while logging is disabled, the app does not rewrite the config currently owned by the game. Exit Multiplayer once; the translator applies the setting automatically, and logging is active on the next game launch.
@@ -89,6 +93,10 @@ Call of Duty 2\vetdm\console_mp.log
 While the translator is running, it periodically rescans the CoD2 folder. If a different `console_mp.log` starts changing after you join another server, the translator switches to it automatically. A newly created mod folder and log can also be discovered without restarting the app.
 
 Log paths are still stored internally as **profiles** for the manual fallback. Open **Server settings…** to choose the game folder once, select a specific log, rename a profile, or run automatic discovery again.
+
+<p align="center">
+  <img src="docs/images/showcase_server_settings.webp" width="82%" alt="Automatic CoD2 game folder and active log detection settings">
+</p>
 
 Only **one active log** is translated at a time. If several servers use the same mod folder, they share the same internal profile.
 
