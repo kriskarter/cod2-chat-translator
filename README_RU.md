@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/kriskarter/cod2-chat-translator/releases/latest">
-    <img src="https://img.shields.io/badge/Download_for_Windows-Latest_release-2ea44f?style=for-the-badge&logo=windows11&logoColor=white" alt="Скачать CoD2 Chat Translator для Windows">
+    <img src="https://img.shields.io/badge/%D0%A1%D0%9A%D0%90%D0%A7%D0%90%D0%A2%D0%AC%20%D0%94%D0%9B%D0%AF%20WINDOWS-%D0%9F%D0%9E%D0%A1%D0%9B%D0%95%D0%94%D0%9D%D0%98%D0%99%20%D0%A0%D0%95%D0%9B%D0%98%D0%97-2ea44f?style=for-the-badge&logo=windows11&logoColor=white" alt="Скачать CoD2 Chat Translator для Windows">
   </a>
 </p>
 
