@@ -27,6 +27,28 @@ COD 2 Chat Translator читает игровой чат из `console_mp.log`, 
   <img src="docs/images/ingame_gg.webp" width="49%" alt="Перевод игрового сленга GG">
 </p>
 
+### Больше примеров
+
+Ниже — более крупные фрагменты реальной игры. Скриншоты специально кадрированы ближе к чату, чтобы на странице GitHub было хорошо видно и оригинальное сообщение CoD2, и перевод в оверлее.
+
+<p align="center">
+  <img src="docs/images/showcase_busy_chat.webp" width="100%" alt="Несколько сообщений чата и переводы в оверлее">
+</p>
+
+<p align="center">
+  <img src="docs/images/showcase_single_translation.webp" width="100%" alt="Крупный пример перевода сообщения в игре">
+</p>
+
+<p align="center">
+  <img src="docs/images/showcase_large_text.webp" width="100%" alt="Оверлей CoD2 Chat Translator с увеличенным текстом">
+</p>
+
+Размер текста, фон, время показа и количество сообщений на экране настраиваются прямо в приложении:
+
+<p align="center">
+  <img src="docs/images/showcase_overlay_settings.webp" width="100%" alt="Настройки размера текста, фона и количества сообщений оверлея">
+</p>
+
 ## Как это работает
 
 CoD2 умеет писать консоль в файл `console_mp.log`. Переводчик следит за новыми строками и отделяет сообщения игроков от загрузки карт, dvar-параметров, путей к файлам и другого служебного вывода.

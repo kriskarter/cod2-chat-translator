@@ -27,6 +27,28 @@ Long admin messages and short gaming slang work too:
   <img src="docs/images/ingame_gg.webp" width="49%" alt="Gaming slang translation">
 </p>
 
+### More screenshots
+
+These are larger crops from real gameplay. They are intentionally focused on the chat area so both the original CoD2 message and the translated overlay remain readable directly on GitHub.
+
+<p align="center">
+  <img src="docs/images/showcase_busy_chat.webp" width="100%" alt="Several chat messages translated in the overlay">
+</p>
+
+<p align="center">
+  <img src="docs/images/showcase_single_translation.webp" width="100%" alt="Large in-game translation example">
+</p>
+
+<p align="center">
+  <img src="docs/images/showcase_large_text.webp" width="100%" alt="CoD2 Chat Translator overlay with larger text">
+</p>
+
+Text size, background opacity, display time and visible-message count can all be adjusted from the app:
+
+<p align="center">
+  <img src="docs/images/showcase_overlay_settings.webp" width="100%" alt="Overlay text size, background and visible-message settings">
+</p>
+
 ## How it works
 
 CoD2 can write its console output to `console_mp.log`. The translator watches new lines and filters player chat from map-loading output, dvars, file paths and other service messages.
