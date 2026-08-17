@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.15.1"
+APP_VERSION = "1.15.2"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -1473,6 +1473,11 @@ RU_GAMING_SLANG_EXPANSIONS = {
 }
 
 RU_GAMING_DIRECT = {
+    "rip me": "мне конец",
+    "relax": "расслабься",
+    "omg nice": "ого, здорово",
+    "lol wtf": "ахаха, что за фигня",
+    "what the hell": "что за фигня",
     "gg": "хорошая игра",
     "ggs": "хорошие игры",
     "wp": "хорошо сыграно",
@@ -1642,6 +1647,11 @@ RU_GAMING_DIRECT = {
 # is only stronger when the source slang itself is profane.  "live" keeps the
 # short, joking style common on adult CoD2 servers.
 RU_GAMING_LIVE_DIRECT = {
+    "omg nice": "ого, классно",
+    "lol wtf": "ахаха, какого хрена",
+    "what the hell": "какого хрена",
+    "rip me": "мне хана",
+    "relax": "расслабься",
     "wtf": "какого хрена",
     "wth": "какого хрена",
     "ffs": "да ё-моё",
@@ -1679,6 +1689,8 @@ RU_GAMING_LIVE_DIRECT = {
 
 RU_GAMING_RAW_DIRECT = {
     **RU_GAMING_LIVE_DIRECT,
+    "lol wtf": "ахаха, что за хуйня",
+    "what the hell": "какого хрена",
     "wtf": "что за хуйня",
     "ffs": "да блядь",
     "stfu": "заткнись нахуй",
@@ -1784,6 +1796,20 @@ def _ru_contextual_gaming_phrase(text: str, style: str) -> Optional[str]:
         punctuation = m_punct.group(1)
         stripped = stripped[:-len(punctuation)].rstrip()
 
+    # Short addressed commands often lose the imperative mood in generic MT.
+    m = re.fullmatch(r"([A-Za-z0-9_#.|-]{1,32})\s+relax", stripped, flags=re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}, расслабься{punctuation}"
+
+    m = re.fullmatch(r"([A-Za-z0-9_#.|-]{1,32})\s+lol\s+wtf", stripped, flags=re.IGNORECASE)
+    if m:
+        tail = {
+            "clear": "ахаха, что за фигня",
+            "live": "ахаха, какого хрена",
+            "raw": "ахаха, что за хуйня",
+        }.get(style, "ахаха, какого хрена")
+        return f"{m.group(1)}: {tail}{punctuation}"
+
     m = re.fullmatch(
         r"(?:stop|quit)\s+camp(?:ing)?(?:\s*,?\s*(idiot|noob|n00b|bro|dude|mate))?",
         stripped,
@@ -1830,16 +1856,131 @@ def _ru_contextual_gaming_phrase(text: str, style: str) -> Optional[str]:
     return None
 
 
+# Russian-speaking players often type Cyrillic words with Latin letters because
+# switching keyboard layout mid-match is inconvenient.  A generic Latin->Cyrillic
+# conversion would corrupt real English/Polish/German chat, so only high-confidence
+# Russian chat words and phrases are normalized.
+RU_LATIN_CHAT_PHRASES = {
+    "kak dela": "как дела",
+    "kak dela?": "как дела?",
+    "vse horosho": "всё хорошо",
+    "vse normalno": "всё нормально",
+    "dobroe utro": "доброе утро",
+    "dobriy vecher": "добрый вечер",
+    "dobry vecher": "добрый вечер",
+    "spokoinoi nochi": "спокойной ночи",
+    "spokoynoy nochi": "спокойной ночи",
+    "idi nahui": "иди нахуй",
+    "idi nahuy": "иди нахуй",
+    "idi na hui": "иди нахуй",
+}
+
+RU_LATIN_CHAT_WORDS = {
+    "privet": "привет",
+    "priv": "привет",
+    "zdarova": "здорово",
+    "zdorova": "здорово",
+    "zdraste": "здрасте",
+    "spasibo": "спасибо",
+    "spas": "спасибо",
+    "poka": "пока",
+    "davai": "давай",
+    "davaj": "давай",
+    "davaite": "давайте",
+    "kak": "как",
+    "dela": "дела",
+    "horosho": "хорошо",
+    "xorosho": "хорошо",
+    "normalno": "нормально",
+    "ploho": "плохо",
+    "chto": "что",
+    "che": "чё",
+    "cho": "чё",
+    "gde": "где",
+    "kto": "кто",
+    "mne": "мне",
+    "tebe": "тебе",
+    "vsem": "всем",
+    "segodnya": "сегодня",
+    "zavtra": "завтра",
+    "igra": "игра",
+    "igrat": "играть",
+    "bratan": "братан",
+    "krasava": "красава",
+    "molodec": "молодец",
+    "suka": "сука",
+    "blya": "бля",
+    "blja": "бля",
+    "blyat": "блять",
+    "nahui": "нахуй",
+    "nahuy": "нахуй",
+    "naxui": "нахуй",
+    "naxuy": "нахуй",
+    "huinya": "хуйня",
+    "hujnya": "хуйня",
+}
+
+RU_LATIN_STRONG_MARKERS = {
+    "privet", "priv", "zdarova", "zdorova", "zdraste", "spasibo", "spas",
+    "poka", "davai", "davaj", "davaite", "horosho", "xorosho", "normalno",
+    "ploho", "chto", "segodnya", "zavtra", "bratan", "krasava", "molodec",
+    "suka", "blya", "blja", "blyat", "nahui", "nahuy", "naxui", "naxuy",
+    "huinya", "hujnya",
+}
+
+LATIN_CHAT_WORD_RE = re.compile(r"[A-Za-z]+")
+
+
+def normalize_russian_latin_chat(text: str) -> tuple[str, bool]:
+    """Convert only confident Russian translit; never blindly transliterate English.
+
+    Returns ``(normalized_text, fully_recognized)``.  A fully recognized Russian
+    translit message can be shown directly when the target language is Russian.
+    """
+    stripped = text.strip()
+    if not stripped:
+        return text, False
+
+    folded_phrase = re.sub(r"\s+", " ", stripped.casefold())
+    phrase = RU_LATIN_CHAT_PHRASES.get(folded_phrase)
+    if phrase is not None:
+        return phrase, True
+
+    words = LATIN_CHAT_WORD_RE.findall(stripped)
+    if not words:
+        return text, False
+    folded = [word.casefold() for word in words]
+    if not any(word in RU_LATIN_STRONG_MARKERS for word in folded):
+        return text, False
+
+    recognized = sum(1 for word in folded if word in RU_LATIN_CHAT_WORDS)
+    if recognized == 0 or recognized * 2 < len(folded):
+        return text, False
+
+    def repl(match: re.Match[str]) -> str:
+        return RU_LATIN_CHAT_WORDS.get(match.group(0).casefold(), match.group(0))
+
+    normalized = LATIN_CHAT_WORD_RE.sub(repl, text)
+    return normalized, recognized == len(folded)
+
+
 def gaming_slang_transform(text: str, target: str, style: str = "live") -> tuple[str, Optional[str]]:
-    """Prepare gaming slang for reliable translation.
+    """Prepare gaming slang and confident Russian translit for translation.
 
     - exact common slang gets a fast human-readable result for RU/EN;
+    - Russian chat typed in Latin letters (``privet``, ``spasibo``...) is
+      normalized conservatively without treating normal English as translit;
     - slang inside longer messages is expanded in-place before Google Translate;
     - unknown text is left untouched.
     """
+    original_text = text
+    text, translit_complete = normalize_russian_latin_chat(text)
+    if target == "ru" and translit_complete and text != original_text:
+        return original_text, text
+
     key = normalize_slang_key(text)
     if not key:
-        return text, None
+        return original_text, None
 
     if target == "ru":
         style = style if style in {"clear", "live", "raw"} else "live"

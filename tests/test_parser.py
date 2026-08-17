@@ -202,6 +202,45 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(compact_background_size(900, 300, 500, 150), (500, 150))
         self.assertEqual(compact_background_size(10, 5, 500, 150), (70, 28))
 
+    def test_russian_translit_chat_is_normalized_for_ru(self):
+        prepared, direct = gaming_slang_transform("privet", "ru", "clear")
+        self.assertEqual(prepared, "privet")
+        self.assertEqual(direct, "привет")
+
+        prepared, direct = gaming_slang_transform("privet vsem", "ru", "live")
+        self.assertEqual(prepared, "privet vsem")
+        self.assertEqual(direct, "привет всем")
+
+        prepared, direct = gaming_slang_transform("kak dela?", "ru", "live")
+        self.assertEqual(direct, "как дела?")
+
+    def test_russian_translit_does_not_corrupt_normal_english(self):
+        prepared, direct = gaming_slang_transform("hello everyone", "ru", "live")
+        self.assertEqual(prepared, "hello everyone")
+        self.assertIsNone(direct)
+
+        prepared, direct = gaming_slang_transform("internet connection", "ru", "live")
+        self.assertEqual(prepared, "internet connection")
+        self.assertIsNone(direct)
+
+    def test_partial_russian_translit_prepares_for_other_language(self):
+        prepared, direct = gaming_slang_transform("privet bro", "de", "live")
+        self.assertIn("привет", prepared)
+        self.assertIsNone(direct)
+
+    def test_short_gamer_phrases_from_live_chat(self):
+        _prepared, direct = gaming_slang_transform("rip me", "ru", "clear")
+        self.assertEqual(direct, "мне конец")
+
+        _prepared, direct = gaming_slang_transform("omg nice", "ru", "live")
+        self.assertEqual(direct, "ого, классно")
+
+        _prepared, direct = gaming_slang_transform("stalk3r relax", "ru", "clear")
+        self.assertEqual(direct, "stalk3r, расслабься")
+
+        _prepared, direct = gaming_slang_transform("unio lol wtf", "ru", "clear")
+        self.assertEqual(direct, "unio: ахаха, что за фигня")
+
     def test_camp_phrase_is_not_translated_as_tourist_camp(self):
         prepared, direct = gaming_slang_transform("stop camp idiot", "ru", "live")
         self.assertEqual(prepared, "stop camp idiot")
