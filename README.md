@@ -10,6 +10,17 @@
   <img src="docs/images/readme_banner.webp" width="100%" alt="CoD2 Chat Translator — real-time chat translation overlay for Call of Duty 2">
 </p>
 
+<p align="center">
+  <a href="https://github.com/kriskarter/cod2-chat-translator/releases/latest">
+    <img src="https://img.shields.io/badge/Download_for_Windows-Latest_release-2ea44f?style=for-the-badge&logo=windows11&logoColor=white" alt="Download CoD2 Chat Translator for Windows">
+  </a>
+</p>
+
+<p align="center">
+  Open the latest release and download <code>CoD2ChatTranslator_Setup_*.exe</code>.
+</p>
+
+
 **A Windows chat translator for Call of Duty 2 Multiplayer that works while you play.**
 
 CoD2 still has players from many countries, so mixed-language chat is pretty common.

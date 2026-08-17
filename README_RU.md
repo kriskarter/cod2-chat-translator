@@ -10,6 +10,17 @@
   <img src="docs/images/readme_banner.webp" width="100%" alt="CoD2 Chat Translator — перевод чата поверх Call of Duty 2">
 </p>
 
+<p align="center">
+  <a href="https://github.com/kriskarter/cod2-chat-translator/releases/latest">
+    <img src="https://img.shields.io/badge/Download_for_Windows-Latest_release-2ea44f?style=for-the-badge&logo=windows11&logoColor=white" alt="Скачать CoD2 Chat Translator для Windows">
+  </a>
+</p>
+
+<p align="center">
+  Открой последний релиз и скачай <code>CoD2ChatTranslator_Setup_*.exe</code>.
+</p>
+
+
 **Переводчик чата для Call of Duty 2 Multiplayer, который работает прямо во время игры.**
 
 В CoD2 до сих пор играют люди из разных стран, поэтому языковой барьер в чате — обычная история.
