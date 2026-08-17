@@ -6,6 +6,10 @@
 
 <p align="center"><a href="README_RU.md">Русская версия</a></p>
 
+<p align="center">
+  <img src="docs/images/readme_banner.webp" width="100%" alt="CoD2 Chat Translator — real-time chat translation overlay for Call of Duty 2">
+</p>
+
 **A Windows chat translator for Call of Duty 2 Multiplayer that works while you play.**
 
 CoD2 still has players from many countries, so mixed-language chat is pretty common.
@@ -43,17 +47,33 @@ These are larger crops from real gameplay. They are intentionally focused on the
   <img src="docs/images/showcase_large_text.webp" width="100%" alt="CoD2 Chat Translator overlay with larger text">
 </p>
 
-Text size, background opacity, display time and visible-message count can all be adjusted from the app:
-
-<p align="center">
-  <img src="docs/images/showcase_overlay_settings.webp" width="100%" alt="Overlay text size, background and visible-message settings">
-</p>
+Text size, background opacity, display time and visible-message count can all be adjusted from the app. A clean full-window screenshot is shown below in the First launch section.
 
 ## How it works
 
 CoD2 can write its console output to `console_mp.log`. The translator watches new lines and filters player chat from map-loading output, dvars, file paths and other service messages.
 
 When a player writes something, the app detects the source language, translates the message to your selected language and shows it in the overlay for a few seconds. The original message can also be shown if you want it.
+
+### What can be translated
+
+The translator is not limited to an “English → Russian” workflow. **The incoming message language is detected automatically**, while the output language is chosen by you. Players can therefore mix English, Polish, German, Russian and other languages supported by the translation service in the same chat without manually switching the source language.
+
+The app includes **40 built-in target languages**: Russian, Ukrainian, English, German, Polish, Spanish, French, Italian, Portuguese, Czech, Slovak, Romanian, Hungarian, Turkish, Dutch, Scandinavian and Balkan languages, Arabic, Hebrew, Hindi, Japanese, Korean, Chinese and more. **Other…** also accepts an additional Google Translate language code.
+
+It is not only for long sentences. Short replies, ordinary chat and common FPS slang are handled as well. Russian typed with Latin letters — for example `privet`, `kak dela`, `spasibo` — is recognized conservatively so normal English chat is not blindly transliterated.
+
+Short reply:
+
+<p align="center">
+  <img src="docs/images/showcase_short_reply.webp" width="100%" alt="Short nope message translated in CoD2">
+</p>
+
+A normal in-game chat phrase:
+
+<p align="center">
+  <img src="docs/images/showcase_long_message.webp" width="100%" alt="Normal player chat phrase translated in CoD2">
+</p>
 
 ## First launch
 
@@ -126,7 +146,11 @@ There are three styles:
 
 ## Languages
 
-The source language is detected automatically. You only choose the language you want to read.
+The source language is detected automatically by the translation service. You only choose the output language.
+
+The current UI includes 40 ready-made target languages, and **Other…** accepts an additional language code. Translation pairs are not fixed: English → Russian, Polish → Ukrainian, German → English, Russian → Polish and many other combinations work the same way.
+
+If a message is already in your selected language, the **do not duplicate selected language** option keeps the overlay from showing an unnecessary copy.
 
 ## Settings
 
