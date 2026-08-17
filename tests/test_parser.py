@@ -276,7 +276,7 @@ class ParserTests(unittest.TestCase):
         self.assertGreater(recommended_overlay_height(5, 10), recommended_overlay_height(3, 10))
         self.assertEqual(recommended_overlay_height(99, 10), recommended_overlay_height(5, 10))
 
-    def test_visible_background_is_not_deiconified_on_every_redraw(self):
+    def test_background_stays_alive_and_uses_zero_alpha_between_chat_bursts(self):
         class FakeWindow:
             def __init__(self, state="normal"):
                 self._state = state
@@ -308,22 +308,35 @@ class ParserTests(unittest.TestCase):
         }
         overlay.window = FakeWindow("normal")
         overlay.bg_window = FakeWindow("normal")
-        overlay.items = deque([object()])
+        overlay.items = deque()
         overlay.edit_mode = False
         overlay._fade_alpha = 1.0
-        topmost_calls = []
         overlay._set_click_through_window = lambda *_args, **_kwargs: None
-        overlay._force_topmost_native = lambda: topmost_calls.append(True)
+        overlay._place_background_behind_text = lambda: None
 
+        # No messages: keep the layered window alive, but make it fully clear.
         overlay._apply_background_visibility()
-        overlay._apply_background_visibility()
+        self.assertEqual(overlay.bg_window.alpha, 0.0)
+        self.assertEqual(overlay.bg_window.withdraw_calls, 0)
         self.assertEqual(overlay.bg_window.deiconify_calls, 0)
-        self.assertEqual(len(topmost_calls), 0)
 
-        overlay.bg_window._state = "withdrawn"
+        # Messages arriving only change alpha; they do not re-show the window.
+        overlay.items.append(object())
         overlay._apply_background_visibility()
-        self.assertEqual(overlay.bg_window.deiconify_calls, 1)
-        self.assertEqual(len(topmost_calls), 1)
+        self.assertAlmostEqual(overlay.bg_window.alpha, 0.15)
+        self.assertEqual(overlay.bg_window.deiconify_calls, 0)
+
+    def test_topmost_refresh_never_promotes_background_above_text(self):
+        overlay = OverlayWindow.__new__(OverlayWindow)
+        overlay.window = object()
+        overlay.bg_window = object()
+        calls = []
+        overlay._force_topmost_window = lambda window: calls.append(("topmost", window))
+        overlay._place_background_behind_text = lambda: calls.append(("pair", None))
+
+        overlay._force_topmost_native()
+
+        self.assertEqual(calls, [("topmost", overlay.window), ("pair", None)])
 
     def test_primary_profile_uses_generic_name(self):
         log = Path(r"D:/SteamLibrary/steamapps/common/Call of Duty 2/oboronay3/console_mp.log")

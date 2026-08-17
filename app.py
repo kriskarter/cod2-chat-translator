@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.15.2"
+APP_VERSION = "1.15.3"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -2488,22 +2488,58 @@ class OverlayWindow:
             SWP_NOSIZE = 0x0001
             SWP_NOMOVE = 0x0002
             SWP_NOACTIVATE = 0x0010
-            SWP_SHOWWINDOW = 0x0040
+            api = _win32_api()
+            if not api:
+                return
+            user32, _kernel32, _get_long, _set_long = api
+            # Do not use SWP_SHOWWINDOW here.  Re-showing a layered window on
+            # every keep-topmost tick can expose the dark background for one
+            # compositor frame before the transparent text layer is restored.
+            user32.SetWindowPos(
+                wintypes.HWND(hwnd), wintypes.HWND(HWND_TOPMOST), 0, 0, 0, 0,
+                SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE,
+            )
+        except Exception:
+            pass
+
+    def _place_background_behind_text(self) -> None:
+        """Keep the translucent background directly behind the text layer.
+
+        The old implementation promoted the background to HWND_TOPMOST first
+        and promoted the text window immediately afterwards.  On Windows/DWM
+        that two-step z-order change can still be visible for a single frame.
+        This method never promotes the background above the text layer.
+        """
+        if self.bg_window.state() == "withdrawn":
+            return
+        if os.name != "nt":
+            try:
+                self.bg_window.lower(self.window)
+            except Exception:
+                pass
+            return
+        try:
+            bg_hwnd = self._window_hwnd(self.bg_window)
+            text_hwnd = self._window_hwnd(self.window)
+            SWP_NOSIZE = 0x0001
+            SWP_NOMOVE = 0x0002
+            SWP_NOACTIVATE = 0x0010
             api = _win32_api()
             if not api:
                 return
             user32, _kernel32, _get_long, _set_long = api
             user32.SetWindowPos(
-                wintypes.HWND(hwnd), wintypes.HWND(HWND_TOPMOST), 0, 0, 0, 0,
-                SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+                wintypes.HWND(bg_hwnd), wintypes.HWND(text_hwnd), 0, 0, 0, 0,
+                SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE,
             )
         except Exception:
             pass
 
     def _force_topmost_native(self) -> None:
-        if self.bg_window.state() != "withdrawn":
-            self._force_topmost_window(self.bg_window)
+        # Promote only the text layer.  Then pin the background immediately
+        # behind it; never let the dark window become the topmost sibling.
         self._force_topmost_window(self.window)
+        self._place_background_behind_text()
 
     def _keep_topmost(self) -> None:
         try:
@@ -2511,7 +2547,9 @@ class OverlayWindow:
                 self._force_topmost_native()
         except Exception:
             return
-        self.root.after(500, self._keep_topmost)
+        # Tk already marks both windows topmost.  This is only an occasional
+        # guard for exclusive/fullscreen transitions, so one second is enough.
+        self.root.after(1000, self._keep_topmost)
 
     def _background_opacity(self) -> float:
         return max(0.0, min(float(self._overlay_cfg().get("background_opacity", 0.20)), 0.90))
@@ -2519,31 +2557,31 @@ class OverlayWindow:
     def _apply_background_visibility(self) -> None:
         opacity = self._background_opacity()
         only_with_messages = bool(self._overlay_cfg().get("background_only_with_messages", True))
-        should_show = not (
-            self.window.state() == "withdrawn"
+        main_hidden = self.window.state() == "withdrawn"
+        has_visible_background = not (
+            main_hidden
             or opacity <= 0.001
             or (only_with_messages and not self.items and not self.edit_mode)
         )
-        bg_hidden = self.bg_window.state() == "withdrawn"
+        target_alpha = opacity * self._fade_alpha if has_visible_background else 0.0
 
-        if not should_show:
-            # Avoid repeatedly withdrawing an already-hidden layered window.
-            if not bg_hidden:
-                self.bg_window.withdraw()
-            return
-
+        # Stronger anti-flicker strategy for Windows layered windows: while the
+        # overlay itself is enabled, keep the background window alive and hide
+        # it with alpha=0 instead of withdraw/deiconify on every chat burst.
+        # DWM can otherwise briefly composite the solid dark window before the
+        # text/chroma-key layer catches up.
         try:
-            self.bg_window.attributes("-alpha", opacity * self._fade_alpha)
+            self.bg_window.attributes("-alpha", target_alpha)
         except Exception:
             pass
 
-        # Deiconifying a layered topmost window can briefly place its black
-        # rectangle above the text layer. Do it only on the hidden -> visible
-        # transition, then immediately restore the correct z-order once.
-        if bg_hidden:
+        if main_hidden:
+            return
+
+        if self.bg_window.state() == "withdrawn":
             self.bg_window.deiconify()
             self._set_click_through_window(self.bg_window, True)
-            self._force_topmost_native()
+            self._place_background_behind_text()
 
     def _set_text_alpha(self, alpha: float) -> None:
         self._fade_alpha = max(0.0, min(float(alpha), 1.0))
