@@ -29,6 +29,10 @@ from app import (
     _steam_library_paths,
     _common_steam_roots,
     _console_logs_in_game_roots,
+    discover_cod2_config_files,
+    read_logfile_setting,
+    enable_logfile_in_config,
+    ensure_cod2_console_logging,
     _windows_running_process_images,
     _windows_fixed_drive_roots,
     activity_snapshot,
@@ -342,6 +346,102 @@ class ParserTests(unittest.TestCase):
                 drive_roots=[],
             )
             self.assertIn(game.resolve(), roots)
+
+
+    def test_discovers_main_and_mod_player_configs_without_profile_name_assumption(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "Portable COD2"
+            main_cfg = game / "main" / "players" / "Alice" / "config_mp.cfg"
+            mod_cfg = game / "oboronay3" / "players" / "profiles" / "Bob" / "config_mp.cfg"
+            main_cfg.parent.mkdir(parents=True)
+            mod_cfg.parent.mkdir(parents=True)
+            main_cfg.write_text('seta name "Alice"\nseta logfile "0"\n', encoding="latin-1")
+            mod_cfg.write_text('seta name "Bob"\n', encoding="latin-1")
+            found = discover_cod2_config_files([game])
+            self.assertIn(main_cfg.resolve(), found)
+            self.assertIn(mod_cfg.resolve(), found)
+
+    def test_root_level_config_is_supported_for_repacked_copy(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "COD2"
+            game.mkdir(parents=True)
+            cfg = game / "config_mp.cfg"
+            cfg.write_text('seta name "Player"\nseta logfile "0"\n', encoding="latin-1")
+            found = discover_cod2_config_files([game])
+            self.assertIn(cfg.resolve(), found)
+
+    def test_enable_logfile_updates_only_setting_and_keeps_original_backup(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = Path(td) / "config_mp.cfg"
+            original = b'seta name "VooDoo"\r\nseta logfile "0"\r\nseta sensitivity "5"\r\n'
+            cfg.write_bytes(original)
+            changed, error = enable_logfile_in_config(cfg)
+            self.assertTrue(changed)
+            self.assertEqual(error, "")
+            self.assertEqual(read_logfile_setting(cfg), 2)
+            self.assertIn(b'seta name "VooDoo"', cfg.read_bytes())
+            self.assertIn(b'seta sensitivity "5"', cfg.read_bytes())
+            backup = cfg.with_name(cfg.name + ".cod2chattranslator.bak")
+            self.assertEqual(backup.read_bytes(), original)
+
+
+    def test_enable_logfile_preserves_non_ascii_config_bytes(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = Path(td) / "config_mp.cfg"
+            original = 'seta name "Вуду"\r\nseta logfile "0"\r\n'.encode("cp1251")
+            cfg.write_bytes(original)
+            changed, error = enable_logfile_in_config(cfg)
+            self.assertTrue(changed)
+            self.assertEqual(error, "")
+            updated = cfg.read_bytes()
+            self.assertIn('seta name "Вуду"'.encode("cp1251"), updated)
+            self.assertEqual(read_logfile_setting(cfg), 2)
+
+    def test_enabled_logfile_is_left_untouched(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = Path(td) / "config_mp.cfg"
+            original = b'seta logfile "2"\r\nseta name "Player"\r\n'
+            cfg.write_bytes(original)
+            summary = ensure_cod2_console_logging([Path(td)], running_roots=[])
+            self.assertTrue(summary.is_enabled)
+            self.assertEqual(summary.changed_count, 0)
+            self.assertEqual(cfg.read_bytes(), original)
+            self.assertFalse(cfg.with_name(cfg.name + ".cod2chattranslator.bak").exists())
+
+    def test_enable_logfile_appends_setting_when_missing(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = Path(td) / "config_mp.cfg"
+            cfg.write_bytes(b'seta name "Player"\n')
+            changed, error = enable_logfile_in_config(cfg)
+            self.assertTrue(changed)
+            self.assertEqual(error, "")
+            self.assertEqual(read_logfile_setting(cfg), 2)
+
+    def test_running_game_defers_config_write_until_game_exits(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "Call of Duty 2"
+            cfg = game / "main" / "players" / "Player" / "config_mp.cfg"
+            cfg.parent.mkdir(parents=True)
+            cfg.write_text('seta logfile "0"\n', encoding="latin-1")
+
+            running = ensure_cod2_console_logging([game], running_roots=[game])
+            self.assertEqual(running.deferred_count, 1)
+            self.assertEqual(read_logfile_setting(cfg), 0)
+
+            stopped = ensure_cod2_console_logging([game], running_roots=[])
+            self.assertEqual(stopped.changed_count, 1)
+            self.assertTrue(stopped.is_enabled)
+            self.assertEqual(read_logfile_setting(cfg), 2)
+
+    def test_nested_mod_log_is_discovered(self):
+        with tempfile.TemporaryDirectory() as td:
+            game = Path(td) / "Call of Duty 2"
+            log = game / "mods" / "custom_mod" / "console_mp.log"
+            log.parent.mkdir(parents=True)
+            log.write_text("", encoding="utf-8")
+            found = _console_logs_in_game_roots([game])
+            self.assertIn(log.resolve(), found)
+            self.assertEqual(infer_cod2_root(log), game.resolve())
 
     def test_activity_switches_to_log_that_started_updating(self):
         with tempfile.TemporaryDirectory() as td:

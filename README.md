@@ -37,11 +37,9 @@ When a player writes something, the app detects the source language, translates 
 
 Install the app with `Setup.exe` and start it from the shortcut.
 
-If CoD2 logging is not enabled yet, enter this once in the in-game console:
+Starting with v1.15.0 you no longer need to enter `/seta logfile 2` manually. The translator discovers `config_mp.cfg` inside the detected CoD2 installation and enables `logfile 2` itself. No profile name or drive letter is hard-coded: `main`, direct mod folders, nested `mods\<name>` layouts and compatible portable/non-Steam copies are checked. An original backup is kept before a config is changed.
 
-```text
-/seta logfile 2
-```
+If Multiplayer is already running while logging is disabled, the app does not rewrite the config currently owned by the game. Exit Multiplayer once; the translator applies the setting automatically, and logging is active on the next game launch.
 
 The app tries to find CoD2 and its logs automatically. Steam may be installed on any drive: the translator reads registered Steam locations and `libraryfolders.vdf`. If Multiplayer is running, the app also resolves the full install path directly from the `CoD2MP_s.exe` process, which works for Steam, portable and many non-Steam copies.
 
@@ -60,6 +58,7 @@ CoD2 servers with mods often use their own `fs_game` folders, which means differ
 ```text
 Call of Duty 2\main\console_mp.log
 Call of Duty 2\example_mod\console_mp.log
+Call of Duty 2\mods\example_mod\console_mp.log
 Call of Duty 2\vetdm\console_mp.log
 ```
 

@@ -31,7 +31,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.14.0"
+APP_VERSION = "1.15.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -49,6 +49,8 @@ SENSITIVE_LINE_TOKENS = (
 
 COD2_EXECUTABLE_NAMES = {"cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe"}
 STEAM_EXECUTABLE_NAMES = {"steam.exe"}
+COD2_CONFIG_NAME = "config_mp.cfg"
+COD2_LOGFILE_VALUE = 2
 
 
 TARGET_LANGUAGES = OrderedDict([
@@ -145,6 +147,11 @@ UI_STRINGS = {
         "game_folder_invalid": "В выбранной папке не найдена Call of Duty 2. Выбери папку, где находится CoD2MP_s.exe.",
         "game_folder_saved": "Папка CoD2 сохранена: {path}", "game_folder_auto": "CoD2 найдена автоматически: {path}",
         "game_folder_wait_log": "Папка CoD2 найдена. Жду появления console_mp.log — запусти Multiplayer и зайди на сервер.",
+        "logging_label": "Логирование:", "logging_enabled": "● Включено (logfile 2)",
+        "logging_restart": "● Будет включено после перезапуска Multiplayer",
+        "logging_wait_config": "● Жду config_mp.cfg — запусти Multiplayer хотя бы один раз",
+        "logging_error": "● Не удалось изменить config_mp.cfg",
+        "logging_unknown": "● Проверяю…",
         "use_selected_profile": "Использовать выбранный", "profile_list": "Профиль:",
         "profile_path": "Лог:", "profiles_updated": "Список профилей обновлён",
         "profile_auto_status": "Активный профиль: {name} (определён автоматически)",
@@ -207,6 +214,11 @@ UI_STRINGS = {
         "game_folder_invalid": "Call of Duty 2 was not found in the selected folder. Choose the folder that contains CoD2MP_s.exe.",
         "game_folder_saved": "CoD2 folder saved: {path}", "game_folder_auto": "CoD2 detected automatically: {path}",
         "game_folder_wait_log": "CoD2 folder found. Waiting for console_mp.log — start Multiplayer and join a server.",
+        "logging_label": "Logging:", "logging_enabled": "● Enabled (logfile 2)",
+        "logging_restart": "● Will be enabled after Multiplayer restarts",
+        "logging_wait_config": "● Waiting for config_mp.cfg — start Multiplayer at least once",
+        "logging_error": "● Could not update config_mp.cfg",
+        "logging_unknown": "● Checking…",
         "use_selected_profile": "Use selected", "profile_list": "Profile:",
         "profile_path": "Log:", "profiles_updated": "Profile list refreshed",
         "profile_auto_status": "Active profile: {name} (detected automatically)",
@@ -682,11 +694,22 @@ def _console_logs_in_game_roots(game_roots: list[Path | str]) -> list[Path]:
         try:
             if not game.exists() or not game.is_dir():
                 continue
-            for log in game.glob("*/console_mp.log"):
-                key = os.path.normcase(str(log.resolve(strict=False)))
-                if key not in seen:
-                    seen.add(key)
-                    candidates.append(log.resolve())
+            for pattern in ("*/console_mp.log", "*/*/console_mp.log"):
+                for log in game.glob(pattern):
+                    key = os.path.normcase(str(log.resolve(strict=False)))
+                    if key not in seen:
+                        seen.add(key)
+                        candidates.append(log.resolve())
+            # Old games installed under protected Program Files locations may
+            # have writable logs redirected into Windows VirtualStore.
+            mirror = _virtualstore_game_root(game)
+            if mirror is not None:
+                for pattern in ("*/console_mp.log", "*/*/console_mp.log"):
+                    for log in mirror.glob(pattern):
+                        key = os.path.normcase(str(log.resolve(strict=False)))
+                        if key not in seen:
+                            seen.add(key)
+                            candidates.append(log.resolve())
             direct = game / "console_mp.log"
             if direct.exists():
                 key = os.path.normcase(str(direct.resolve(strict=False)))
@@ -706,6 +729,282 @@ def discover_cod2_logs(extra_roots: Optional[list[Path | str]] = None) -> list[P
     return _console_logs_in_game_roots(roots)
 
 
+
+
+def _virtualstore_game_root(game_root: Path | str, local_appdata: Optional[Path | str] = None) -> Optional[Path]:
+    """Return the Windows VirtualStore mirror for an install, when it exists.
+
+    Very old CoD2/non-Steam builds installed under protected Program Files paths
+    may have their writable ``players`` and ``console_mp.log`` data redirected
+    by Windows.  This is only an additional storage location; the real install
+    root remains the preferred game folder shown to the user.
+    """
+    if os.name != "nt" and local_appdata is None:
+        return None
+    try:
+        root = Path(game_root).expanduser().resolve(strict=False)
+        base_raw = str(local_appdata or os.environ.get("LOCALAPPDATA", "")).strip()
+        if not base_raw or not root.drive:
+            return None
+        drive_root = Path(root.drive + "\\")
+        relative = root.relative_to(drive_root)
+        mirror = Path(base_raw).expanduser().resolve(strict=False) / "VirtualStore" / relative
+        return mirror if mirror.exists() and mirror.is_dir() else None
+    except Exception:
+        return None
+
+
+def _cod2_storage_roots(game_root: Path | str) -> list[Path]:
+    root = Path(game_root).expanduser().resolve(strict=False)
+    result = [root]
+    mirror = _virtualstore_game_root(root)
+    if mirror is not None and os.path.normcase(str(mirror)) != os.path.normcase(str(root)):
+        result.append(mirror)
+    return result
+
+
+def _bounded_game_bases(storage_root: Path) -> list[Path]:
+    """Return likely fs_game roots without recursively walking the whole install."""
+    bases: list[Path] = [storage_root]
+    seen = {os.path.normcase(str(storage_root))}
+    try:
+        children = [p for p in storage_root.iterdir() if p.is_dir()]
+    except Exception:
+        children = []
+    for child in children:
+        key = os.path.normcase(str(child))
+        if key not in seen:
+            seen.add(key)
+            bases.append(child)
+        # Some distributions keep mods under ``mods/<name>`` rather than as a
+        # direct child of the CoD2 root.  Only descend one additional level.
+        if child.name.casefold() == "mods":
+            try:
+                grandchildren = [p for p in child.iterdir() if p.is_dir()]
+            except Exception:
+                grandchildren = []
+            for grandchild in grandchildren:
+                key = os.path.normcase(str(grandchild))
+                if key not in seen:
+                    seen.add(key)
+                    bases.append(grandchild)
+    return bases
+
+
+def _config_files_under_players(players_dir: Path, max_relative_depth: int = 4) -> list[Path]:
+    result: list[Path] = []
+    try:
+        if not players_dir.is_dir():
+            return result
+        for cfg in players_dir.rglob("*"):
+            try:
+                if not cfg.is_file() or cfg.name.casefold() != COD2_CONFIG_NAME:
+                    continue
+                relative = cfg.relative_to(players_dir)
+                if len(relative.parts) <= max_relative_depth:
+                    result.append(cfg.resolve())
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return result
+
+
+def discover_cod2_config_files(game_roots: list[Path | str]) -> list[Path]:
+    """Find multiplayer configs across Steam, portable and mod layouts.
+
+    No profile name or exact install path is assumed.  The normal
+    ``<fs_game>/players/.../config_mp.cfg`` layout is searched dynamically, and
+    root-level ``config_mp.cfg`` files are accepted as a compatibility fallback
+    used by some portable/repacked copies.
+    """
+    result: list[Path] = []
+    seen: set[str] = set()
+    for game_root in game_roots:
+        for storage_root in _cod2_storage_roots(game_root):
+            bases = _bounded_game_bases(storage_root)
+            for base in bases:
+                players = base / "players"
+                for cfg in _config_files_under_players(players):
+                    key = os.path.normcase(str(cfg))
+                    if key not in seen:
+                        seen.add(key)
+                        result.append(cfg)
+            # Compatibility fallback: some repacks keep a multiplayer config
+            # directly in the game/fs_game folder.  We only inspect bounded
+            # game bases, never arbitrary directories on the drive.
+            for base in bases:
+                cfg = base / COD2_CONFIG_NAME
+                try:
+                    if cfg.is_file():
+                        cfg = cfg.resolve()
+                        key = os.path.normcase(str(cfg))
+                        if key not in seen:
+                            seen.add(key)
+                            result.append(cfg)
+                except Exception:
+                    pass
+    return result
+
+
+LOGFILE_SETTING_RE = re.compile(
+    r'^\s*(?:(?:seta|set|setu)\s+)?logfile\s+"?(-?\d+)"?\s*(?://.*)?$',
+    flags=re.IGNORECASE,
+)
+LOGFILE_REPLACE_RE = re.compile(
+    r'^(\s*(?:(?:seta|set|setu)\s+)?logfile\s+)(?:"?-?\d+"?)([ \t]*(?://.*)?)(\r?\n)?$',
+    flags=re.IGNORECASE,
+)
+
+
+def read_logfile_setting(config_path: Path | str) -> Optional[int]:
+    """Read the archived CoD2 ``logfile`` cvar without decoding user text."""
+    try:
+        text = Path(config_path).read_bytes().decode("latin-1")
+    except Exception:
+        return None
+    value: Optional[int] = None
+    for line in text.splitlines():
+        match = LOGFILE_SETTING_RE.match(line)
+        if match:
+            try:
+                value = int(match.group(1))
+            except ValueError:
+                pass
+    return value
+
+
+def _render_logfile_enabled_config(original: bytes, desired: int = COD2_LOGFILE_VALUE) -> bytes:
+    text = original.decode("latin-1")
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines(keepends=True)
+    changed_line = False
+    output: list[str] = []
+    for line in lines:
+        match = LOGFILE_REPLACE_RE.match(line)
+        if match:
+            ending = match.group(3) or ""
+            output.append(f'{match.group(1)}"{int(desired)}"{match.group(2)}{ending}')
+            changed_line = True
+        else:
+            output.append(line)
+    if not changed_line:
+        if output and not output[-1].endswith(("\n", "\r")):
+            output[-1] += newline
+        output.append(f'seta logfile "{int(desired)}"{newline}')
+    return "".join(output).encode("latin-1")
+
+
+def enable_logfile_in_config(config_path: Path | str, desired: int = COD2_LOGFILE_VALUE) -> tuple[bool, str]:
+    """Atomically enable CoD2 console logging and keep one original backup.
+
+    Returns ``(changed, error)``.  The backup is intentionally never overwritten
+    so the user's pre-translator config remains recoverable.
+    """
+    path = Path(config_path).expanduser().resolve(strict=False)
+    temp = path.with_name(path.name + ".cod2chattranslator.tmp")
+    backup = path.with_name(path.name + ".cod2chattranslator.bak")
+    try:
+        original = path.read_bytes()
+        updated = _render_logfile_enabled_config(original, desired)
+        if updated == original:
+            return False, ""
+        if not backup.exists():
+            shutil.copy2(path, backup)
+        temp.write_bytes(updated)
+        os.replace(temp, path)
+        return True, ""
+    except Exception as exc:
+        try:
+            if temp.exists():
+                temp.unlink()
+        except Exception:
+            pass
+        return False, str(exc)
+
+
+@dataclass(frozen=True)
+class LoggingConfigSummary:
+    configs_found: int = 0
+    enabled_count: int = 0
+    changed_count: int = 0
+    deferred_count: int = 0
+    failed_count: int = 0
+
+    @property
+    def needs_restart(self) -> bool:
+        return self.deferred_count > 0
+
+    @property
+    def is_enabled(self) -> bool:
+        return self.configs_found > 0 and self.failed_count == 0 and self.deferred_count == 0 and self.enabled_count == self.configs_found
+
+
+def _path_is_under(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve(strict=False).relative_to(parent.resolve(strict=False))
+        return True
+    except Exception:
+        return False
+
+
+def ensure_cod2_console_logging(
+    game_roots: list[Path | str],
+    running_roots: Optional[list[Path | str]] = None,
+    desired: int = COD2_LOGFILE_VALUE,
+) -> LoggingConfigSummary:
+    """Enable ``logfile 2`` safely in every discovered multiplayer config.
+
+    Configs belonging to a currently running CoD2 instance are *not* rewritten:
+    the engine may overwrite config_mp.cfg on shutdown.  Once Multiplayer exits,
+    the application's normal polling pass applies the change automatically, so
+    the next launch starts with logging enabled.
+    """
+    configs = discover_cod2_config_files(game_roots)
+    running = [Path(root).expanduser().resolve(strict=False) for root in (running_roots or [])]
+    enabled = changed = deferred = failed = 0
+
+    storage_to_running: list[tuple[Path, bool]] = []
+    for root in game_roots:
+        real_root = Path(root).expanduser().resolve(strict=False)
+        is_running = any(os.path.normcase(str(real_root)) == os.path.normcase(str(r)) for r in running)
+        for storage in _cod2_storage_roots(real_root):
+            storage_to_running.append((storage, is_running))
+
+    for cfg in configs:
+        current = read_logfile_setting(cfg)
+        if current == int(desired):
+            enabled += 1
+            continue
+        owner_running = False
+        for storage_root, is_running in storage_to_running:
+            if _path_is_under(cfg, storage_root):
+                owner_running = is_running
+                break
+        if owner_running:
+            deferred += 1
+            continue
+        did_change, error = enable_logfile_in_config(cfg, desired)
+        if error:
+            failed += 1
+            continue
+        # Whether the text changed or already had an equivalent form, verify the
+        # final effective value rather than trusting the write path.
+        if read_logfile_setting(cfg) == int(desired):
+            enabled += 1
+            if did_change:
+                changed += 1
+        else:
+            failed += 1
+
+    return LoggingConfigSummary(
+        configs_found=len(configs),
+        enabled_count=enabled,
+        changed_count=changed,
+        deferred_count=deferred,
+        failed_count=failed,
+    )
+
 def _path_key(path: Path | str) -> str:
     try:
         return os.path.normcase(str(Path(path).expanduser().resolve(strict=False)))
@@ -714,15 +1013,25 @@ def _path_key(path: Path | str) -> str:
 
 
 def infer_cod2_root(log_path: Path | str) -> Path:
-    """Return the CoD2 game root for a console log path.
+    """Return the most likely CoD2 install root for a console log path.
 
-    Most CoD2 logs live in a one-level fs_game folder such as ``main`` or
-    ``oboronay3``.  A direct log in the game root is also supported.
+    Direct mod folders and nested layouts such as ``mods/<name>`` are supported.
+    When a real executable marker is available it wins over folder-name guesses.
     """
     path = Path(log_path).expanduser().resolve(strict=False)
     folder = path.parent
-    if folder.name.lower() == "call of duty 2" or (folder / "CoD2MP_s.exe").exists():
+    for candidate in [folder, *list(folder.parents)[:4]]:
+        try:
+            if any((candidate / exe).exists() for exe in ("CoD2MP_s.exe", "CoD2MP.exe", "cod2mp_s.exe")):
+                return candidate
+        except Exception:
+            pass
+    if folder.name.lower() == "call of duty 2":
         return folder
+    if folder.parent.name.casefold() == "mods":
+        return folder.parent.parent
+    # Historical one-level fs_game fallback when the game files are not mounted
+    # or the path is synthetic (for example in tests).
     return folder.parent
 
 
@@ -2575,6 +2884,7 @@ class ControlApp:
         self._profiles_initialized = False
         self._last_root_discovery_at = 0.0
         self._detected_game_roots: list[Path] = []
+        self._logging_summary = LoggingConfigSummary()
 
         self.target_name_var = tk.StringVar(value=self._target_name_for_code(self.config["target_language"]))
         self.show_original_var = tk.BooleanVar(value=bool(self.config.get("show_original", False)))
@@ -2938,6 +3248,32 @@ class ControlApp:
         roots = [str(x).strip() for x in self.config.get("cod2_roots", []) if str(x).strip()]
         return Path(roots[0]).expanduser().resolve(strict=False) if roots else None
 
+    def _logging_status_text(self) -> str:
+        summary = self._logging_summary
+        if summary.failed_count:
+            return self.t("logging_error")
+        if summary.deferred_count:
+            return self.t("logging_restart")
+        if summary.is_enabled:
+            return self.t("logging_enabled")
+        if summary.configs_found == 0:
+            return self.t("logging_wait_config")
+        return self.t("logging_unknown")
+
+    def _refresh_logging_configuration(
+        self,
+        game_roots: list[Path],
+        process_images: Optional[list[Path | str]] = None,
+    ) -> None:
+        running_roots = discover_running_cod2_roots(process_images)
+        previous = self._logging_summary
+        summary = ensure_cod2_console_logging(game_roots, running_roots=running_roots)
+        self._logging_summary = summary
+        # Surface meaningful state transitions without continuously replacing
+        # normal translation/status messages during the 3-second discovery pass.
+        if summary.changed_count and summary != previous:
+            self.status_var.set(self.t("logging_enabled"))
+
     def _profile_name_for_path(self, path: Path) -> str:
         key = _path_key(path)
         for rec in self._profile_records():
@@ -3073,6 +3409,17 @@ class ControlApp:
             wraplength=390,
         ).pack(side="left", fill="x", expand=True)
 
+        logging_row = ttk.Frame(body)
+        logging_row.pack(fill="x", pady=(0, 10))
+        ttk.Label(logging_row, text=self.t("logging_label"), width=12).pack(side="left")
+        dialog_logging_var = tk.StringVar(value=self._logging_status_text())
+        ttk.Label(
+            logging_row,
+            textvariable=dialog_logging_var,
+            foreground="#555555",
+            wraplength=390,
+        ).pack(side="left", fill="x", expand=True)
+
         ttk.Separator(body).pack(fill="x", pady=(0, 12))
 
         row = ttk.Frame(body)
@@ -3107,6 +3454,7 @@ class ControlApp:
             path = mapping.get(dialog_profile_var.get())
             dialog_path_var.set(str(path) if path else "")
             dialog_game_root_var.set(str(self._preferred_game_root() or ""))
+            dialog_logging_var.set(self._logging_status_text())
 
         def on_selected(_event=None) -> None:
             path = self._profile_label_to_path.get(dialog_profile_var.get())
@@ -3179,6 +3527,19 @@ class ControlApp:
         combo.bind("<<ComboboxSelected>>", on_selected)
         refresh_dialog(select_active=True)
 
+        def live_refresh() -> None:
+            try:
+                if not win.winfo_exists():
+                    return
+                # In automatic mode keep the dialog on the currently active log.
+                # In manual mode preserve whatever profile the user is inspecting.
+                refresh_dialog(select_active=bool(self.auto_profile_var.get()))
+                win.after(900, live_refresh)
+            except Exception:
+                return
+
+        win.after(900, live_refresh)
+
         buttons = ttk.Frame(body)
         buttons.pack(fill="x", pady=(14, 0))
         ttk.Button(buttons, text=self.t("choose_game_folder"), command=choose_game_folder).pack(side="left")
@@ -3217,15 +3578,24 @@ class ControlApp:
         }, ensure_ascii=False, sort_keys=True)
 
         now = time.monotonic()
+        did_root_discovery = False
+        process_images: Optional[list[Path]] = None
         if initial or force_root_discovery or (now - self._last_root_discovery_at) >= 3.0:
+            if os.name == "nt":
+                process_images = _windows_running_process_images(COD2_EXECUTABLE_NAMES | STEAM_EXECUTABLE_NAMES)
+            else:
+                process_images = []
             saved_roots = self.config.get("cod2_roots", [])
-            detected_roots = discover_cod2_game_roots(saved_roots)
+            detected_roots = discover_cod2_game_roots(saved_roots, process_images=process_images)
             self._detected_game_roots = detected_roots
             self._last_root_discovery_at = now
+            did_root_discovery = True
             for root in detected_roots:
                 if self._remember_cod2_root(root) and _looks_like_cod2_root(root):
                     self.status_var.set(self.t("game_folder_auto").format(path=root))
         game_roots = [Path(x).expanduser().resolve(strict=False) for x in self.config.get("cod2_roots", []) if str(x).strip()]
+        if did_root_discovery:
+            self._refresh_logging_configuration(game_roots, process_images=process_images)
         discovered = _console_logs_in_game_roots(game_roots)
         self.config["server_profiles"] = merge_server_profiles(self._profile_records(), discovered)
         for path in discovered:
