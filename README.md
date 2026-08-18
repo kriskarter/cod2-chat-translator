@@ -31,34 +31,22 @@ No DLL injection and no game-memory modification.
 
 ## In game
 
-The original message stays in the CoD2 chat while the translation appears in a small overlay:
+The original message stays in the CoD2 chat while the translation appears in a small overlay.
 
-![Regular chat translated in CoD2](docs/images/ingame_hi_all.webp)
-
-Long admin messages and short gaming slang work too:
+In this example the app interface is in English and the selected translation language is Italian:
 
 <p align="center">
-  <img src="docs/images/ingame_admin_warning.webp" width="49%" alt="Admin message translation">
-  <img src="docs/images/ingame_gg.webp" width="49%" alt="Gaming slang translation">
+  <img src="docs/images/showcase_multi_it.webp" width="100%" alt="Call of Duty 2 chat translated to Italian in real time">
 </p>
 
-### More screenshots
-
-These are larger crops from real gameplay. They are intentionally focused on the chat area so both the original CoD2 message and the translated overlay remain readable directly on GitHub.
+Short messages and FPS-style chat work as well:
 
 <p align="center">
-  <img src="docs/images/showcase_busy_chat.webp" width="100%" alt="Several chat messages translated in the overlay">
+  <img src="docs/images/showcase_short_it.webp" width="49%" alt="Short CoD2 chat message translated to Italian">
+  <img src="docs/images/showcase_slang_it.webp" width="49%" alt="Gaming chat and slang translated to Italian">
 </p>
 
-<p align="center">
-  <img src="docs/images/showcase_single_translation.webp" width="100%" alt="Large in-game translation example">
-</p>
-
-<p align="center">
-  <img src="docs/images/showcase_large_text.webp" width="100%" alt="CoD2 Chat Translator overlay with larger text">
-</p>
-
-Text size, background opacity, display time and visible-message count can all be adjusted from the app. A clean full-window screenshot is shown below in the First launch section.
+Text size, background opacity, display time and visible-message count can all be adjusted from the app.
 
 ## How it works
 
@@ -74,24 +62,14 @@ The app includes **40 built-in target languages**: Russian, Ukrainian, English, 
 
 It is not only for long sentences. Short replies, ordinary chat and common FPS slang are handled as well. Russian typed with Latin letters — for example `privet`, `kak dela`, `spasibo` — is recognized conservatively so normal English chat is not blindly transliterated.
 
-Short reply:
-
-<p align="center">
-  <img src="docs/images/showcase_short_reply.webp" width="100%" alt="Short nope message translated in CoD2">
-</p>
-
-A normal in-game chat phrase:
-
-<p align="center">
-  <img src="docs/images/showcase_long_message.webp" width="100%" alt="Normal player chat phrase translated in CoD2">
-</p>
+The gameplay examples above use Italian as the selected output language. The same workflow works with any supported target language.
 
 ## First launch
 
 Install the app with `Setup.exe` and start it from the shortcut.
 
 <p align="center">
-  <img src="docs/images/showcase_main_window.webp" width="100%" alt="CoD2 Chat Translator main window">
+  <img src="docs/images/showcase_main_window_en.webp" width="100%" alt="CoD2 Chat Translator main window">
 </p>
 
 Starting with v1.15.0 you no longer need to enter `/seta logfile 2` manually. The translator discovers `config_mp.cfg` inside the detected CoD2 installation and enables `logfile 2` itself. No profile name or drive letter is hard-coded: `main`, direct mod folders, nested `mods\<name>` layouts and compatible portable/non-Steam copies are checked. An original backup is kept before a config is changed.
@@ -126,7 +104,7 @@ While the translator is running, it periodically rescans the CoD2 folder. If a d
 Log paths are still stored internally as **profiles** for the manual fallback. Open **Server settings…** to choose the game folder once, select a specific log, rename a profile, or run automatic discovery again.
 
 <p align="center">
-  <img src="docs/images/showcase_server_settings.webp" width="82%" alt="Automatic CoD2 game folder and active log detection settings">
+  <img src="docs/images/showcase_server_settings_en.webp" width="82%" alt="Automatic CoD2 game folder and active log detection settings">
 </p>
 
 Only **one active log** is translated at a time. If several servers use the same mod folder, they share the same internal profile.
