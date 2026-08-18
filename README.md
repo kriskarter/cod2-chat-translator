@@ -199,6 +199,14 @@ BUILD_RELEASE.bat
 
 GitHub Actions also builds and checks the Windows installer automatically.
 
+## Source code
+
+The source code is public for transparency and inspection, but this project is
+**not released under an open-source license**. See [COPYRIGHT.md](COPYRIGHT.md).
+
+Visual asset provenance is documented in
+[docs/ASSET_PROVENANCE.md](docs/ASSET_PROVENANCE.md).
+
 ## Project
 
 Developer: **[kriskarter](https://github.com/kriskarter)**

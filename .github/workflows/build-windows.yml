@@ -15,13 +15,19 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -95,34 +101,67 @@ jobs:
             release/CoD2ChatTranslator_Update.zip
             release/CoD2ChatTranslator_Update.zip.sha256
             release/update.json
+            release/RELEASE_NOTES.md
 
-      - name: Publish tagged GitHub Release assets
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download verified build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: CoD2ChatTranslator-Windows
+          path: release
+
+      - name: Publish GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
-          } else {
-            gh release edit $tag --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
-          }
-          gh release upload $tag (Get-ChildItem release/CoD2ChatTranslator_Setup_v*.exe).FullName release/CoD2ChatTranslator_Update.zip release/CoD2ChatTranslator_Update.zip.sha256 release/update.json --clobber
+          set -euo pipefail
 
-      - name: Publish manual GitHub Release
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $version = python app.py --version
-          $tag = "v$version"
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --target "${{ github.sha }}" --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
-          } else {
-            gh release edit $tag --title "CoD2 Chat Translator $tag" --notes-file release\RELEASE_NOTES.md
-          }
-          gh release upload $tag (Get-ChildItem release/CoD2ChatTranslator_Setup_v*.exe).FullName release/CoD2ChatTranslator_Update.zip release/CoD2ChatTranslator_Update.zip.sha256 release/update.json --clobber
+          version="$(python - <<'PYREL'
+          import json
+          with open("release/update.json", encoding="utf-8-sig") as f:
+              print(json.load(f)["version"])
+          PYREL
+          )"
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            tag="v${version}"
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" \
+              --title "CoD2 Chat Translator $tag" \
+              --notes-file release/RELEASE_NOTES.md
+          else
+            if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+              gh release create "$tag" \
+                --title "CoD2 Chat Translator $tag" \
+                --notes-file release/RELEASE_NOTES.md
+            else
+              gh release create "$tag" \
+                --target "${GITHUB_SHA}" \
+                --title "CoD2 Chat Translator $tag" \
+                --notes-file release/RELEASE_NOTES.md
+            fi
+          fi
+
+          gh release upload "$tag" \
+            release/CoD2ChatTranslator_Setup_v*.exe \
+            release/CoD2ChatTranslator_Update.zip \
+            release/CoD2ChatTranslator_Update.zip.sha256 \
+            release/update.json \
+            --clobber

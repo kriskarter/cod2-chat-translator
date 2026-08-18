@@ -203,6 +203,15 @@ BUILD_RELEASE.bat
 
 Та же сборка автоматически проверяется на Windows через GitHub Actions.
 
+## Исходный код
+
+Исходный код опубликован для прозрачности и возможности проверки, но проект
+**не распространяется по open-source лицензии**. Подробнее:
+[COPYRIGHT.md](COPYRIGHT.md).
+
+Происхождение визуальных материалов описано в
+[docs/ASSET_PROVENANCE.md](docs/ASSET_PROVENANCE.md).
+
 ## Проект
 
 Разработчик: **[kriskarter](https://github.com/kriskarter)**
