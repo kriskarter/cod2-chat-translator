@@ -1,4 +1,4 @@
 {
-  "notes_ru": "Усилено исправление мигания чёрной подложки оверлея. Фоновое layered-окно теперь не скрывается и не показывается заново между сообщениями: при пустом чате оно остаётся прозрачным (alpha 0), что убирает DWM-вспышку на границе withdraw/deiconify. Периодический topmost больше не поднимает фон поверх текстового слоя и не использует SWP_SHOWWINDOW; фон закрепляется непосредственно за текстом. Улучшения сленга и русского транслита из v1.15.2 сохранены.",
-  "notes_en": "Strengthened the overlay black-background flicker fix. The layered background window is no longer withdrawn and re-shown between chat bursts; it stays alive at alpha 0 while idle, avoiding the DWM flash around withdraw/deiconify transitions. Periodic topmost refresh no longer promotes the background above the text layer and no longer uses SWP_SHOWWINDOW; the background is pinned directly behind the text window. Gaming slang and Russian translit improvements from v1.15.2 are retained."
+  "notes_ru": "Улучшена безопасность встроенных обновлений. Программа теперь проверяет цифровую подпись обновления перед его установкой. Работа переводчика и оверлея без изменений.",
+  "notes_en": "Improved built-in update security. The app now verifies the digital signature of an update before installing it. Translator and overlay behavior are unchanged."
 }
