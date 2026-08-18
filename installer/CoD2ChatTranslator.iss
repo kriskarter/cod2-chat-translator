@@ -58,6 +58,8 @@ Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Add
 Source: "..\dist\CoD2ChatTranslator.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\CoD2ChatTranslatorUpdater.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\release_config.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\COPYRIGHT.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
