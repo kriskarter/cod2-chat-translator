@@ -26,7 +26,8 @@ class UpdateClientTests(unittest.TestCase):
             'notes_ru': 'Тест',
             'notes_en': 'Test',
         }
-        with patch('update_client._get_json', side_effect=[api_release, manifest]):
+        with patch('update_client._get_json', side_effect=[api_release, manifest]), \
+             patch('update_client.verify_update_manifest_signature', return_value=True):
             info = update_client.check_github_release('1.10.0', 'owner/repo')
         self.assertIsNotNone(info)
         self.assertEqual(info.version, '1.12.0')

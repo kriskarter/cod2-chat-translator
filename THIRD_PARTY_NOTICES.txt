@@ -39,3 +39,9 @@ All trademarks and third-party names remain the property of their respective
 owners.
 
 This file does not replace the license terms of any third-party component.
+
+cryptography 49.0.0
+License: Apache-2.0 OR BSD-3-Clause
+Project: https://cryptography.io/
+
+Used to verify Ed25519 signatures on update manifests.

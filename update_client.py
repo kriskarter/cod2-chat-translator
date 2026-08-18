@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import urllib.request
@@ -7,7 +8,81 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
 GITHUB_API = "https://api.github.com"
+
+UPDATE_SIGNING_KEY_ID = "ed25519-545818c64aa3"
+
+UPDATE_SIGNING_PUBLIC_KEYS = {
+    UPDATE_SIGNING_KEY_ID: "MCowBQYDK2VwAyEAylTnyQ4PKCDV82e5gNmPtkJ3+TBhRfXxiGykeINf+ME=",
+}
+
+SIGNED_UPDATE_FIELDS = (
+    "version",
+    "asset",
+    "sha256",
+    "notes_ru",
+    "notes_en",
+    "signature_alg",
+    "signature_key_id",
+)
+
+
+def update_signature_payload(manifest: dict) -> bytes:
+    payload = {
+        name: str(manifest.get(name) or "")
+        for name in SIGNED_UPDATE_FIELDS
+    }
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def verify_update_manifest_signature(
+    manifest: dict,
+    public_keys: dict[str, str] | None = None,
+) -> bool:
+    try:
+        if str(manifest.get("signature_alg") or "").lower() != "ed25519":
+            return False
+
+        manifest_key_id = str(manifest.get("signature_key_id") or "")
+        signature_text = str(manifest.get("signature") or "")
+
+        keys = public_keys or UPDATE_SIGNING_PUBLIC_KEYS
+        encoded_public_key = keys.get(manifest_key_id)
+
+        if not encoded_public_key or not signature_text:
+            return False
+
+        public_der = base64.b64decode(
+            encoded_public_key,
+            validate=True,
+        )
+        signature = base64.b64decode(
+            signature_text,
+            validate=True,
+        )
+
+        public_key = serialization.load_der_public_key(public_der)
+
+        if not isinstance(public_key, Ed25519PublicKey):
+            return False
+
+        public_key.verify(
+            signature,
+            update_signature_payload(manifest),
+        )
+        return True
+
+    except Exception:
+        return False
+
 
 
 @dataclass(frozen=True)
@@ -77,6 +152,8 @@ def check_github_release(current_version: str, repository: str, timeout: float =
     manifest = _get_json(manifest_url, timeout=timeout)
     if not isinstance(manifest, dict):
         return None
+    if not verify_update_manifest_signature(manifest):
+        raise ValueError("Update manifest signature verification failed")
     version = str(manifest.get("version") or tag).lstrip("v")
     if not is_newer(version, current_version):
         return None
