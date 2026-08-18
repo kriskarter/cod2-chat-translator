@@ -1,0 +1,41 @@
+CoD2 Chat Translator - Third-Party Notices
+==========================================
+
+CoD2 Chat Translator itself is not distributed under an open-source license.
+Third-party components retain their own licenses.
+
+Runtime dependency
+------------------
+
+deep-translator 1.11.4
+License: MIT
+Project: https://pypi.org/project/deep-translator/1.11.4/
+
+deep-translator uses additional Python dependencies that are resolved during
+the Windows build. The exact resolved package inventory for each CI build is
+recorded as DEPENDENCIES_WINDOWS.txt in the GitHub Actions artifact.
+
+Build tools
+-----------
+
+PyInstaller 6.21.0
+License: GPL-2.0-or-later WITH Bootloader-exception
+Project: https://pyinstaller.org/
+
+PyInstaller's bootloader exception permits embedding the bootloader in the
+final executable without applying the GPL to the application itself.
+
+Pillow 12.3.0
+License: MIT-CMU
+Project: https://python-pillow.org/
+
+Pillow is used for project/build image processing.
+
+Inno Setup 6.7.1
+Build tool used to create the Windows installer.
+Project: https://jrsoftware.org/isinfo.php
+
+All trademarks and third-party names remain the property of their respective
+owners.
+
+This file does not replace the license terms of any third-party component.

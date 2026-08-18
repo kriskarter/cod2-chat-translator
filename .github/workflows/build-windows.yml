@@ -36,7 +36,13 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pyinstaller pillow
+          python -m pip install -r requirements-build.txt
+
+      - name: Record resolved Windows dependencies
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          python -m pip freeze | Set-Content -Encoding UTF8 release\DEPENDENCIES_WINDOWS.txt
 
       - name: Generate Windows branding assets
         run: python tools/build_assets.py
@@ -85,7 +91,7 @@ jobs:
 
       - name: Install Inno Setup
         shell: pwsh
-        run: choco install innosetup --no-progress -y
+        run: choco install innosetup --version=6.7.1 --no-progress -y
 
       - name: Build bilingual Setup.exe
         shell: pwsh
@@ -102,6 +108,7 @@ jobs:
             release/CoD2ChatTranslator_Update.zip.sha256
             release/update.json
             release/RELEASE_NOTES.md
+            release/DEPENDENCIES_WINDOWS.txt
 
   release:
     name: Publish GitHub Release

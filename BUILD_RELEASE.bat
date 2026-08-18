@@ -16,7 +16,7 @@ if errorlevel 1 (
 if not exist ".buildvenv\Scripts\python.exe" py -3 -m venv .buildvenv
 call ".buildvenv\Scripts\activate.bat"
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt pyinstaller pillow
+python -m pip install -r requirements-build.txt
 if errorlevel 1 goto :fail
 
 python tools\build_assets.py
