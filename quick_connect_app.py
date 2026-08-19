@@ -130,6 +130,21 @@ def _launch_featured_server(app: core.ControlApp) -> None:
         app.status_var.set(_localized(app, "Быстрый вход доступен только в Windows.", "Quick connect is available on Windows only."))
         return
 
+    try:
+        game_running = bool(core.find_cod2_window()) or bool(core.discover_running_cod2_roots())
+    except Exception:
+        game_running = False
+
+    if game_running:
+        message = _localized(
+            app,
+            "CoD2 уже запущена. Для быстрого подключения закрой игру и нажми «Подключиться» снова.",
+            "CoD2 is already running. Close the game and press Connect again to use Quick Connect.",
+        )
+        app.status_var.set(message)
+        core.messagebox.showinfo(core.APP_NAME, message, parent=app.root)
+        return
+
     executable = find_multiplayer_executable(_candidate_game_roots(app))
     if executable is None:
         core.messagebox.showwarning(
