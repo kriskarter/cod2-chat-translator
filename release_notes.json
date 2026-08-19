@@ -1,4 +1,4 @@
 {
-  "notes_ru": "Улучшена безопасность встроенных обновлений. Программа теперь проверяет цифровую подпись обновления перед его установкой. Работа переводчика и оверлея без изменений.",
-  "notes_en": "Improved built-in update security. The app now verifies the digital signature of an update before installing it. Translator and overlay behavior are unchanged."
+  "notes_ru": "Добавлен быстрый вход на CLASSIC OBORONA: запуск CoD2 и подключение к серверу одной кнопкой, переход в Discord и защита от повторного запуска игры. Также убрано появление лишних консольных окон при обновлении.",
+  "notes_en": "Added Quick Connect for CLASSIC OBORONA: launch CoD2 and join the server with one click, open the server Discord, and prevent duplicate game launches. Also prevents unnecessary console windows from appearing during updates."
 }
