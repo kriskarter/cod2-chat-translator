@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import os
 import shutil
 import subprocess
@@ -63,6 +64,39 @@ def no_window_creationflags() -> int:
     return int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
+def launch_connect_command(executable: Path | str, address: str = SERVER_ADDRESS) -> None:
+    executable = Path(executable).expanduser().resolve(strict=False)
+
+    kwargs = {"cwd": str(executable.parent), "close_fds": True}
+    flags = no_window_creationflags()
+    if flags:
+        kwargs["creationflags"] = flags
+
+    try:
+        subprocess.Popen(build_connect_command(executable, address), **kwargs)
+        return
+    except OSError as exc:
+        # WinError 740: this CoD2 executable is configured to require elevation.
+        # Ask Windows for elevation instead of requiring the translator itself
+        # to always run as administrator.
+        if os.name != "nt" or getattr(exc, "winerror", None) != 740:
+            raise
+
+    parameters = subprocess.list2cmdline(["+connect", address])
+    result = int(
+        ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            str(executable),
+            parameters,
+            str(executable.parent),
+            1,
+        )
+    )
+    if result <= 32:
+        raise OSError(f"ShellExecuteW failed with code {result}")
+
+
 def _localized(app: core.ControlApp, ru: str, en: str) -> str:
     return en if getattr(app, "ui_language", "ru") == "en" else ru
 
@@ -116,12 +150,7 @@ def _launch_featured_server(app: core.ControlApp) -> None:
         except Exception:
             pass
 
-        kwargs = {"cwd": str(executable.parent), "close_fds": True}
-        flags = no_window_creationflags()
-        if flags:
-            kwargs["creationflags"] = flags
-
-        subprocess.Popen(build_connect_command(executable), **kwargs)
+        launch_connect_command(executable)
         app.status_var.set(
             _localized(
                 app,
