@@ -31,22 +31,27 @@ No DLL injection and no game-memory modification.
 
 ## In game
 
-The original message stays in the CoD2 chat while the translation appears in a small overlay.
+The original message stays in the CoD2 chat while the translation appears in a small overlay. The incoming language is detected automatically, while you choose the language you want to read.
 
-In this example the app interface is in English and the selected translation language is Italian:
+### Live multilingual examples
 
-<p align="center">
-  <img src="docs/images/showcase_multi_it.webp" width="100%" alt="Call of Duty 2 chat translated to Italian in real time">
-</p>
-
-Short messages and FPS-style chat work as well:
+These screenshots were captured during real multiplayer gameplay. The first example translates chat to Ukrainian, while the second uses German as the output language:
 
 <p align="center">
-  <img src="docs/images/showcase_short_it.webp" width="49%" alt="Short CoD2 chat message translated to Italian">
-  <img src="docs/images/showcase_slang_it.webp" width="49%" alt="Gaming chat and slang translated to Italian">
+  <img src="docs/images/showcase_live_uk.webp" width="49%" alt="English CoD2 chat translated to Ukrainian in real time">
+  <img src="docs/images/showcase_uncensored_de.webp" width="49%" alt="English CoD2 chat translated to German in real time">
 </p>
+
+Admin chat is handled in the same overlay:
+
+<p align="center">
+  <img src="docs/images/showcase_admin_uk.webp" width="100%" alt="CoD2 admin chat translated to Ukrainian in real time">
+</p>
+
+Ordinary player chat, short FPS-style messages, gaming slang and admin chat can all be translated while you play.
 
 Text size, background opacity, display time and visible-message count can all be adjusted from the app.
+
 
 ## How it works
 
@@ -62,15 +67,17 @@ The app includes **40 built-in target languages**: Russian, Ukrainian, English, 
 
 It is not only for long sentences. Short replies, ordinary chat and common FPS slang are handled as well. Russian typed with Latin letters — for example `privet`, `kak dela`, `spasibo` — is recognized conservatively so normal English chat is not blindly transliterated.
 
-The gameplay examples above use Italian as the selected output language. The same workflow works with any supported target language.
+The gameplay examples above use Ukrainian and German as output languages. The same workflow works with any supported target language.
 
 ## First launch
 
 Install the app with `Setup.exe` and start it from the shortcut.
 
 <p align="center">
-  <img src="docs/images/showcase_main_window_en.webp" width="100%" alt="CoD2 Chat Translator main window">
+  <img src="docs/images/showcase_main_window_en.webp" width="100%" alt="CoD2 Chat Translator main window with Quick Connect">
 </p>
+
+Starting with **v1.15.5**, the main window includes **Quick Connect** for the featured CLASSIC OBORONA server. When CoD2 is closed, **Connect** launches Multiplayer and joins the server directly. The **Discord** button opens the server community invite. If CoD2 is already running, the translator avoids starting a second copy of the game.
 
 Starting with v1.15.0 you no longer need to enter `/seta logfile 2` manually. The translator discovers `config_mp.cfg` inside the detected CoD2 installation and enables `logfile 2` itself. No profile name or drive letter is hard-coded: `main`, direct mod folders, nested `mods\<name>` layouts and compatible portable/non-Steam copies are checked. An original backup is kept before a config is changed.
 
@@ -155,7 +162,11 @@ Updating the program should therefore keep your existing overlay setup and profi
 
 ## Updates
 
-The app can check GitHub Releases for a newer version. Update packages are verified with SHA256 before installation, and the updater attempts to roll back replaced files if installation fails. If Setup is run over an older version that is still open, it closes the translator before replacing its files.
+The app can check GitHub Releases for a newer version.
+
+Starting with v1.15.4, update metadata is protected with an **Ed25519 digital signature**. The application verifies that signature with its embedded public key before accepting an update. The downloaded update ZIP is then checked against its signed SHA256 value before installation.
+
+The updater attempts to roll back replaced files if installation fails. If Setup is run over an older version that is still open, it closes the translator before replacing its files.
 
 ## Privacy
 
