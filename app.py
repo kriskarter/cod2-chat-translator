@@ -19,6 +19,12 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from update_client import UpdateInfo, check_github_release, load_release_config
+from server_catalog import (
+    FEATURED_SERVER,
+    find_multiplayer_executable,
+    launch_connect_command,
+    no_window_creationflags,
+)
 
 if os.name == "nt":
     from ctypes import wintypes
@@ -31,7 +37,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.15.4"
+APP_VERSION = "1.15.5"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -142,6 +148,14 @@ UI_STRINGS = {
         "rename_profile": "Переименовать…", "auto_profile": "автоматически определять активный сервер",
         "server": "Сервер:", "server_auto": "● Автоматически", "server_manual": "● Ручной выбор · {name}",
         "server_settings": "Настройки сервера…", "server_settings_title": "Сервер и журнал CoD2",
+        "quick_connect": "Быстрый вход",
+        "quick_connect_connect": "▶  Подключиться",
+        "quick_connect_windows_only": "Быстрый вход доступен только в Windows.",
+        "quick_connect_running": "CoD2 уже запущена. Для быстрого подключения закрой игру и нажми «Подключиться» снова.",
+        "quick_connect_missing": "Не удалось найти CoD2 Multiplayer. Запусти игру один раз или укажи папку игры в «Настройки сервера…».",
+        "quick_connect_launching": "Запускаю {name} · {address}",
+        "quick_connect_error": "Не удалось запустить CoD2: {error}",
+        "quick_connect_discord": "Открываю Discord сервера {name}.",
         "server_settings_hint": "Обычно ничего выбирать не нужно: переводчик сам определяет папку запущенной CoD2 и активный console_mp.log при смене сервера.",
         "game_folder": "Папка игры:", "choose_game_folder": "Указать папку игры…",
         "game_folder_hint": "Steam можно установить на любой диск. Для Steam, non-Steam или portable CoD2 проще всего запустить Multiplayer — переводчик сам найдёт папку по CoD2MP_s.exe. Если не получилось, укажи папку игры один раз вручную.",
@@ -209,6 +223,14 @@ UI_STRINGS = {
         "rename_profile": "Rename…", "auto_profile": "automatically detect the active server",
         "server": "Server:", "server_auto": "● Automatic", "server_manual": "● Manual · {name}",
         "server_settings": "Server settings…", "server_settings_title": "CoD2 server and log",
+        "quick_connect": "Quick connect",
+        "quick_connect_connect": "▶  Connect",
+        "quick_connect_windows_only": "Quick connect is available on Windows only.",
+        "quick_connect_running": "CoD2 is already running. Close the game and press Connect again to use Quick Connect.",
+        "quick_connect_missing": "CoD2 Multiplayer was not found. Start the game once or choose its folder in Server settings.",
+        "quick_connect_launching": "Starting {name} · {address}",
+        "quick_connect_error": "Could not start CoD2: {error}",
+        "quick_connect_discord": "Opening the {name} Discord.",
         "server_settings_hint": "Normally you do not need to choose anything: the translator detects the running CoD2 folder and the active console_mp.log when you change servers.",
         "game_folder": "Game folder:", "choose_game_folder": "Choose game folder…",
         "game_folder_hint": "Steam may be installed on any drive. For a regular or non-Steam CoD2 copy, the easiest method is to start Multiplayer — the translator detects the folder from CoD2MP_s.exe. If that fails, choose the game folder once manually.",
@@ -3266,6 +3288,8 @@ class ControlApp:
         ttk.Label(server_frame, textvariable=self.server_summary_var, font=("Segoe UI", 10, "bold")).pack(side="left")
         ttk.Button(server_frame, text=self.t("server_settings"), command=self.show_server_settings).pack(side="right")
 
+        self._build_quick_connect_card(outer)
+
         lang_frame = ttk.Frame(outer)
         lang_frame.pack(fill="x", pady=(10, 0))
         ttk.Label(lang_frame, text=self.t("translate_to"), width=15).pack(side="left")
@@ -3347,6 +3371,202 @@ class ControlApp:
         ttk.Label(outer, textvariable=self.status_var).pack(anchor="w", pady=(10, 0))
         ttk.Label(outer, textvariable=self.last_var).pack(anchor="w", pady=(5, 0))
         ttk.Label(outer, text=self.t("privacy"), foreground="#555555", wraplength=850).pack(anchor="w", pady=(12, 0))
+
+    def _quick_connect_game_roots(self) -> list[Path]:
+        roots: list[Path | str] = []
+
+        try:
+            preferred = self._preferred_game_root()
+            if preferred is not None:
+                roots.append(preferred)
+        except Exception:
+            pass
+
+        roots.extend(self.config.get("cod2_roots", []) or [])
+
+        try:
+            roots.extend(discover_running_cod2_roots())
+        except Exception:
+            pass
+
+        try:
+            roots.extend(
+                discover_cod2_game_roots(
+                    self.config.get("cod2_roots", []) or []
+                )
+            )
+        except Exception:
+            pass
+
+        result: list[Path] = []
+        seen: set[str] = set()
+
+        for raw in roots:
+            try:
+                path = Path(raw).expanduser().resolve(strict=False)
+            except Exception:
+                continue
+
+            key = _path_key(path)
+            if key in seen:
+                continue
+
+            seen.add(key)
+            result.append(path)
+
+        return result
+
+    def _launch_featured_server(self) -> None:
+        server = FEATURED_SERVER
+
+        if os.name != "nt":
+            self.status_var.set(self.t("quick_connect_windows_only"))
+            return
+
+        try:
+            game_running = bool(find_cod2_window()) or bool(
+                discover_running_cod2_roots()
+            )
+        except Exception:
+            game_running = False
+
+        if game_running:
+            message = self.t("quick_connect_running")
+            self.status_var.set(message)
+            messagebox.showinfo(
+                APP_NAME,
+                message,
+                parent=self.root,
+            )
+            return
+
+        executable = find_multiplayer_executable(
+            self._quick_connect_game_roots()
+        )
+
+        if executable is None:
+            messagebox.showwarning(
+                APP_NAME,
+                self.t("quick_connect_missing"),
+                parent=self.root,
+            )
+            return
+
+        try:
+            try:
+                self._remember_cod2_root(executable.parent)
+                self._persist_settings()
+            except Exception:
+                pass
+
+            launch_connect_command(
+                executable,
+                server.address,
+            )
+
+            self.status_var.set(
+                self.t("quick_connect_launching").format(
+                    name=server.name,
+                    address=server.address,
+                )
+            )
+        except Exception as exc:
+            messagebox.showerror(
+                APP_NAME,
+                self.t("quick_connect_error").format(error=exc),
+                parent=self.root,
+            )
+
+    def _open_featured_server_discord(self) -> None:
+        server = FEATURED_SERVER
+        if not server.discord_url:
+            return
+
+        self._open_url(server.discord_url)
+        self.status_var.set(
+            self.t("quick_connect_discord").format(
+                name=server.name,
+            )
+        )
+
+    def _build_quick_connect_card(self, outer) -> None:
+        server = FEATURED_SERVER
+
+        card = ttk.LabelFrame(
+            outer,
+            text=self.t("quick_connect"),
+            padding=(12, 8),
+        )
+        card.pack(fill="x", pady=(10, 0))
+
+        logo_box = ttk.Frame(
+            card,
+            width=180,
+            height=86,
+        )
+        logo_box.pack(side="left", padx=(0, 14))
+        logo_box.pack_propagate(False)
+
+        try:
+            logo_path = resource_path(server.logo_asset)
+            logo = tk.PhotoImage(file=str(logo_path))
+            self._featured_server_logo = logo
+            ttk.Label(
+                logo_box,
+                image=logo,
+            ).pack(expand=True)
+        except Exception:
+            ttk.Label(
+                logo_box,
+                text=server.name,
+                font=("Segoe UI", 11, "bold"),
+            ).pack(expand=True)
+
+        info = ttk.Frame(card)
+        info.pack(
+            side="left",
+            fill="both",
+            expand=True,
+        )
+
+        ttk.Label(
+            info,
+            text=server.name,
+            font=("Segoe UI", 12, "bold"),
+        ).pack(anchor="w")
+
+        ttk.Label(
+            info,
+            text=server.subtitle,
+            foreground="#666666",
+        ).pack(anchor="w", pady=(3, 0))
+
+        ttk.Label(
+            info,
+            text=server.address,
+            font=("Consolas", 10, "bold"),
+        ).pack(anchor="w", pady=(8, 0))
+
+        actions = ttk.Frame(card)
+        actions.pack(side="right", padx=(16, 0))
+
+        ttk.Button(
+            actions,
+            text=self.t("quick_connect_connect"),
+            command=self._launch_featured_server,
+            width=20,
+        ).pack(fill="x")
+
+        discord_button = ttk.Button(
+            actions,
+            text="Discord",
+            command=self._open_featured_server_discord,
+            width=20,
+        )
+        discord_button.pack(fill="x", pady=(7, 0))
+
+        if not server.discord_url:
+            discord_button.state(["disabled"])
 
     def _project_repository(self) -> str:
         try:
@@ -4004,7 +4224,14 @@ class ControlApp:
                 "--version", info.version,
                 "--ui-language", self.ui_language,
             ]
-            subprocess.Popen(cmd, cwd=str(install_dir), close_fds=True)
+            kwargs = {
+                "cwd": str(install_dir),
+                "close_fds": True,
+            }
+            flags = no_window_creationflags()
+            if flags:
+                kwargs["creationflags"] = flags
+            subprocess.Popen(cmd, **kwargs)
             self.close()
         except Exception as exc:
             messagebox.showerror(APP_NAME, self.t("update_error").format(error=exc))
