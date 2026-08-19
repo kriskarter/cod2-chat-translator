@@ -20,6 +20,12 @@ except Exception:  # pragma: no cover
     messagebox = ttk = None
 
 
+def no_window_creationflags() -> int:
+    if os.name != "nt":
+        return 0
+    return int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
 class ProgressUI:
     """Small bilingual updater window. It is best-effort and never blocks the update logic."""
 
@@ -256,7 +262,14 @@ def main() -> int:
     main_exe = install_dir / args.main_exe
     ui.finish("Обновление установлено. Запускаю программу…", "Update installed. Starting the app…")
     try:
-        subprocess.Popen([str(main_exe)], cwd=str(install_dir), close_fds=True)
+        kwargs = {
+            "cwd": str(install_dir),
+            "close_fds": True,
+        }
+        flags = no_window_creationflags()
+        if flags:
+            kwargs["creationflags"] = flags
+        subprocess.Popen([str(main_exe)], **kwargs)
         time.sleep(0.7)
     except Exception as exc:
         show_error((f"Обновление установлено, но программу не удалось запустить: {exc}" if lang == "ru" else f"Update installed, but the app could not be started: {exc}"), lang, ui)

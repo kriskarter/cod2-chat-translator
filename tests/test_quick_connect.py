@@ -5,7 +5,7 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
-from quick_connect_app import SERVER_ADDRESS, build_connect_command, find_multiplayer_executable, launch_connect_command, unique_roots
+from server_catalog import SERVER_ADDRESS, build_connect_command, find_multiplayer_executable, launch_connect_command, unique_roots
 
 
 class QuickConnectTests(unittest.TestCase):
@@ -22,7 +22,7 @@ class QuickConnectTests(unittest.TestCase):
 
     def test_normal_quick_connect_uses_process_launch(self):
         exe = Path(r"C:\\Games\\Call of Duty 2\\CoD2MP_s.exe")
-        with mock.patch("quick_connect_app.subprocess.Popen") as popen:
+        with mock.patch("server_catalog.subprocess.Popen") as popen:
             launch_connect_command(exe)
         popen.assert_called_once()
 

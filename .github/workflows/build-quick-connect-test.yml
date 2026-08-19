@@ -43,8 +43,8 @@ jobs:
       - name: Build Quick Connect test executables
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name CoD2ChatTranslator_QuickConnect_TEST --icon assets/app.ico --add-data "assets;assets" --add-data "release_config.json;." quick_connect_app.py
-          pyinstaller --noconfirm --clean --onefile --windowed --name CoD2ChatTranslatorUpdater --icon assets/app.ico updater_quiet.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name CoD2ChatTranslator_QuickConnect_TEST --icon assets/app.ico --add-data "assets;assets" --add-data "release_config.json;." app.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name CoD2ChatTranslatorUpdater --icon assets/app.ico updater.py
 
       - name: Prepare test package
         shell: pwsh
