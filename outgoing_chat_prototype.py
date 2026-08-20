@@ -7,6 +7,8 @@ import re
 import threading
 from ctypes import wintypes
 
+from outgoing_send import send_cod2_chat_message
+
 try:
     import tkinter as tk
     from tkinter import ttk
@@ -515,6 +517,8 @@ class OutgoingChatPrototype:
 
         self.mode = "input"
         self.buffer = ""
+        self.pending_translation = ""
+        self.sending_in_progress = False
 
         self.status_var = tk.StringVar(
             value="Запускаю keyboard hook…"
@@ -570,8 +574,8 @@ class OutgoingChatPrototype:
             text=(
                 "Запускать ОТ ИМЕНИ "
                 "АДМИНИСТРАТОРА. "
-                "В CoD2 пока ничего "
-                "не отправляется."
+                "ВНИМАНИЕ: второй Enter "
+                "реально отправляет перевод в CoD2."
             ),
             foreground="#a33",
             wraplength=500,
@@ -599,8 +603,8 @@ class OutgoingChatPrototype:
         ttk.Label(
             box,
             text=(
-                "Печатай прямо в игре "
-                "· Enter — перевод"
+                "Печатай прямо в игре · "
+                "Enter — перевод · второй Enter — отправить"
             ),
         ).pack(
             anchor="w",
@@ -932,6 +936,7 @@ class OutgoingChatPrototype:
             return
 
         self.buffer = ""
+        self.pending_translation = ""
         self.mode = "input"
 
         self.translation_in_progress = (
@@ -994,6 +999,9 @@ class OutgoingChatPrototype:
             )
 
     def toggle_popup(self) -> None:
+        if self.sending_in_progress:
+            return
+
         if self.popup_visible:
             self.hide_popup(
                 "F9: ввод закрыт."
@@ -1055,13 +1063,35 @@ class OutgoingChatPrototype:
             return
 
         if self.mode == "preview":
-            self.hide_popup(
-                (
-                    "Перевод просмотрен. "
-                    "В CoD2 ничего "
-                    "не отправлено."
+            translated = self.pending_translation.strip()
+
+            if not translated:
+                self.preview.configure(
+                    text="Нет перевода для отправки.",
+                    fg="#ff7676",
                 )
+                return
+
+            self.sending_in_progress = True
+            self.translation_in_progress = True
+
+            # С этого момента hook пропускает наши T/Ctrl+V/Enter в игру.
+            self.keyboard.set_active(False)
+
+            self.popup_visible = False
+            self._hide_overlay()
+
+            self.status_var.set(
+                "Отправляю перевод в общий чат CoD2…"
             )
+
+            threading.Thread(
+                target=self._send_worker,
+                args=(translated,),
+                daemon=True,
+                name="OutgoingGameSend",
+            ).start()
+
             return
 
         source = (
@@ -1121,6 +1151,25 @@ class OutgoingChatPrototype:
                     "translation_error",
                     str(exc),
                 )
+            )
+
+    def _send_worker(
+        self,
+        translated: str,
+    ) -> None:
+        # Небольшая пауза даёт пользователю отпустить второй Enter.
+        import time
+        time.sleep(0.16)
+
+        ok, error = send_cod2_chat_message(translated)
+
+        if ok:
+            self.events.put(
+                ("send_ok", translated)
+            )
+        else:
+            self.events.put(
+                ("send_error", error)
             )
 
     def _poll_events(self) -> None:
@@ -1188,6 +1237,7 @@ class OutgoingChatPrototype:
                     )
 
                     self.mode = "preview"
+                    self.pending_translation = translated
 
                     self.preview.configure(
                         text=(
@@ -1199,10 +1249,8 @@ class OutgoingChatPrototype:
 
                     self.hint.configure(
                         text=(
-                            "ПРОТОТИП: "
-                            "в игру ничего "
-                            "не отправлено · "
-                            "Enter/Esc/F9 — закрыть"
+                            "Enter — ОТПРАВИТЬ в общий чат · "
+                            "Esc/F9 — отменить"
                         )
                     )
 
@@ -1212,6 +1260,26 @@ class OutgoingChatPrototype:
                             f"{source} → "
                             f"{translated}"
                         )
+                    )
+
+                elif event == "send_ok":
+                    self.sending_in_progress = False
+                    self.translation_in_progress = False
+                    self.pending_translation = ""
+                    self.mode = "input"
+
+                    self.status_var.set(
+                        f"Отправлено в CoD2: {payload}"
+                    )
+
+                elif event == "send_error":
+                    self.sending_in_progress = False
+                    self.translation_in_progress = False
+                    self.pending_translation = ""
+                    self.mode = "input"
+
+                    self.status_var.set(
+                        f"НЕ отправлено: {payload}"
                     )
 
                 elif (

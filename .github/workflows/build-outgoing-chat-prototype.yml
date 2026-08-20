@@ -50,7 +50,7 @@ jobs:
           CoD2 Outgoing Chat Prototype
 
           LOCAL TEST ONLY.
-          This build does NOT send anything to Call of Duty 2.
+          WARNING: this test build CAN send the translated message to Call of Duty 2.
 
           Test:
           1. Start this EXE.
@@ -59,7 +59,8 @@ jobs:
           4. Type a Russian message.
           5. Press Enter.
           6. Check the English translation preview.
-          7. Esc closes the popup.
+          7. Press Enter a SECOND time to really send it to all-chat.
+          8. Esc closes/cancels the popup.
 
           No installer.
           No updater.
