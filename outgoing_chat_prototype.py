@@ -125,10 +125,21 @@ class KeyboardCapture:
 
     def start(self) -> None:
         threading.Thread(
-            target=self._run,
+            target=self._safe_run,
             daemon=True,
             name="OutgoingKeyboardHook",
         ).start()
+
+    def _safe_run(self) -> None:
+        try:
+            self._run()
+        except BaseException as exc:
+            self.events.put(
+                (
+                    "hook_error",
+                    f"Keyboard hook crash: {type(exc).__name__}: {exc}",
+                )
+            )
 
     def _vk_to_text(
         self,
@@ -269,20 +280,44 @@ class KeyboardCapture:
             wintypes.LPARAM,
         )
 
-        user32.SetWindowsHookExW.restype = (
-            ctypes.c_void_p
-        )
-        user32.CallNextHookEx.restype = (
-            ctypes.c_ssize_t
-        )
+        user32.SetWindowsHookExW.argtypes = [
+            ctypes.c_int,
+            HOOKPROC,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        ]
+        user32.SetWindowsHookExW.restype = ctypes.c_void_p
 
-        kernel32.GetModuleHandleW.restype = (
-            ctypes.c_void_p
-        )
+        user32.CallNextHookEx.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.CallNextHookEx.restype = ctypes.c_ssize_t
 
-        user32.GetKeyboardLayout.restype = (
-            ctypes.c_void_p
-        )
+        user32.UnhookWindowsHookEx.argtypes = [
+            ctypes.c_void_p,
+        ]
+        user32.UnhookWindowsHookEx.restype = wintypes.BOOL
+
+        kernel32.GetModuleHandleW.argtypes = [
+            wintypes.LPCWSTR,
+        ]
+        kernel32.GetModuleHandleW.restype = ctypes.c_void_p
+
+        user32.GetMessageW.argtypes = [
+            ctypes.POINTER(wintypes.MSG),
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.UINT,
+        ]
+        user32.GetMessageW.restype = ctypes.c_int
+
+        user32.GetKeyboardLayout.argtypes = [
+            wintypes.DWORD,
+        ]
+        user32.GetKeyboardLayout.restype = ctypes.c_void_p
 
         @HOOKPROC
         def hook_proc(
