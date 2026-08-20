@@ -1,0 +1,74 @@
+name: Build Outgoing Chat Prototype
+
+on:
+  push:
+    branches:
+      - feature/outgoing-chat-prototype
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Test
+        run: python -m unittest discover -s tests -v
+
+      - name: Build prototype
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --windowed `
+            --name CoD2OutgoingChatPrototype_TEST `
+            --icon assets/app.ico `
+            outgoing_chat_prototype.py
+
+      - name: Prepare test notes
+        shell: pwsh
+        run: |
+          @"
+          CoD2 Outgoing Chat Prototype
+
+          LOCAL TEST ONLY.
+          This build does NOT send anything to Call of Duty 2.
+
+          Test:
+          1. Start this EXE.
+          2. Start CoD2.
+          3. Press F9.
+          4. Type a Russian message.
+          5. Press Enter.
+          6. Check the English translation preview.
+          7. Esc closes the popup.
+
+          No installer.
+          No updater.
+          No GitHub Release.
+          "@ | Set-Content -Encoding UTF8 dist\TEST_README.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CoD2-Outgoing-Chat-Prototype-TEST
+          path: |
+            dist/CoD2OutgoingChatPrototype_TEST.exe
+            dist/TEST_README.txt
