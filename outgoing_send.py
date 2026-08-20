@@ -104,6 +104,11 @@ def foreground_process_name() -> str:
     ]
     kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
 
+    kernel32.CloseHandle.argtypes = [
+        wintypes.HANDLE,
+    ]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
     hwnd = user32.GetForegroundWindow()
     if not hwnd:
         return ""
@@ -145,6 +150,58 @@ def is_cod2_foreground() -> bool:
     return foreground_process_name() in COD2_EXE_NAMES
 
 
+def _configure_clipboard_api(user32, kernel32) -> None:
+    HANDLE = ctypes.c_void_p
+
+    user32.OpenClipboard.argtypes = [
+        wintypes.HWND,
+    ]
+    user32.OpenClipboard.restype = wintypes.BOOL
+
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = wintypes.BOOL
+
+    user32.IsClipboardFormatAvailable.argtypes = [
+        wintypes.UINT,
+    ]
+    user32.IsClipboardFormatAvailable.restype = wintypes.BOOL
+
+    user32.GetClipboardData.argtypes = [
+        wintypes.UINT,
+    ]
+    user32.GetClipboardData.restype = HANDLE
+
+    user32.SetClipboardData.argtypes = [
+        wintypes.UINT,
+        HANDLE,
+    ]
+    user32.SetClipboardData.restype = HANDLE
+
+    user32.EmptyClipboard.argtypes = []
+    user32.EmptyClipboard.restype = wintypes.BOOL
+
+    kernel32.GlobalAlloc.argtypes = [
+        wintypes.UINT,
+        ctypes.c_size_t,
+    ]
+    kernel32.GlobalAlloc.restype = HANDLE
+
+    kernel32.GlobalLock.argtypes = [
+        HANDLE,
+    ]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+
+    kernel32.GlobalUnlock.argtypes = [
+        HANDLE,
+    ]
+    kernel32.GlobalUnlock.restype = wintypes.BOOL
+
+    kernel32.GlobalFree.argtypes = [
+        HANDLE,
+    ]
+    kernel32.GlobalFree.restype = HANDLE
+
+
 def _open_clipboard(user32) -> bool:
     for _ in range(20):
         if user32.OpenClipboard(None):
@@ -157,8 +214,7 @@ def _get_clipboard_text() -> tuple[bool, str]:
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
-    user32.GetClipboardData.restype = ctypes.c_void_p
-    kernel32.GlobalLock.restype = ctypes.c_void_p
+    _configure_clipboard_api(user32, kernel32)
 
     if not _open_clipboard(user32):
         raise RuntimeError("Не удалось открыть буфер обмена")
@@ -188,8 +244,7 @@ def _set_clipboard_text(text: str) -> None:
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
-    kernel32.GlobalAlloc.restype = ctypes.c_void_p
-    kernel32.GlobalLock.restype = ctypes.c_void_p
+    _configure_clipboard_api(user32, kernel32)
 
     raw = (text + "\0").encode("utf-16-le")
 
@@ -236,6 +291,9 @@ def _set_clipboard_text(text: str) -> None:
 
 def _clear_clipboard() -> None:
     user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    _configure_clipboard_api(user32, kernel32)
 
     if not _open_clipboard(user32):
         return
