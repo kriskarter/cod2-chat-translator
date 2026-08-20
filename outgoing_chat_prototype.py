@@ -281,99 +281,16 @@ class OutgoingChatPrototype:
         except Exception:
             self.previous_foreground = 0
 
-    def _force_foreground_window(self, hwnd: int) -> bool:
-        """Temporarily attach input queues so Windows allows a foreground switch."""
-        if os.name != "nt" or not hwnd:
-            return False
-
-        try:
-            user32 = ctypes.WinDLL("user32", use_last_error=True)
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-
-            foreground = int(user32.GetForegroundWindow() or 0)
-            current_tid = int(kernel32.GetCurrentThreadId())
-            target_tid = int(user32.GetWindowThreadProcessId(hwnd, None) or 0)
-            foreground_tid = (
-                int(user32.GetWindowThreadProcessId(foreground, None) or 0)
-                if foreground
-                else 0
-            )
-
-            attached_foreground = False
-            attached_target = False
-
-            try:
-                if foreground_tid and foreground_tid != current_tid:
-                    attached_foreground = bool(
-                        user32.AttachThreadInput(
-                            current_tid,
-                            foreground_tid,
-                            True,
-                        )
-                    )
-
-                if target_tid and target_tid != current_tid:
-                    attached_target = bool(
-                        user32.AttachThreadInput(
-                            current_tid,
-                            target_tid,
-                            True,
-                        )
-                    )
-
-                user32.BringWindowToTop(hwnd)
-                user32.SetForegroundWindow(hwnd)
-                user32.SetActiveWindow(hwnd)
-                user32.SetFocus(hwnd)
-
-                return int(user32.GetForegroundWindow() or 0) == int(hwnd)
-
-            finally:
-                if attached_target:
-                    user32.AttachThreadInput(
-                        current_tid,
-                        target_tid,
-                        False,
-                    )
-
-                if attached_foreground:
-                    user32.AttachThreadInput(
-                        current_tid,
-                        foreground_tid,
-                        False,
-                    )
-
-        except Exception:
-            return False
-
-    def _focus_popup_for_typing(self) -> None:
-        if not self.popup_visible:
-            return
-
-        try:
-            self.popup.lift()
-            self.popup.attributes("-topmost", True)
-            self.popup.update_idletasks()
-
-            popup_hwnd = int(self.popup.winfo_id())
-
-            self._force_foreground_window(popup_hwnd)
-
-            self.entry.focus_set()
-            self.entry.icursor("end")
-        except Exception:
-            try:
-                self.entry.focus_force()
-            except Exception:
-                pass
-
     def _restore_foreground(self) -> None:
         if os.name != "nt" or not self.previous_foreground:
             return
 
-        self._force_foreground_window(
-            self.previous_foreground
-        )
+        try:
+            ctypes.windll.user32.SetForegroundWindow(
+                self.previous_foreground
+            )
+        except Exception:
+            pass
 
     def _position_popup(self) -> None:
         width = 720
@@ -409,12 +326,10 @@ class OutgoingChatPrototype:
 
         self.popup_visible = True
 
-        # CoD2 can keep the keyboard focus even while our topmost window
-        # is visible. Try a few short foreground handoffs while the popup
-        # is being shown; the first successful one is enough.
-        self.popup.after(20, self._focus_popup_for_typing)
-        self.popup.after(80, self._focus_popup_for_typing)
-        self.popup.after(160, self._focus_popup_for_typing)
+        self.popup.after(
+            40,
+            lambda: self.entry.focus_force(),
+        )
 
     def hide_popup(self, clear: bool = False) -> None:
         if not self.popup_visible:
