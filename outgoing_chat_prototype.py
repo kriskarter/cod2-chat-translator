@@ -5,9 +5,14 @@ import os
 import queue
 import re
 import threading
-import tkinter as tk
 from ctypes import wintypes
-from tkinter import ttk
+
+try:
+    import tkinter as tk
+    from tkinter import ttk
+except Exception:
+    tk = None
+    ttk = None
 
 
 APP_TITLE = "CoD2 Outgoing Chat Prototype"
@@ -533,6 +538,11 @@ class OutgoingChatPrototype:
 
 
 def main() -> int:
+    if tk is None or ttk is None:
+        raise RuntimeError(
+            "This prototype requires Tkinter and is intended for Windows."
+        )
+
     app = OutgoingChatPrototype()
     app.run()
     return 0
