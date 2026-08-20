@@ -5,6 +5,7 @@ import os
 import queue
 import re
 import threading
+import time
 from ctypes import wintypes
 
 try:
@@ -50,6 +51,8 @@ def translate_outgoing_text(text: str, target: str = TARGET_CODE) -> str:
 
 
 class GlobalF9Hotkey:
+    """Poll F9 the same way the main translator polls its proven F8 hotkey."""
+
     def __init__(self, events: queue.Queue) -> None:
         self.events = events
 
@@ -65,53 +68,31 @@ class GlobalF9Hotkey:
             self.events.put(("hotkey_error", "F9 доступен только в Windows"))
             return
 
-        user32 = ctypes.windll.user32
-
-        registered = bool(
-            user32.RegisterHotKey(
-                None,
-                HOTKEY_ID,
-                MOD_NOREPEAT,
-                VK_F9,
-            )
-        )
-
-        if not registered:
-            self.events.put(
-                (
-                    "hotkey_error",
-                    "Не удалось зарегистрировать F9. "
-                    "Возможно, клавишу уже использует другая программа.",
-                )
-            )
+        try:
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
+            user32.GetAsyncKeyState.restype = ctypes.c_short
+        except Exception as exc:
+            self.events.put(("hotkey_error", f"Не удалось инициализировать F9: {exc}"))
             return
 
         self.events.put(("hotkey_ready", None))
 
-        msg = wintypes.MSG()
+        previous_down = False
 
-        try:
-            while True:
-                result = user32.GetMessageW(
-                    ctypes.byref(msg),
-                    None,
-                    0,
-                    0,
-                )
-
-                if result <= 0:
-                    break
-
-                if (
-                    msg.message == WM_HOTKEY
-                    and int(msg.wParam) == HOTKEY_ID
-                ):
-                    self.events.put(("toggle_popup", None))
-        finally:
+        while True:
             try:
-                user32.UnregisterHotKey(None, HOTKEY_ID)
-            except Exception:
-                pass
+                down = bool(user32.GetAsyncKeyState(VK_F9) & 0x8000)
+
+                if down and not previous_down:
+                    self.events.put(("toggle_popup", None))
+
+                previous_down = down
+                time.sleep(0.025)
+
+            except Exception as exc:
+                self.events.put(("hotkey_error", f"Ошибка F9: {exc}"))
+                return
 
 
 class OutgoingChatPrototype:
