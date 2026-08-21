@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 import queue
 import re
 import threading
 from ctypes import wintypes
+from pathlib import Path
 
 from outgoing_send import send_cod2_chat_message
 
@@ -22,6 +24,52 @@ TARGET_CODE = "en"
 TARGET_NAME = "English"
 MAX_MESSAGE_CHARS = 160
 
+SETTINGS_DIR_NAME = "CoD2ChatTranslator"
+OUTGOING_CONFIG_FILE = "outgoing_chat.json"
+
+LANGUAGES = {
+    "Русский": "ru",
+    "Українська": "uk",
+    "English": "en",
+    "Deutsch": "de",
+    "Polski": "pl",
+    "Español": "es",
+    "Français": "fr",
+    "Italiano": "it",
+    "Português": "pt",
+    "Čeština": "cs",
+    "Slovenčina": "sk",
+    "Română": "ro",
+    "Magyar": "hu",
+    "Türkçe": "tr",
+    "Nederlands": "nl",
+    "Svenska": "sv",
+    "Norsk": "no",
+    "Dansk": "da",
+    "Suomi": "fi",
+    "Ελληνικά": "el",
+    "Български": "bg",
+    "Српски": "sr",
+    "Hrvatski": "hr",
+    "Slovenščina": "sl",
+    "Bosanski": "bs",
+    "Македонски": "mk",
+    "Беларуская": "be",
+    "Lietuvių": "lt",
+    "Latviešu": "lv",
+    "Eesti": "et",
+    "العربية": "ar",
+    "עברית": "iw",
+    "हिन्दी": "hi",
+    "Bahasa Indonesia": "id",
+    "Tiếng Việt": "vi",
+    "ไทย": "th",
+    "日本語": "ja",
+    "한국어": "ko",
+    "简体中文": "zh-CN",
+    "繁體中文": "zh-TW",
+}
+
 WH_KEYBOARD_LL = 13
 HC_ACTION = 0
 
@@ -36,6 +84,8 @@ VK_SHIFT = 0x10
 VK_CONTROL = 0x11
 VK_MENU = 0x12
 VK_ESCAPE = 0x1B
+VK_LWIN = 0x5B
+VK_RWIN = 0x5C
 VK_F9 = 0x78
 VK_LCONTROL = 0xA2
 VK_RCONTROL = 0xA3
@@ -63,19 +113,144 @@ def normalize_outgoing_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def settings_dir() -> Path:
+    if os.name == "nt":
+        base = Path(
+            os.environ.get("APPDATA")
+            or (Path.home() / "AppData" / "Roaming")
+        )
+    else:
+        base = Path(
+            os.environ.get("XDG_CONFIG_HOME")
+            or (Path.home() / ".config")
+        )
+
+    result = base / SETTINGS_DIR_NAME
+    result.mkdir(parents=True, exist_ok=True)
+    return result
+
+
+def language_name_for_code(code: str) -> str:
+    for name, value in LANGUAGES.items():
+        if value == code:
+            return name
+    return code
+
+
+def language_code_for_name(name: str) -> str:
+    return LANGUAGES.get(name, "en")
+
+
+def default_source_code_from_ui_language(
+    ui_language: str,
+) -> str:
+    code = str(ui_language or "").strip().lower()
+    return code if code in LANGUAGES.values() else "ru"
+
+
+def _main_ui_language() -> str:
+    try:
+        config = json.loads(
+            (settings_dir() / "config.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        if isinstance(config, dict):
+            return str(
+                config.get("ui_language", "ru")
+            ).strip().lower()
+    except Exception:
+        pass
+
+    return "ru"
+
+
+def outgoing_config_path() -> Path:
+    return settings_dir() / OUTGOING_CONFIG_FILE
+
+
+def load_outgoing_preferences() -> tuple[str, str]:
+    source = default_source_code_from_ui_language(
+        _main_ui_language()
+    )
+    target = "en"
+
+    try:
+        data = json.loads(
+            outgoing_config_path().read_text(
+                encoding="utf-8"
+            )
+        )
+
+        if isinstance(data, dict):
+            saved_source = str(
+                data.get("source_language", "")
+            ).strip()
+
+            saved_target = str(
+                data.get("target_language", "")
+            ).strip()
+
+            if saved_source in LANGUAGES.values():
+                source = saved_source
+
+            if saved_target in LANGUAGES.values():
+                target = saved_target
+
+    except Exception:
+        pass
+
+    return source, target
+
+
+def save_outgoing_preferences(
+    source: str,
+    target: str,
+) -> None:
+    if source not in LANGUAGES.values():
+        source = "ru"
+
+    if target not in LANGUAGES.values():
+        target = "en"
+
+    path = outgoing_config_path()
+    temp = path.with_suffix(".tmp")
+
+    temp.write_text(
+        json.dumps(
+            {
+                "source_language": source,
+                "target_language": target,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    os.replace(temp, path)
+
+
 def translate_outgoing_text(
     text: str,
     target: str = TARGET_CODE,
+    source_language: str = "auto",
 ) -> str:
-    from deep_translator import GoogleTranslator
-
     source = normalize_outgoing_text(text)
 
     if not source:
         raise ValueError("Пустое сообщение")
 
+    if (
+        source_language != "auto"
+        and source_language == target
+    ):
+        return source
+
+    from deep_translator import GoogleTranslator
+
     translated = GoogleTranslator(
-        source="auto",
+        source=source_language,
         target=target,
     ).translate(source)
 
@@ -153,6 +328,8 @@ class KeyboardCapture:
             VK_BACK,
             VK_RETURN,
             VK_ESCAPE,
+            VK_LWIN,
+            VK_RWIN,
             VK_F9,
             VK_SHIFT,
             VK_CONTROL,
@@ -380,6 +557,26 @@ class KeyboardCapture:
                     self.f9_down = False
                     return 1
 
+            # Win должен оставаться системной клавишей.
+            # Сразу выключаем захват, чтобы Windows получила
+            # и Win, и следующую клавишу комбинации.
+            if (
+                self.active
+                and vk in {VK_LWIN, VK_RWIN}
+            ):
+                if key_down:
+                    self.active = False
+                    self.events.put(
+                        ("system_escape", None)
+                    )
+
+                return user32.CallNextHookEx(
+                    self.hook,
+                    n_code,
+                    w_param,
+                    l_param,
+                )
+
             if not self.active:
                 return user32.CallNextHookEx(
                     self.hook,
@@ -495,52 +692,74 @@ class KeyboardCapture:
 
 
 class OutgoingChatPrototype:
-    def __init__(self) -> None:
-        self.root = tk.Tk()
+    def __init__(self, root=None, status_var=None, last_var=None) -> None:
+        self._owns_root = root is None
+        self.root = root or tk.Tk()
 
-        self.root.title(APP_TITLE)
-        self.root.geometry("550x300")
-        self.root.minsize(520, 280)
+        if self._owns_root:
+            self.root.title(APP_TITLE)
+            self.root.geometry("550x300")
+            self.root.minsize(520, 280)
 
-        self.events: queue.Queue = (
-            queue.Queue()
-        )
-
-        self.keyboard = KeyboardCapture(
-            self.events
-        )
-
+        self.events: queue.Queue = queue.Queue()
+        self.keyboard = KeyboardCapture(self.events)
         self.popup_visible = False
-        self.translation_in_progress = (
-            False
-        )
-
+        self.translation_in_progress = False
         self.mode = "input"
         self.buffer = ""
         self.pending_translation = ""
         self.sending_in_progress = False
 
-        self.status_var = tk.StringVar(
+        self.status_var = status_var or tk.StringVar(
+            master=self.root,
             value="Запускаю keyboard hook…"
         )
-
-        self.last_var = tk.StringVar(
+        self.last_var = last_var or tk.StringVar(
+            master=self.root,
             value="Последний перевод: —"
         )
 
-        self._build_control_window()
+        if self._owns_root:
+            self._build_control_window()
+
         self._build_overlay_window()
-
         self.keyboard.start()
+        self.root.after(30, self._poll_events)
 
-        self.root.after(
-            30,
-            self._poll_events,
+        if self._owns_root:
+            self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
+
+    def _route_text(self) -> str:
+        return (
+            f"{language_name_for_code(self.source_code)}"
+            " → "
+            f"{language_name_for_code(self.target_code)}"
         )
 
-        self.root.protocol(
-            "WM_DELETE_WINDOW",
-            self.root.destroy,
+    def _languages_changed(
+        self,
+        _event=None,
+    ) -> None:
+        self.source_code = language_code_for_name(
+            self.source_name_var.get()
+        )
+
+        self.target_code = language_code_for_name(
+            self.target_name_var.get()
+        )
+
+        save_outgoing_preferences(
+            self.source_code,
+            self.target_code,
+        )
+
+        self.route_var.set(
+            self._route_text()
+        )
+
+        self.status_var.set(
+            "Языки сохранены: "
+            + self._route_text()
         )
 
     def _build_control_window(
@@ -631,6 +850,76 @@ class OutgoingChatPrototype:
         ).pack(
             anchor="w",
             pady=(4, 0),
+        )
+
+        language_box = ttk.LabelFrame(
+            outer,
+            text="Языки",
+            padding=10,
+        )
+        language_box.pack(
+            fill="x",
+            pady=(12, 0),
+        )
+
+        source_row = ttk.Frame(language_box)
+        source_row.pack(fill="x")
+
+        ttk.Label(
+            source_row,
+            text="Мой язык:",
+            width=20,
+        ).pack(side="left")
+
+        source_combo = ttk.Combobox(
+            source_row,
+            state="readonly",
+            values=list(LANGUAGES.keys()),
+            textvariable=self.source_name_var,
+            width=23,
+        )
+        source_combo.pack(side="left")
+        source_combo.bind(
+            "<<ComboboxSelected>>",
+            self._languages_changed,
+        )
+
+        target_row = ttk.Frame(language_box)
+        target_row.pack(
+            fill="x",
+            pady=(7, 0),
+        )
+
+        ttk.Label(
+            target_row,
+            text="Отправлять в чат на:",
+            width=20,
+        ).pack(side="left")
+
+        target_combo = ttk.Combobox(
+            target_row,
+            state="readonly",
+            values=list(LANGUAGES.keys()),
+            textvariable=self.target_name_var,
+            width=23,
+        )
+        target_combo.pack(side="left")
+        target_combo.bind(
+            "<<ComboboxSelected>>",
+            self._languages_changed,
+        )
+
+        ttk.Label(
+            language_box,
+            text=(
+                "При первом запуске «Мой язык» "
+                "берётся из языка интерфейса "
+                "CoD2 Chat Translator."
+            ),
+            foreground="#666666",
+        ).pack(
+            anchor="w",
+            pady=(8, 0),
         )
 
         ttk.Label(
@@ -732,7 +1021,7 @@ class OutgoingChatPrototype:
 
         tk.Label(
             header,
-            text=f"→ {TARGET_NAME}",
+            textvariable=self.route_var,
             bg="#101419",
             fg="#67d4ff",
             font=(
@@ -1131,7 +1420,8 @@ class OutgoingChatPrototype:
             translated = (
                 translate_outgoing_text(
                     source,
-                    TARGET_CODE,
+                    self.target_code,
+                    self.source_code,
                 )
             )
 
@@ -1198,6 +1488,11 @@ class OutgoingChatPrototype:
                         "Esc: ввод отменён."
                     )
 
+                elif event == "system_escape":
+                    self.hide_popup(
+                        "Win: ввод закрыт, клавиша передана Windows."
+                    )
+
                 elif event == "hook_ready":
                     if is_running_as_admin():
                         self.status_var.set(
@@ -1211,7 +1506,7 @@ class OutgoingChatPrototype:
                         self.status_var.set(
                             (
                                 "Перезапусти "
-                                "прототип ОТ ИМЕНИ "
+                                "программу ОТ ИМЕНИ "
                                 "АДМИНИСТРАТОРА."
                             )
                         )

@@ -1,4 +1,4 @@
-name: Build Outgoing Chat Prototype
+name: Build Unified Outgoing Chat Test
 
 on:
   push:
@@ -28,10 +28,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
 
+      - name: Generate assets
+        run: python tools/build_assets.py
+
       - name: Test
         run: python -m unittest discover -s tests -v
 
-      - name: Build prototype
+      - name: Build unified test application
         shell: pwsh
         run: |
           pyinstaller `
@@ -39,37 +42,46 @@ jobs:
             --clean `
             --onefile `
             --windowed `
-            --name CoD2OutgoingChatPrototype_TEST `
+            --uac-admin `
+            --name CoD2ChatTranslator_UNIFIED_TEST `
             --icon assets/app.ico `
-            outgoing_chat_prototype.py
+            --add-data "assets;assets" `
+            app.py
 
       - name: Prepare test notes
         shell: pwsh
         run: |
           @"
-          CoD2 Outgoing Chat Prototype
+          CoD2 Chat Translator — Unified Outgoing Chat Test
 
-          LOCAL TEST ONLY.
-          WARNING: this test build CAN send the translated message to Call of Duty 2.
+          TEST BUILD ONLY.
 
-          Test:
-          1. Start this EXE.
-          2. Start CoD2.
-          3. Press F9.
-          4. Type a Russian message.
-          5. Press Enter.
-          6. Check the English translation preview.
-          7. Press Enter a SECOND time to really send it to all-chat.
-          8. Esc closes/cancels the popup.
+          This build contains both:
+          - incoming chat translation / overlay
+          - outgoing translated chat
+
+          The application requests Administrator rights automatically.
+
+          OUTGOING CHAT:
+          1. Choose "My language" in the main application.
+          2. Choose the language to send to CoD2.
+          3. Start CoD2.
+          4. Press F9 in game.
+          5. Type the message.
+          6. Enter = translate.
+          7. Enter again = send to all-chat.
+          8. Esc or F9 = cancel.
+
+          F8 keeps its existing incoming-overlay show/hide function.
 
           No installer.
-          No updater.
+          No updater package.
           No GitHub Release.
           "@ | Set-Content -Encoding UTF8 dist\TEST_README.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CoD2-Outgoing-Chat-Prototype-TEST
+          name: CoD2-Chat-Translator-UNIFIED-TEST
           path: |
-            dist/CoD2OutgoingChatPrototype_TEST.exe
+            dist/CoD2ChatTranslator_UNIFIED_TEST.exe
             dist/TEST_README.txt

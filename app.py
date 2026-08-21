@@ -26,6 +26,8 @@ from server_catalog import (
     no_window_creationflags,
 )
 
+from outgoing_chat_prototype import LANGUAGES, OutgoingChatPrototype
+
 if os.name == "nt":
     from ctypes import wintypes
 
@@ -3294,6 +3296,12 @@ class ControlApp:
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._set_window_icon()
 
+        self.outgoing_chat = OutgoingChatPrototype(
+            root=self.root,
+            status_var=self.status_var,
+            last_var=self.last_var,
+        )
+
         self._build_ui()
         self._refresh_server_profiles(initial=True)
         self.overlay = OverlayWindow(root, self.config, on_geometry_changed=self._on_overlay_geometry_changed, use_fresh_default_position=self.fresh_install)
@@ -3400,6 +3408,103 @@ class ControlApp:
         slang_combo.bind("<<ComboboxSelected>>", lambda _e: self._persist_settings())
         ttk.Checkbutton(smart, text=self.t("dedupe"), variable=self.dedupe_var, command=self._persist_settings).pack(side="left", padx=(12, 0))
         ttk.Label(smart, text=self.t("hotkey"), foreground="#666666").pack(side="left", padx=(12, 0))
+
+        outgoing_title = {
+            "ru": "Исходящий чат · F9",
+            "uk": "Вихідний чат · F9",
+            "en": "Outgoing chat · F9",
+        }.get(
+            self.ui_language,
+            "Исходящий чат · F9",
+        )
+
+        source_label = {
+            "ru": "Мой язык:",
+            "uk": "Моя мова:",
+            "en": "My language:",
+        }.get(
+            self.ui_language,
+            "Мой язык:",
+        )
+
+        target_label = {
+            "ru": "Отправлять на:",
+            "uk": "Надсилати:",
+            "en": "Send as:",
+        }.get(
+            self.ui_language,
+            "Отправлять на:",
+        )
+
+        game_hint = {
+            "ru": "F9 — написать прямо в игре",
+            "uk": "F9 — написати прямо в грі",
+            "en": "F9 — write directly in game",
+        }.get(
+            self.ui_language,
+            "F9 — написать прямо в игре",
+        )
+
+        outgoing = ttk.LabelFrame(
+            outer,
+            text=outgoing_title,
+            padding=(10, 8),
+        )
+        outgoing.pack(fill="x", pady=(8, 0))
+
+        ttk.Label(
+            outgoing,
+            text=game_hint,
+            foreground="#666666",
+        ).pack(side="left", padx=(0, 14))
+
+        ttk.Label(
+            outgoing,
+            text=source_label,
+        ).pack(side="left")
+
+        outgoing_source_combo = ttk.Combobox(
+            outgoing,
+            state="readonly",
+            values=list(LANGUAGES.keys()),
+            textvariable=self.outgoing_chat.source_name_var,
+            width=15,
+        )
+        outgoing_source_combo.pack(
+            side="left",
+            padx=(5, 12),
+        )
+        outgoing_source_combo.bind(
+            "<<ComboboxSelected>>",
+            self.outgoing_chat._languages_changed,
+        )
+
+        ttk.Label(
+            outgoing,
+            text=target_label,
+        ).pack(side="left")
+
+        outgoing_target_combo = ttk.Combobox(
+            outgoing,
+            state="readonly",
+            values=list(LANGUAGES.keys()),
+            textvariable=self.outgoing_chat.target_name_var,
+            width=15,
+        )
+        outgoing_target_combo.pack(
+            side="left",
+            padx=(5, 12),
+        )
+        outgoing_target_combo.bind(
+            "<<ComboboxSelected>>",
+            self.outgoing_chat._languages_changed,
+        )
+
+        ttk.Label(
+            outgoing,
+            textvariable=self.outgoing_chat.route_var,
+            font=("Segoe UI", 10, "bold"),
+        ).pack(side="left")
 
         controls = ttk.Frame(outer)
         controls.pack(fill="x", pady=(12, 0))
