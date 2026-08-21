@@ -1,6 +1,10 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from outgoing_chat_prototype import (
+    KeyboardCapture,
+    OutgoingChatPrototype,
     default_source_code_from_ui_language,
     language_code_for_name,
     language_name_for_code,
@@ -61,6 +65,71 @@ class OutgoingChatPrototypeTests(unittest.TestCase):
                 source_language="uk",
             ),
             "Привіт усім!",
+        )
+
+
+    def test_embedded_constructor_initializes_route_before_overlay(self):
+        class DummyVar:
+            def __init__(self, value=""):
+                self.value = value
+
+            def get(self):
+                return self.value
+
+            def set(self, value):
+                self.value = value
+
+        class DummyRoot:
+            def after(self, *_args, **_kwargs):
+                return None
+
+        def string_var(*, master=None, value=""):
+            return DummyVar(value)
+
+        observed = {}
+
+        def fake_build_overlay(instance):
+            observed["route"] = instance.route_var.get()
+            observed["source"] = instance.source_name_var.get()
+            observed["target"] = instance.target_name_var.get()
+
+        with (
+            patch(
+                "outgoing_chat_prototype.load_outgoing_preferences",
+                return_value=("ru", "en"),
+            ),
+            patch(
+                "outgoing_chat_prototype.tk",
+                SimpleNamespace(
+                    StringVar=string_var,
+                ),
+            ),
+            patch.object(
+                KeyboardCapture,
+                "start",
+                return_value=None,
+            ),
+            patch.object(
+                OutgoingChatPrototype,
+                "_build_overlay_window",
+                new=fake_build_overlay,
+            ),
+        ):
+            OutgoingChatPrototype(
+                root=DummyRoot(),
+            )
+
+        self.assertEqual(
+            observed["route"],
+            "Русский → English",
+        )
+        self.assertEqual(
+            observed["source"],
+            "Русский",
+        )
+        self.assertEqual(
+            observed["target"],
+            "English",
         )
 
 

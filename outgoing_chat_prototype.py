@@ -719,6 +719,29 @@ class OutgoingChatPrototype:
             value="Последний перевод: —"
         )
 
+        self.source_code, self.target_code = (
+            load_outgoing_preferences()
+        )
+
+        self.source_name_var = tk.StringVar(
+            master=self.root,
+            value=language_name_for_code(
+                self.source_code
+            ),
+        )
+
+        self.target_name_var = tk.StringVar(
+            master=self.root,
+            value=language_name_for_code(
+                self.target_code
+            ),
+        )
+
+        self.route_var = tk.StringVar(
+            master=self.root,
+            value=self._route_text(),
+        )
+
         if self._owns_root:
             self._build_control_window()
 
