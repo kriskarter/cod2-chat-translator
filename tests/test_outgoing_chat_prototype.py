@@ -4,6 +4,10 @@ from unittest.mock import patch
 
 from outgoing_chat_prototype import (
     KeyboardCapture,
+    VK_LSHIFT,
+    VK_RSHIFT,
+    VK_SHIFT,
+    apply_keyboard_modifier_state,
     OutgoingChatController,
     default_source_code_from_ui_language,
     language_code_for_name,
@@ -136,6 +140,23 @@ class OutgoingChatControllerTests(unittest.TestCase):
         self.assertTrue(
             observed["enabled"]
         )
+
+    def test_physical_shift_promotes_generic_shift_state(self):
+        for physical_shift in (
+            VK_LSHIFT,
+            VK_RSHIFT,
+        ):
+            state = [0] * 256
+
+            apply_keyboard_modifier_state(
+                state,
+                {physical_shift},
+            )
+
+            self.assertTrue(
+                state[VK_SHIFT] & 0x80
+            )
+
 
     def test_keyboard_capture_can_be_disabled(self):
         import queue

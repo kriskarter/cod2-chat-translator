@@ -3277,7 +3277,7 @@ class ControlApp:
         self.enabled_var = tk.BooleanVar(value=True)
         self.overlay_editing = False
         self.overlay_hotkey_visible = True
-        self._hotkey_prev = {"F8": False, "F10": False}
+        self._hotkey_prev = {"F8": False}
         self.duplicate_filter = RecentDuplicateFilter(float(self.config.get("duplicate_window_seconds", 4)))
         self.font_var = tk.IntVar(value=int(overlay_cfg.get("font_size", 10)))
         self.bg_var = tk.IntVar(value=round(float(overlay_cfg.get("background_opacity", 0.15)) * 100))
@@ -4671,7 +4671,6 @@ class ControlApp:
                 user32.GetAsyncKeyState.restype = ctypes.c_short
                 keys = {
                     "F8": 0x77,
-                    "F10": 0x79,
                 }
 
                 for name, vk in keys.items():
@@ -4685,13 +4684,6 @@ class ControlApp:
                     ):
                         if name == "F8":
                             self.toggle_overlay_hotkey_visibility()
-                        elif name == "F10":
-                            if not getattr(
-                                self.outgoing_chat,
-                                "popup_visible",
-                                False,
-                            ):
-                                self.capture_game_screenshot()
 
                     self._hotkey_prev[name] = down
             except Exception:

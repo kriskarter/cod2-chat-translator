@@ -88,6 +88,8 @@ VK_LWIN = 0x5B
 VK_RWIN = 0x5C
 VK_F9 = 0x78
 VK_F10 = 0x79
+VK_LSHIFT = 0xA0
+VK_RSHIFT = 0xA1
 VK_LCONTROL = 0xA2
 VK_RCONTROL = 0xA3
 VK_LMENU = 0xA4
@@ -107,6 +109,25 @@ SWP_NOMOVE = 0x0002
 SWP_NOACTIVATE = 0x0010
 
 GA_ROOT = 2
+
+
+def apply_keyboard_modifier_state(
+    state,
+    down_keys,
+) -> None:
+    # Low-level hook may report physical LSHIFT/RSHIFT
+    # while ToUnicodeEx expects the generic VK_SHIFT bit.
+    if any(
+        key in down_keys
+        for key in (
+            VK_SHIFT,
+            VK_LSHIFT,
+            VK_RSHIFT,
+        )
+    ):
+        state[VK_SHIFT] = (
+            int(state[VK_SHIFT]) | 0x80
+        )
 
 
 def normalize_outgoing_text(text: str) -> str:
@@ -305,6 +326,7 @@ class KeyboardCapture:
 
         self.down_keys: set[int] = set()
         self.f9_down = False
+        self.f10_down = False
 
     def set_active(self, value: bool) -> None:
         self.active = bool(value)
@@ -349,6 +371,8 @@ class KeyboardCapture:
             VK_F9,
             VK_F10,
             VK_SHIFT,
+            VK_LSHIFT,
+            VK_RSHIFT,
             VK_CONTROL,
             VK_MENU,
             VK_LCONTROL,
@@ -383,6 +407,11 @@ class KeyboardCapture:
         for key in self.down_keys:
             if 0 <= key < 256:
                 state[key] |= 0x80
+
+        apply_keyboard_modifier_state(
+            state,
+            self.down_keys,
+        )
 
         hwnd = int(
             user32.GetForegroundWindow() or 0
@@ -575,18 +604,32 @@ class KeyboardCapture:
                     self.f9_down = False
                     return 1
 
-            # F10 во время F9-режима — скриншот.
-            # Окно ввода не закрываем: оно должно попасть на снимок.
-            if (
-                self.active
-                and vk == VK_F10
-            ):
+            # F10 — глобальный скриншот.
+            # Ловим непосредственно keyboard hook'ом,
+            # поэтому короткое нажатие больше не теряется.
+            if vk == VK_F10:
                 if key_down:
-                    self.events.put(
-                        ("screenshot", None)
-                    )
+                    if not self.f10_down:
+                        self.f10_down = True
+                        self.events.put(
+                            ("screenshot", None)
+                        )
 
-                return 1
+                if key_up:
+                    self.f10_down = False
+
+                # Во время F9-ввода не отдаём F10 игре.
+                if self.active:
+                    return 1
+
+                # В обычном режиме F10 остаётся доступной
+                # самой игре/Windows после нашего снимка.
+                return user32.CallNextHookEx(
+                    self.hook,
+                    n_code,
+                    w_param,
+                    l_param,
+                )
 
             # Win должен оставаться системной клавишей.
             # Сразу выключаем захват, чтобы Windows получила
