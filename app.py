@@ -3277,7 +3277,7 @@ class ControlApp:
         self.enabled_var = tk.BooleanVar(value=True)
         self.overlay_editing = False
         self.overlay_hotkey_visible = True
-        self._hotkey_prev = {"F8": False}
+        self._hotkey_prev = {"F8": False, "F10": False}
         self.duplicate_filter = RecentDuplicateFilter(float(self.config.get("duplicate_window_seconds", 4)))
         self.font_var = tk.IntVar(value=int(overlay_cfg.get("font_size", 10)))
         self.bg_var = tk.IntVar(value=round(float(overlay_cfg.get("background_opacity", 0.15)) * 100))
@@ -3514,6 +3514,24 @@ class ControlApp:
         self.overlay_edit_button = ttk.Button(controls, text=self.t("configure_overlay"), command=self.toggle_overlay_edit)
         self.overlay_edit_button.pack(side="left", padx=(12, 0))
         ttk.Button(controls, text=self.t("cod2_top"), command=self.enable_cod2_borderless).pack(side="left", padx=(12, 0))
+
+        screenshot_text = {
+            "ru": "Скриншот · F10",
+            "uk": "Скріншот · F10",
+            "en": "Screenshot · F10",
+        }.get(
+            self.ui_language,
+            "Скриншот · F10",
+        )
+
+        ttk.Button(
+            controls,
+            text=screenshot_text,
+            command=self.capture_game_screenshot,
+        ).pack(
+            side="left",
+            padx=(12, 0),
+        )
 
         box = ttk.LabelFrame(outer, text=self.t("overlay_view"), padding=(10, 8))
         box.pack(fill="x", pady=(12, 0))
@@ -4597,15 +4615,161 @@ class ControlApp:
                 user32 = ctypes.WinDLL("user32", use_last_error=True)
                 user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
                 user32.GetAsyncKeyState.restype = ctypes.c_short
-                keys = {"F8": 0x77}
+                keys = {
+                    "F8": 0x77,
+                    "F10": 0x79,
+                }
+
                 for name, vk in keys.items():
-                    down = bool(user32.GetAsyncKeyState(vk) & 0x8000)
-                    if down and not self._hotkey_prev[name]:
-                        self.toggle_overlay_hotkey_visibility()
+                    down = bool(
+                        user32.GetAsyncKeyState(vk) & 0x8000
+                    )
+
+                    if (
+                        down
+                        and not self._hotkey_prev[name]
+                    ):
+                        if name == "F8":
+                            self.toggle_overlay_hotkey_visibility()
+                        elif name == "F10":
+                            self.capture_game_screenshot()
+
                     self._hotkey_prev[name] = down
             except Exception:
                 pass
         self.root.after(80, self.poll_global_hotkeys)
+
+    def _screenshot_directory(self) -> Path:
+        directory = (
+            Path.home()
+            / "Pictures"
+            / APP_NAME
+            / "Screenshots"
+        )
+
+        directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        return directory
+
+    def _screenshot_status(
+        self,
+        key: str,
+        **values,
+    ) -> str:
+        strings = {
+            "ru": {
+                "capturing": "F10: делаю скриншот…",
+                "saved": "Скриншот сохранён: {path}",
+                "error": "Не удалось сделать скриншот: {error}",
+                "windows": "Скриншоты доступны только в Windows.",
+            },
+            "uk": {
+                "capturing": "F10: роблю скріншот…",
+                "saved": "Скріншот збережено: {path}",
+                "error": "Не вдалося зробити скріншот: {error}",
+                "windows": "Скріншоти доступні лише у Windows.",
+            },
+            "en": {
+                "capturing": "F10: capturing screenshot…",
+                "saved": "Screenshot saved: {path}",
+                "error": "Could not capture screenshot: {error}",
+                "windows": "Screenshots are available only on Windows.",
+            },
+        }
+
+        table = strings.get(
+            self.ui_language,
+            strings["ru"],
+        )
+
+        return table[key].format(**values)
+
+    def capture_game_screenshot(self) -> None:
+        if os.name != "nt":
+            self.status_var.set(
+                self._screenshot_status("windows")
+            )
+            return
+
+        if getattr(
+            self,
+            "_screenshot_in_progress",
+            False,
+        ):
+            return
+
+        self._screenshot_in_progress = True
+        self.status_var.set(
+            self._screenshot_status("capturing")
+        )
+
+        threading.Thread(
+            target=self._capture_game_screenshot_worker,
+            daemon=True,
+            name="CoD2Screenshot",
+        ).start()
+
+    def _capture_game_screenshot_worker(self) -> None:
+        try:
+            from PIL import ImageGrab
+
+            hwnd = find_cod2_window()
+
+            bbox = None
+
+            if hwnd:
+                left, top, width, height = (
+                    _monitor_rect_for_window(hwnd)
+                )
+
+                if width > 0 and height > 0:
+                    bbox = (
+                        left,
+                        top,
+                        left + width,
+                        top + height,
+                    )
+
+            image = ImageGrab.grab(
+                bbox=bbox,
+                include_layered_windows=True,
+                all_screens=True,
+            )
+
+            stamp = time.strftime(
+                "%Y-%m-%d_%H-%M-%S"
+            )
+
+            path = (
+                self._screenshot_directory()
+                / f"CoD2_Chat_Translator_{stamp}.png"
+            )
+
+            image.save(
+                path,
+                format="PNG",
+            )
+
+            self.ui_queue.put(
+                (
+                    "screenshot_saved",
+                    str(path),
+                )
+            )
+
+        except Exception as exc:
+            self.ui_queue.put(
+                (
+                    "screenshot_error",
+                    str(exc),
+                )
+            )
+
+        finally:
+            self._screenshot_in_progress = False
 
     def test_overlay(self) -> None:
         self.overlay.add(OverlayItem(nickname="TEST_PLAYER", original="cover me, I go left", translated="прикрой меня, я иду слева", created_at=time.monotonic()))
@@ -4658,6 +4822,24 @@ class ControlApp:
                     _, msg, error = item
                     self.status_var.set(self.t("translation_unavailable").format(error=error))
                     self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=msg.text, created_at=time.monotonic()))
+                elif event == "screenshot_saved":
+                    _, path = item
+                    self.status_var.set(
+                        self._screenshot_status(
+                            "saved",
+                            path=path,
+                        )
+                    )
+
+                elif event == "screenshot_error":
+                    _, error = item
+                    self.status_var.set(
+                        self._screenshot_status(
+                            "error",
+                            error=error,
+                        )
+                    )
+
                 elif event == "update_result":
                     _, info, manual = item
                     if info is None:
