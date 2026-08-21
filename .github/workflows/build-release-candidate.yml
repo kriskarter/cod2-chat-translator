@@ -34,7 +34,20 @@ jobs:
       - name: Test
         run: python -m unittest discover -s tests -v
 
-      - name: Build unified test application
+      - name: Configure release repository
+        shell: pwsh
+        run: |
+          $cfg = @{
+            repository = "${{ github.repository }}"
+            channel = "stable"
+            check_on_start = $true
+            developer = "kriskarter"
+            developer_url = "https://github.com/kriskarter"
+          }
+          $cfg | ConvertTo-Json |
+            Set-Content -Encoding UTF8 release_config.json
+
+      - name: Build Release Candidate executables
         shell: pwsh
         run: |
           pyinstaller `
@@ -43,45 +56,73 @@ jobs:
             --onefile `
             --windowed `
             --uac-admin `
-            --name CoD2ChatTranslator_RC `
+            --name CoD2ChatTranslator `
             --icon assets/app.ico `
             --add-data "assets;assets" `
+            --add-data "release_config.json;." `
             app.py
 
-      - name: Prepare test notes
+          pyinstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --windowed `
+            --name CoD2ChatTranslatorUpdater `
+            --icon assets/app.ico `
+            updater.py
+
+      - name: Install Inno Setup
         shell: pwsh
         run: |
+          choco install innosetup --version=6.7.1 --no-progress -y
+
+      - name: Build multilingual Release Candidate installer
+        shell: pwsh
+        run: |
+          $version = python app.py --version
+
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DMyAppVersion=$version" `
+            installer\CoD2ChatTranslator.iss
+
+          $setup = "release\CoD2ChatTranslator_Setup_v$version.exe"
+
+          if (!(Test-Path $setup)) {
+            throw "Installer was not created: $setup"
+          }
+
+          Get-FileHash $setup -Algorithm SHA256
+
+      - name: Prepare RC information
+        shell: pwsh
+        run: |
+          $version = python app.py --version
+
           @"
-          CoD2 Chat Translator — Release Candidate
+          CoD2 Chat Translator v$version — Release Candidate
 
-          RELEASE CANDIDATE — final verification build.
+          INSTALLATION TEST BUILD
 
-          This build contains both:
-          - incoming chat translation / overlay
-          - outgoing translated chat
+          Use:
+          CoD2ChatTranslator_Setup_v$version.exe
 
-          The application requests Administrator rights automatically.
+          Test:
+          - Windows language auto-detection
+          - Russian / Ukrainian / English Setup
+          - first application launch language
+          - language switching inside the application
+          - incoming translation
+          - F9 outgoing translated chat
+          - F10 screenshots
+          - Administrator elevation
+          - updater language
 
-          OUTGOING CHAT:
-          1. Choose "My language" in the main application.
-          2. Choose the language to send to CoD2.
-          3. Start CoD2.
-          4. Press F9 in game.
-          5. Type the message.
-          6. Enter = translate.
-          7. Enter again = send to all-chat.
-          8. Esc or F9 = cancel.
-
-          F8 keeps its existing incoming-overlay show/hide function.
-
-          No installer.
-          No updater package.
-          No GitHub Release.
-          "@ | Set-Content -Encoding UTF8 dist\TEST_README.txt
+          This workflow does NOT publish a GitHub Release.
+          "@ | Set-Content -Encoding UTF8 release\RC_README.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CoD2-Chat-Translator-RC
+          name: CoD2-Chat-Translator-RC-Installer
           path: |
-            dist/CoD2ChatTranslator_RC.exe
-            dist/TEST_README.txt
+            release/CoD2ChatTranslator_Setup_v*.exe
+            release/RC_README.txt
