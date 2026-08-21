@@ -8,8 +8,8 @@ import app
 
 
 class BrandingTests(unittest.TestCase):
-    def test_v1160_branding(self):
-        self.assertEqual(app.APP_VERSION, "1.16.0")
+    def test_v1161_branding(self):
+        self.assertEqual(app.APP_VERSION, "1.16.1")
         self.assertEqual(app.PROJECT_AUTHOR, "kriskarter")
         self.assertEqual(app.PROJECT_PROFILE_URL, "https://github.com/kriskarter")
         self.assertEqual(app.UI_STRINGS["ru"]["about"], "О программе")
@@ -45,6 +45,54 @@ class BrandingTests(unittest.TestCase):
         self.assertIn('Name: "ukrainian"', script)
         self.assertIn("Ukrainian.isl", script)
         self.assertIn("LangCode := 'uk'", script)
+
+    def test_windows_build_uses_runtime_elevation(self):
+        root = Path(__file__).resolve().parents[1]
+
+        app_source = (
+            root / "app.py"
+        ).read_text(encoding="utf-8")
+
+        stable_workflow = (
+            root
+            / ".github"
+            / "workflows"
+            / "build-windows.yml"
+        ).read_text(encoding="utf-8")
+
+        rc_workflow = (
+            root
+            / ".github"
+            / "workflows"
+            / "build-release-candidate.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "def ensure_elevated_windows()",
+            app_source,
+        )
+        self.assertIn(
+            "IsUserAnAdmin",
+            app_source,
+        )
+        self.assertIn(
+            '"runas"',
+            app_source,
+        )
+        self.assertIn(
+            "if not ensure_elevated_windows():",
+            app_source,
+        )
+
+        self.assertNotIn(
+            "--uac-admin",
+            stable_workflow,
+        )
+        self.assertNotIn(
+            "--uac-admin",
+            rc_workflow,
+        )
+
 
     def test_log_tailer_status_can_be_localized(self):
         statuses = []

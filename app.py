@@ -39,7 +39,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.16.0"
+APP_VERSION = "1.16.1"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -381,6 +381,73 @@ UI_STRINGS["uk"] = {
     "translation_service_busy": "Сервіс перекладу тимчасово недоступний. Повідомлення не перекладено.",
     "update_postponed": "Оновлення {version} відкладено",
 }
+
+
+def is_windows_admin() -> bool:
+    """Return whether the current Windows process is elevated."""
+    if os.name != "nt":
+        return True
+
+    try:
+        return bool(
+            ctypes.windll.shell32.IsUserAnAdmin()
+        )
+    except Exception:
+        return False
+
+
+def ensure_elevated_windows() -> bool:
+    """
+    Released Windows builds need administrator privileges for
+    the global outgoing-chat keyboard hook.
+
+    Do not embed requireAdministrator into the EXE manifest.
+    Older updaters must be able to start the new EXE normally;
+    the application then requests elevation itself.
+
+    Returns True when this process should continue.
+    Returns False after requesting an elevated replacement process.
+    """
+    if os.name != "nt":
+        return True
+
+    # Source/development runs stay unelevated.
+    if not getattr(sys, "frozen", False):
+        return True
+
+    if is_windows_admin():
+        return True
+
+    executable = str(
+        Path(sys.executable).resolve()
+    )
+
+    parameters = (
+        subprocess.list2cmdline(sys.argv[1:])
+        if len(sys.argv) > 1
+        else None
+    )
+
+    working_directory = str(
+        Path(executable).parent
+    )
+
+    try:
+        result = ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            executable,
+            parameters,
+            working_directory,
+            1,
+        )
+    except Exception:
+        return False
+
+    # Success (>32): elevated copy has been started.
+    # Failure/cancel: do not continue unelevated because F9
+    # would not work correctly against an elevated game.
+    return False
 
 
 def app_dir() -> Path:
@@ -4950,6 +5017,9 @@ def main() -> int:
         return 0
     if args.test_log:
         return cli_test_log(args.test_log)
+
+    if not ensure_elevated_windows():
+        return 0
 
     if tk is None:
         print("Tkinter is not available in this Python installation.", file=sys.stderr)

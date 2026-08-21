@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/outgoing-chat-prototype
+      - 'hotfix/**'
   workflow_dispatch:
 
 permissions:
@@ -55,7 +56,6 @@ jobs:
             --clean `
             --onefile `
             --windowed `
-            --uac-admin `
             --name CoD2ChatTranslator `
             --icon assets/app.ico `
             --add-data "assets;assets" `

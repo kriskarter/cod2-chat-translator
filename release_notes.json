@@ -1,5 +1,5 @@
 {
-  "notes_ru": "Добавлен исходящий чат F9 с выбором языка и отправкой переведённых сообщений прямо в Call of Duty 2. Добавлены игровые скриншоты F10 с захватом оверлеев. Улучшен ввод символов и работа горячих клавиш. Установщик автоматически выбирает поддерживаемый язык Windows, а язык можно изменить в интерфейсе программы.",
-  "notes_uk": "Додано вихідний чат F9 з вибором мови та надсиланням перекладених повідомлень безпосередньо в Call of Duty 2. Додано ігрові скріншоти F10 із захопленням оверлеїв. Покращено введення символів і роботу гарячих клавіш. Інсталятор автоматично обирає підтримувану мову Windows, а мову можна змінити в інтерфейсі програми.",
-  "notes_en": "Added F9 outgoing chat with language selection and direct sending of translated messages to Call of Duty 2. Added F10 gameplay screenshots with overlay capture. Improved punctuation input and hotkey handling. Setup automatically selects the supported Windows language, and the language can be changed later in the app."
+  "notes_ru": "Исправлена совместимость автоматического обновления со старыми версиями. Программа теперь запрашивает права администратора при запуске вместо требования прав через EXE-манифест. Это предотвращает ошибку Windows 740 после обновления.",
+  "notes_uk": "Виправлено сумісність автоматичного оновлення зі старими версіями. Програма тепер запитує права адміністратора під час запуску замість вимоги прав через EXE-маніфест. Це запобігає помилці Windows 740 після оновлення.",
+  "notes_en": "Fixed automatic-update compatibility with older versions. The application now requests administrator privileges at startup instead of requiring elevation through the EXE manifest. This prevents Windows error 740 after an update."
 }
