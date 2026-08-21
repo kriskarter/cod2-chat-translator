@@ -1,4 +1,5 @@
 {
-  "notes_ru": "Добавлена полноценная украинская локализация: украинский интерфейс программы, мастер установки и окно встроенного обновления. При выборе украинского языка в установщике программа впервые запускается на украинском и выбирает украинский как язык перевода.",
-  "notes_en": "Added full Ukrainian localization: Ukrainian app interface, installer, and built-in updater. When Ukrainian is selected in Setup, the app starts in Ukrainian on first launch and selects Ukrainian as the translation language."
+  "notes_ru": "Добавлен исходящий чат F9 с выбором языка и отправкой переведённых сообщений прямо в Call of Duty 2. Добавлены игровые скриншоты F10 с захватом оверлеев. Улучшен ввод символов и работа горячих клавиш. Установщик автоматически выбирает поддерживаемый язык Windows, а язык можно изменить в интерфейсе программы.",
+  "notes_uk": "Додано вихідний чат F9 з вибором мови та надсиланням перекладених повідомлень безпосередньо в Call of Duty 2. Додано ігрові скріншоти F10 із захопленням оверлеїв. Покращено введення символів і роботу гарячих клавіш. Інсталятор автоматично обирає підтримувану мову Windows, а мову можна змінити в інтерфейсі програми.",
+  "notes_en": "Added F9 outgoing chat with language selection and direct sending of translated messages to Call of Duty 2. Added F10 gameplay screenshots with overlay capture. Improved punctuation input and hotkey handling. Setup automatically selects the supported Windows language, and the language can be changed later in the app."
 }

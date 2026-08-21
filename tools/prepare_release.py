@@ -56,6 +56,7 @@ manifest = {
     "sha256": sha,
     "notes_ru": notes.get("notes_ru", ""),
     "notes_en": notes.get("notes_en", ""),
+    "notes_uk": notes.get("notes_uk", ""),
 }
 (RELEASE / "update.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 (RELEASE / "CoD2ChatTranslator_Update.zip.sha256").write_text(f"{sha}  {package.name}\n", encoding="utf-8")

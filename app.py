@@ -26,7 +26,7 @@ from server_catalog import (
     no_window_creationflags,
 )
 
-from outgoing_chat_prototype import LANGUAGES, OutgoingChatController
+from outgoing_chat import LANGUAGES, OutgoingChatController
 
 if os.name == "nt":
     from ctypes import wintypes
@@ -39,7 +39,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.15.6"
+APP_VERSION = "1.16.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -4897,7 +4897,9 @@ class ControlApp:
                         if manual:
                             self.status_var.set(self.t("update_none"))
                     else:
-                        notes = info.notes_ru if self.ui_language in {"ru", "uk"} else info.notes_en
+                        notes = info.notes_for_language(
+                            self.ui_language
+                        )
                         if not notes:
                             notes = ("Виправлення та покращення." if self.ui_language == "uk" else ("Исправления и улучшения." if self.ui_language == "ru" else "Fixes and improvements."))
                         prompt = self.t("update_available").format(version=info.version, notes=notes)

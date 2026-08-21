@@ -23,8 +23,9 @@ class UpdateClientTests(unittest.TestCase):
             'version': '1.12.0',
             'asset': 'CoD2ChatTranslator_Update.zip',
             'sha256': 'a' * 64,
-            'notes_ru': 'Тест',
-            'notes_en': 'Test',
+            'notes_ru': 'Русский текст',
+            'notes_en': 'English text',
+            'notes_uk': 'Український текст',
         }
         with patch('update_client._get_json', side_effect=[api_release, manifest]), \
              patch('update_client.verify_update_manifest_signature', return_value=True):
@@ -32,6 +33,18 @@ class UpdateClientTests(unittest.TestCase):
         self.assertIsNotNone(info)
         self.assertEqual(info.version, '1.12.0')
         self.assertEqual(info.sha256, 'a' * 64)
+        self.assertEqual(
+            info.notes_for_language('ru'),
+            'Русский текст',
+        )
+        self.assertEqual(
+            info.notes_for_language('uk'),
+            'Український текст',
+        )
+        self.assertEqual(
+            info.notes_for_language('en'),
+            'English text',
+        )
 
     def test_no_update_for_same_version(self):
         api_release = {'tag_name': 'v1.10.0', 'assets': []}

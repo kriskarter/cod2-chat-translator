@@ -2,7 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from outgoing_chat_prototype import (
+from outgoing_chat import (
     KeyboardCapture,
     VK_LSHIFT,
     VK_RSHIFT,
@@ -100,11 +100,11 @@ class OutgoingChatControllerTests(unittest.TestCase):
 
         with (
             patch(
-                "outgoing_chat_prototype.load_outgoing_preferences",
+                "outgoing_chat.load_outgoing_preferences",
                 return_value=("ru", "en", True),
             ),
             patch(
-                "outgoing_chat_prototype.tk",
+                "outgoing_chat.tk",
                 SimpleNamespace(
                     StringVar=string_var,
                     BooleanVar=string_var,

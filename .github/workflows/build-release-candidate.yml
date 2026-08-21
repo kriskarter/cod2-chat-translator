@@ -1,4 +1,4 @@
-name: Build Unified Outgoing Chat Test
+name: Build CoD2 Chat Translator Release Candidate
 
 on:
   push:
@@ -43,7 +43,7 @@ jobs:
             --onefile `
             --windowed `
             --uac-admin `
-            --name CoD2ChatTranslator_UNIFIED_TEST `
+            --name CoD2ChatTranslator_RC `
             --icon assets/app.ico `
             --add-data "assets;assets" `
             app.py
@@ -52,9 +52,9 @@ jobs:
         shell: pwsh
         run: |
           @"
-          CoD2 Chat Translator — Unified Outgoing Chat Test
+          CoD2 Chat Translator — Release Candidate
 
-          TEST BUILD ONLY.
+          RELEASE CANDIDATE — final verification build.
 
           This build contains both:
           - incoming chat translation / overlay
@@ -81,7 +81,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CoD2-Chat-Translator-UNIFIED-TEST
+          name: CoD2-Chat-Translator-RC
           path: |
-            dist/CoD2ChatTranslator_UNIFIED_TEST.exe
+            dist/CoD2ChatTranslator_RC.exe
             dist/TEST_README.txt

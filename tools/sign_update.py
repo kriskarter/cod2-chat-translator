@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT))
 from update_client import (
     UPDATE_SIGNING_KEY_ID,
     update_signature_payload,
+    update_signature_payload_v2,
 )
 
 
@@ -56,6 +57,25 @@ def main() -> int:
     manifest["signature"] = base64.b64encode(
         signature
     ).decode("ascii")
+
+    # V2 protects the Ukrainian release notes while the
+    # legacy signature remains compatible with v1.15.x.
+    manifest["signature_alg_v2"] = "ed25519"
+    manifest["signature_key_id_v2"] = (
+        UPDATE_SIGNING_KEY_ID
+    )
+
+    signature_v2 = private_key.sign(
+        update_signature_payload_v2(
+            manifest
+        )
+    )
+
+    manifest["signature_v2"] = (
+        base64.b64encode(
+            signature_v2
+        ).decode("ascii")
+    )
 
     manifest_path.write_text(
         json.dumps(

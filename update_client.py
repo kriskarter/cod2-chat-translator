@@ -29,6 +29,17 @@ SIGNED_UPDATE_FIELDS = (
     "signature_key_id",
 )
 
+SIGNED_UPDATE_FIELDS_V2 = (
+    "version",
+    "asset",
+    "sha256",
+    "notes_ru",
+    "notes_uk",
+    "notes_en",
+    "signature_alg_v2",
+    "signature_key_id_v2",
+)
+
 
 def update_signature_payload(manifest: dict) -> bytes:
     payload = {
@@ -43,45 +54,146 @@ def update_signature_payload(manifest: dict) -> bytes:
     ).encode("utf-8")
 
 
-def verify_update_manifest_signature(
+def update_signature_payload_v2(
     manifest: dict,
-    public_keys: dict[str, str] | None = None,
+) -> bytes:
+    payload = {
+        name: str(manifest.get(name) or "")
+        for name in SIGNED_UPDATE_FIELDS_V2
+    }
+
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _verify_manifest_signature(
+    manifest: dict,
+    *,
+    public_keys: dict[str, str] | None,
+    algorithm_field: str,
+    key_id_field: str,
+    signature_field: str,
+    payload: bytes,
 ) -> bool:
     try:
-        if str(manifest.get("signature_alg") or "").lower() != "ed25519":
+        if (
+            str(
+                manifest.get(algorithm_field)
+                or ""
+            ).lower()
+            != "ed25519"
+        ):
             return False
 
-        manifest_key_id = str(manifest.get("signature_key_id") or "")
-        signature_text = str(manifest.get("signature") or "")
+        manifest_key_id = str(
+            manifest.get(key_id_field)
+            or ""
+        )
 
-        keys = public_keys or UPDATE_SIGNING_PUBLIC_KEYS
-        encoded_public_key = keys.get(manifest_key_id)
+        signature_text = str(
+            manifest.get(signature_field)
+            or ""
+        )
 
-        if not encoded_public_key or not signature_text:
+        keys = (
+            public_keys
+            or UPDATE_SIGNING_PUBLIC_KEYS
+        )
+
+        encoded_public_key = keys.get(
+            manifest_key_id
+        )
+
+        if (
+            not encoded_public_key
+            or not signature_text
+        ):
             return False
 
         public_der = base64.b64decode(
             encoded_public_key,
             validate=True,
         )
+
         signature = base64.b64decode(
             signature_text,
             validate=True,
         )
 
-        public_key = serialization.load_der_public_key(public_der)
+        public_key = (
+            serialization.load_der_public_key(
+                public_der
+            )
+        )
 
-        if not isinstance(public_key, Ed25519PublicKey):
+        if not isinstance(
+            public_key,
+            Ed25519PublicKey,
+        ):
             return False
 
         public_key.verify(
             signature,
-            update_signature_payload(manifest),
+            payload,
         )
+
         return True
 
     except Exception:
         return False
+
+
+def verify_update_manifest_signature(
+    manifest: dict,
+    public_keys: dict[str, str] | None = None,
+) -> bool:
+    # V1 remains mandatory so old installed clients
+    # can verify the same release manifest.
+    if not _verify_manifest_signature(
+        manifest,
+        public_keys=public_keys,
+        algorithm_field="signature_alg",
+        key_id_field="signature_key_id",
+        signature_field="signature",
+        payload=update_signature_payload(
+            manifest
+        ),
+    ):
+        return False
+
+    notes_uk = str(
+        manifest.get("notes_uk")
+        or ""
+    )
+
+    has_v2 = any(
+        str(manifest.get(name) or "")
+        for name in (
+            "signature_alg_v2",
+            "signature_key_id_v2",
+            "signature_v2",
+        )
+    )
+
+    # Old manifests without Ukrainian notes remain valid.
+    if not notes_uk and not has_v2:
+        return True
+
+    # New multilingual manifests must protect notes_uk too.
+    return _verify_manifest_signature(
+        manifest,
+        public_keys=public_keys,
+        algorithm_field="signature_alg_v2",
+        key_id_field="signature_key_id_v2",
+        signature_field="signature_v2",
+        payload=update_signature_payload_v2(
+            manifest
+        ),
+    )
 
 
 
@@ -93,6 +205,21 @@ class UpdateInfo:
     asset_name: str
     notes_ru: str = ""
     notes_en: str = ""
+    notes_uk: str = ""
+
+    def notes_for_language(
+        self,
+        language: str,
+    ) -> str:
+        language = str(language or "").lower()
+
+        if language == "uk":
+            return self.notes_uk
+
+        if language == "ru":
+            return self.notes_ru
+
+        return self.notes_en
 
 
 def version_key(value: str) -> tuple[int, ...]:
@@ -172,4 +299,5 @@ def check_github_release(current_version: str, repository: str, timeout: float =
         asset_name=asset_name,
         notes_ru=str(manifest.get("notes_ru") or ""),
         notes_en=str(manifest.get("notes_en") or ""),
+        notes_uk=str(manifest.get("notes_uk") or ""),
     )

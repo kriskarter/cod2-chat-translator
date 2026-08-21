@@ -8,8 +8,8 @@ import app
 
 
 class BrandingTests(unittest.TestCase):
-    def test_v1156_branding(self):
-        self.assertEqual(app.APP_VERSION, "1.15.6")
+    def test_v1160_branding(self):
+        self.assertEqual(app.APP_VERSION, "1.16.0")
         self.assertEqual(app.PROJECT_AUTHOR, "kriskarter")
         self.assertEqual(app.PROJECT_PROFILE_URL, "https://github.com/kriskarter")
         self.assertEqual(app.UI_STRINGS["ru"]["about"], "О программе")
@@ -31,6 +31,13 @@ class BrandingTests(unittest.TestCase):
         script = (root / "installer" / "CoD2ChatTranslator.iss").read_text(encoding="utf-8")
         self.assertIn("CloseApplications=force", script)
         self.assertIn("RestartApplications=no", script)
+        self.assertIn("ShowLanguageDialog=yes", script)
+        self.assertIn(
+            "LanguageDetectionMethod=uilanguage",
+            script,
+        )
+        self.assertIn('Name: "english"', script)
+        self.assertIn('Name: "russian"', script)
         self.assertIn('Name: "ukrainian"', script)
         self.assertIn("Ukrainian.isl", script)
         self.assertIn("LangCode := 'uk'", script)

@@ -77,6 +77,10 @@ jobs:
 
           $($notes.notes_ru)
 
+          ## Що нового
+
+          $($notes.notes_uk)
+
           ## What's new
 
           $($notes.notes_en)
@@ -84,6 +88,8 @@ jobs:
           ---
 
           Для обычной установки скачай CoD2ChatTranslator_Setup_v$version.exe из списка файлов ниже.
+
+          Для звичайного встановлення завантаж CoD2ChatTranslator_Setup_v$version.exe зі списку файлів нижче.
 
           For a normal installation, download CoD2ChatTranslator_Setup_v$version.exe from the files below.
           "@
@@ -93,7 +99,7 @@ jobs:
         shell: pwsh
         run: choco install innosetup --version=6.7.1 --no-progress -y
 
-      - name: Build bilingual Setup.exe
+      - name: Build multilingual Setup.exe
         shell: pwsh
         run: |
           $version = python app.py --version
