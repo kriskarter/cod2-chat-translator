@@ -31,6 +31,10 @@ class BrandingTests(unittest.TestCase):
         script = (root / "installer" / "CoD2ChatTranslator.iss").read_text(encoding="utf-8")
         self.assertIn("CloseApplications=force", script)
         self.assertIn("RestartApplications=no", script)
+        self.assertIn(
+            "postinstall skipifsilent shellexec",
+            script,
+        )
         self.assertIn("ShowLanguageDialog=yes", script)
         self.assertIn(
             "LanguageDetectionMethod=uilanguage",
