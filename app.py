@@ -26,7 +26,7 @@ from server_catalog import (
     no_window_creationflags,
 )
 
-from outgoing_chat_prototype import LANGUAGES, OutgoingChatPrototype
+from outgoing_chat_prototype import LANGUAGES, OutgoingChatController
 
 if os.name == "nt":
     from ctypes import wintypes
@@ -3296,7 +3296,7 @@ class ControlApp:
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._set_window_icon()
 
-        self.outgoing_chat = OutgoingChatPrototype(
+        self.outgoing_chat = OutgoingChatController(
             root=self.root,
             status_var=self.status_var,
             last_var=self.last_var,
@@ -3446,12 +3446,31 @@ class ControlApp:
             "F9 — написать прямо в игре",
         )
 
+        outgoing_enabled_text = {
+            "ru": "Включён",
+            "uk": "Увімкнено",
+            "en": "Enabled",
+        }.get(
+            self.ui_language,
+            "Включён",
+        )
+
         outgoing = ttk.LabelFrame(
             outer,
             text=outgoing_title,
             padding=(10, 8),
         )
         outgoing.pack(fill="x", pady=(8, 0))
+
+        ttk.Checkbutton(
+            outgoing,
+            text=outgoing_enabled_text,
+            variable=self.outgoing_chat.enabled_var,
+            command=self._outgoing_enabled_changed,
+        ).pack(
+            side="left",
+            padx=(0, 12),
+        )
 
         ttk.Label(
             outgoing,
@@ -4592,6 +4611,40 @@ class ControlApp:
             self.status_var.set(self.t("cod2_borderless_ok").format(detail=detail))
         else:
             self.status_var.set(self.t("cod2_borderless_error").format(detail=detail))
+
+    def _outgoing_enabled_changed(self) -> None:
+        enabled = bool(
+            self.outgoing_chat.enabled_var.get()
+        )
+
+        self.outgoing_chat.set_enabled(
+            enabled
+        )
+
+        messages = {
+            "ru": (
+                "Исходящий чат включён · F9"
+                if enabled
+                else "Исходящий чат выключен"
+            ),
+            "uk": (
+                "Вихідний чат увімкнено · F9"
+                if enabled
+                else "Вихідний чат вимкнено"
+            ),
+            "en": (
+                "Outgoing chat enabled · F9"
+                if enabled
+                else "Outgoing chat disabled"
+            ),
+        }
+
+        self.status_var.set(
+            messages.get(
+                self.ui_language,
+                messages["ru"],
+            )
+        )
 
     def toggle_original(self) -> None:
         self.config["show_original"] = bool(self.show_original_var.get())

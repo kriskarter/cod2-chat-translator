@@ -19,7 +19,7 @@ except Exception:
     ttk = None
 
 
-APP_TITLE = "CoD2 Outgoing Chat Prototype"
+APP_TITLE = "CoD2 Outgoing Chat"
 TARGET_CODE = "en"
 TARGET_NAME = "English"
 MAX_MESSAGE_CHARS = 160
@@ -170,11 +170,12 @@ def outgoing_config_path() -> Path:
     return settings_dir() / OUTGOING_CONFIG_FILE
 
 
-def load_outgoing_preferences() -> tuple[str, str]:
+def load_outgoing_preferences() -> tuple[str, str, bool]:
     source = default_source_code_from_ui_language(
         _main_ui_language()
     )
     target = "en"
+    enabled = True
 
     try:
         data = json.loads(
@@ -198,15 +199,20 @@ def load_outgoing_preferences() -> tuple[str, str]:
             if saved_target in LANGUAGES.values():
                 target = saved_target
 
+            enabled = bool(
+                data.get("enabled", True)
+            )
+
     except Exception:
         pass
 
-    return source, target
+    return source, target, enabled
 
 
 def save_outgoing_preferences(
     source: str,
     target: str,
+    enabled: bool = True,
 ) -> None:
     if source not in LANGUAGES.values():
         source = "ru"
@@ -222,6 +228,7 @@ def save_outgoing_preferences(
             {
                 "source_language": source,
                 "target_language": target,
+                "enabled": bool(enabled),
             },
             ensure_ascii=False,
             indent=2,
@@ -291,6 +298,7 @@ class KeyboardCapture:
     def __init__(self, events: queue.Queue) -> None:
         self.events = events
         self.active = False
+        self.enabled = True
 
         self.hook = None
         self.callback = None
@@ -300,6 +308,13 @@ class KeyboardCapture:
 
     def set_active(self, value: bool) -> None:
         self.active = bool(value)
+
+    def set_enabled(self, value: bool) -> None:
+        self.enabled = bool(value)
+
+        if not self.enabled:
+            self.active = False
+            self.f9_down = False
 
     def start(self) -> None:
         threading.Thread(
@@ -541,8 +556,9 @@ class KeyboardCapture:
             if key_up:
                 self.down_keys.discard(vk)
 
-            # F9 принадлежит нашему прототипу.
-            if vk == VK_F9:
+            # F9 принадлежит исходящему чату только когда
+            # функция включена. Иначе клавиша остаётся игре.
+            if vk == VK_F9 and self.enabled:
                 if key_down:
                     if not self.f9_down:
                         self.f9_down = True
@@ -706,7 +722,7 @@ class KeyboardCapture:
                 self.hook = None
 
 
-class OutgoingChatPrototype:
+class OutgoingChatController:
     def __init__(
         self,
         root=None,
@@ -741,9 +757,11 @@ class OutgoingChatPrototype:
             value="Последний перевод: —"
         )
 
-        self.source_code, self.target_code = (
-            load_outgoing_preferences()
-        )
+        (
+            self.source_code,
+            self.target_code,
+            self.enabled,
+        ) = load_outgoing_preferences()
 
         self.source_name_var = tk.StringVar(
             master=self.root,
@@ -762,6 +780,15 @@ class OutgoingChatPrototype:
         self.route_var = tk.StringVar(
             master=self.root,
             value=self._route_text(),
+        )
+
+        self.enabled_var = tk.BooleanVar(
+            master=self.root,
+            value=self.enabled,
+        )
+
+        self.keyboard.set_enabled(
+            self.enabled
         )
 
         if self._owns_root:
@@ -796,6 +823,7 @@ class OutgoingChatPrototype:
         save_outgoing_preferences(
             self.source_code,
             self.target_code,
+            self.enabled,
         )
 
         self.route_var.set(
@@ -805,6 +833,29 @@ class OutgoingChatPrototype:
         self.status_var.set(
             "Языки сохранены: "
             + self._route_text()
+        )
+
+    def set_enabled(self, value: bool) -> None:
+        self.enabled = bool(value)
+        self.enabled_var.set(
+            self.enabled
+        )
+        self.keyboard.set_enabled(
+            self.enabled
+        )
+
+        if (
+            not self.enabled
+            and self.popup_visible
+        ):
+            self.hide_popup(
+                "Исходящий чат выключен."
+            )
+
+        save_outgoing_preferences(
+            self.source_code,
+            self.target_code,
+            self.enabled,
         )
 
     def _build_control_window(
@@ -823,8 +874,7 @@ class OutgoingChatPrototype:
         ttk.Label(
             outer,
             text=(
-                "Исходящий чат — "
-                "no-focus prototype"
+                "Исходящий чат"
             ),
             font=(
                 "Segoe UI",
@@ -1333,6 +1383,9 @@ class OutgoingChatPrototype:
             )
 
     def toggle_popup(self) -> None:
+        if not self.enabled:
+            return
+
         if self.sending_in_progress:
             return
 
@@ -1668,7 +1721,7 @@ def main() -> int:
             "Tkinter required"
         )
 
-    app = OutgoingChatPrototype()
+    app = OutgoingChatController()
     app.run()
 
     return 0

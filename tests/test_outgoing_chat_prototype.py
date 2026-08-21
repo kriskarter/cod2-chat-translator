@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from outgoing_chat_prototype import (
     KeyboardCapture,
-    OutgoingChatPrototype,
+    OutgoingChatController,
     default_source_code_from_ui_language,
     language_code_for_name,
     language_name_for_code,
@@ -13,7 +13,7 @@ from outgoing_chat_prototype import (
 )
 
 
-class OutgoingChatPrototypeTests(unittest.TestCase):
+class OutgoingChatControllerTests(unittest.TestCase):
     def test_normalizes_whitespace(self):
         self.assertEqual(
             normalize_outgoing_text("  привет   всем  "),
@@ -92,16 +92,18 @@ class OutgoingChatPrototypeTests(unittest.TestCase):
             observed["route"] = instance.route_var.get()
             observed["source"] = instance.source_name_var.get()
             observed["target"] = instance.target_name_var.get()
+            observed["enabled"] = instance.enabled_var.get()
 
         with (
             patch(
                 "outgoing_chat_prototype.load_outgoing_preferences",
-                return_value=("ru", "en"),
+                return_value=("ru", "en", True),
             ),
             patch(
                 "outgoing_chat_prototype.tk",
                 SimpleNamespace(
                     StringVar=string_var,
+                    BooleanVar=string_var,
                 ),
             ),
             patch.object(
@@ -110,12 +112,12 @@ class OutgoingChatPrototypeTests(unittest.TestCase):
                 return_value=None,
             ),
             patch.object(
-                OutgoingChatPrototype,
+                OutgoingChatController,
                 "_build_overlay_window",
                 new=fake_build_overlay,
             ),
         ):
-            OutgoingChatPrototype(
+            OutgoingChatController(
                 root=DummyRoot(),
             )
 
@@ -131,6 +133,22 @@ class OutgoingChatPrototypeTests(unittest.TestCase):
             observed["target"],
             "English",
         )
+        self.assertTrue(
+            observed["enabled"]
+        )
+
+    def test_keyboard_capture_can_be_disabled(self):
+        import queue
+
+        keyboard = KeyboardCapture(
+            queue.Queue()
+        )
+
+        keyboard.set_active(True)
+        keyboard.set_enabled(False)
+
+        self.assertFalse(keyboard.enabled)
+        self.assertFalse(keyboard.active)
 
 
 if __name__ == "__main__":
