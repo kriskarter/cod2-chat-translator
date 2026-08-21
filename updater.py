@@ -26,11 +26,17 @@ def no_window_creationflags() -> int:
     return int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
+def localized(lang: str, ru: str, en: str, uk: str | None = None) -> str:
+    if lang == "uk":
+        return uk if uk is not None else en
+    return ru if lang == "ru" else en
+
+
 class ProgressUI:
-    """Small bilingual updater window. It is best-effort and never blocks the update logic."""
+    """Small localized updater window. It is best-effort and never blocks the update logic."""
 
     def __init__(self, lang: str) -> None:
-        self.lang = "en" if lang == "en" else "ru"
+        self.lang = lang if lang in {"ru", "uk", "en"} else "ru"
         self.root = None
         self.status = None
         self.detail = None
@@ -39,7 +45,7 @@ class ProgressUI:
             return
         try:
             root = tk.Tk()
-            root.title("CoD2 Chat Translator — " + ("Обновление" if self.lang == "ru" else "Update"))
+            root.title("CoD2 Chat Translator — " + localized(self.lang, "Обновление", "Update", "Оновлення"))
             root.resizable(False, False)
             try:
                 root.iconbitmap(default=str(Path(sys.executable).resolve()))
@@ -52,7 +58,7 @@ class ProgressUI:
                 text="CoD2 Chat Translator",
                 font=("Segoe UI", 14, "bold"),
             ).pack(anchor="w")
-            self.status = tk.StringVar(value="Подготовка обновления…" if self.lang == "ru" else "Preparing update…")
+            self.status = tk.StringVar(value=localized(self.lang, "Подготовка обновления…", "Preparing update…", "Підготовка оновлення…"))
             self.detail = tk.StringVar(value="")
             ttk.Label(frame, textvariable=self.status, font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(12, 4))
             ttk.Label(frame, textvariable=self.detail, foreground="#666666").pack(anchor="w", pady=(0, 8))
@@ -70,12 +76,12 @@ class ProgressUI:
         except Exception:
             self.root = None
 
-    def set(self, ru: str, en: str, detail: str = "") -> None:
+    def set(self, ru: str, en: str, detail: str = "", uk: str | None = None) -> None:
         if not self.root:
             return
         try:
             if self.status is not None:
-                self.status.set(ru if self.lang == "ru" else en)
+                self.status.set(localized(self.lang, ru, en, uk))
             if self.detail is not None:
                 self.detail.set(detail)
             self.root.update_idletasks()
@@ -83,14 +89,14 @@ class ProgressUI:
         except Exception:
             pass
 
-    def finish(self, ru: str, en: str) -> None:
+    def finish(self, ru: str, en: str, uk: str | None = None) -> None:
         if not self.root:
             return
         try:
             if self.bar is not None:
                 self.bar.stop()
                 self.bar.configure(mode="determinate", maximum=100, value=100)
-            self.set(ru, en)
+            self.set(ru, en, uk=uk)
             self.root.update()
         except Exception:
             pass
@@ -106,7 +112,7 @@ class ProgressUI:
 
 
 def show_error(text: str, lang: str, ui: ProgressUI | None = None) -> None:
-    title = "Ошибка обновления" if lang == "ru" else "Update error"
+    title = localized(lang, "Ошибка обновления", "Update error", "Помилка оновлення")
     if ui:
         ui.close()
     if tk and messagebox:
@@ -180,11 +186,11 @@ def main() -> int:
     p.add_argument("--ui-language", default="ru")
     args = p.parse_args()
 
-    lang = "en" if args.ui_language == "en" else "ru"
+    lang = args.ui_language if args.ui_language in {"ru", "uk", "en"} else "ru"
     ui = ProgressUI(lang)
     install_dir = Path(args.install_dir).resolve()
     if not install_dir.exists():
-        show_error(("Папка программы не найдена." if lang == "ru" else "Application directory was not found."), lang, ui)
+        show_error(localized(lang, "Папка программы не найдена.", "Application directory was not found.", "Папку програми не знайдено."), lang, ui)
         return 2
 
     version_detail = f"v{args.version}" if args.version else ""
@@ -196,16 +202,16 @@ def main() -> int:
         replaced: list[Path] = []
         created: list[Path] = []
         try:
-            ui.set("Скачивание обновления…", "Downloading update…", version_detail)
+            ui.set("Скачивание обновления…", "Downloading update…", version_detail, uk="Завантаження оновлення…")
             download(args.download_url, package)
 
-            ui.set("Проверка обновления…", "Verifying update…", "SHA256")
+            ui.set("Проверка обновления…", "Verifying update…", "SHA256", uk="Перевірка оновлення…")
             actual_sha = sha256_file(package).lower()
             expected_sha = args.sha256.lower().strip()
             if actual_sha != expected_sha:
                 raise RuntimeError("SHA256 mismatch")
 
-            ui.set("Подготовка файлов…", "Preparing files…", version_detail)
+            ui.set("Подготовка файлов…", "Preparing files…", version_detail, uk="Підготовка файлів…")
             with zipfile.ZipFile(package) as zf:
                 bad = unsafe_archive_members(zf.namelist())
                 if bad:
@@ -213,10 +219,10 @@ def main() -> int:
                 zf.extractall(staging)
 
             # Wait until the old application has actually closed before replacing its EXE.
-            ui.set("Закрытие старой версии…", "Closing previous version…")
+            ui.set("Закрытие старой версии…", "Closing previous version…", uk="Закриття попередньої версії…")
             wait_pid(args.pid)
 
-            ui.set("Установка обновления…", "Installing update…", version_detail)
+            ui.set("Установка обновления…", "Installing update…", version_detail, uk="Встановлення оновлення…")
             backup.mkdir(parents=True, exist_ok=True)
             for src in staging.rglob("*"):
                 if not src.is_file():
@@ -256,11 +262,11 @@ def main() -> int:
                             pass
             except Exception:
                 pass
-            show_error((f"Не удалось установить обновление: {exc}" if lang == "ru" else f"Could not install update: {exc}"), lang, ui)
+            show_error(localized(lang, f"Не удалось установить обновление: {exc}", f"Could not install update: {exc}", f"Не вдалося встановити оновлення: {exc}"), lang, ui)
             return 3
 
     main_exe = install_dir / args.main_exe
-    ui.finish("Обновление установлено. Запускаю программу…", "Update installed. Starting the app…")
+    ui.finish("Обновление установлено. Запускаю программу…", "Update installed. Starting the app…", uk="Оновлення встановлено. Запускаю програму…")
     try:
         kwargs = {
             "cwd": str(install_dir),
@@ -272,7 +278,7 @@ def main() -> int:
         subprocess.Popen([str(main_exe)], **kwargs)
         time.sleep(0.7)
     except Exception as exc:
-        show_error((f"Обновление установлено, но программу не удалось запустить: {exc}" if lang == "ru" else f"Update installed, but the app could not be started: {exc}"), lang, ui)
+        show_error(localized(lang, f"Обновление установлено, но программу не удалось запустить: {exc}", f"Update installed, but the app could not be started: {exc}", f"Оновлення встановлено, але програму не вдалося запустити: {exc}"), lang, ui)
         return 4
     ui.close()
     return 0

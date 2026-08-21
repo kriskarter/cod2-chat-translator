@@ -44,12 +44,15 @@ AppComments=Developed by kriskarter for the Call of Duty 2 community
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 [CustomMessages]
 english.DesktopIcon=Create a desktop shortcut
 russian.DesktopIcon=Создать ярлык на рабочем столе
+ukrainian.DesktopIcon=Створити ярлик на робочому столі
 english.LaunchAfter=Launch CoD2 Chat Translator
 russian.LaunchAfter=Запустить CoD2 Chat Translator
+ukrainian.LaunchAfter=Запустити CoD2 Chat Translator
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -83,6 +86,8 @@ begin
     begin
       if ActiveLanguage = 'russian' then
         LangCode := 'ru'
+      else if ActiveLanguage = 'ukrainian' then
+        LangCode := 'uk'
       else
         LangCode := 'en';
       SaveStringToFile(LangFile, LangCode, False);

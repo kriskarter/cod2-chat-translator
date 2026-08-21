@@ -1,4 +1,4 @@
 {
-  "notes_ru": "Добавлен быстрый вход на CLASSIC OBORONA: запуск CoD2 и подключение к серверу одной кнопкой, переход в Discord и защита от повторного запуска игры. Также убрано появление лишних консольных окон при обновлении.",
-  "notes_en": "Added Quick Connect for CLASSIC OBORONA: launch CoD2 and join the server with one click, open the server Discord, and prevent duplicate game launches. Also prevents unnecessary console windows from appearing during updates."
+  "notes_ru": "Добавлена полноценная украинская локализация: украинский интерфейс программы, мастер установки и окно встроенного обновления. При выборе украинского языка в установщике программа впервые запускается на украинском и выбирает украинский как язык перевода.",
+  "notes_en": "Added full Ukrainian localization: Ukrainian app interface, installer, and built-in updater. When Ukrainian is selected in Setup, the app starts in Ukrainian on first launch and selects Ukrainian as the translation language."
 }
