@@ -164,6 +164,45 @@ def download(url: str, path: Path) -> None:
         shutil.copyfileobj(response, out)
 
 
+def launch_updated_application(
+    executable: Path,
+    cwd: Path,
+) -> None:
+    if os.name == "nt":
+        import ctypes
+
+        result = ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            str(executable),
+            None,
+            str(cwd),
+            1,
+        )
+
+        if int(result) <= 32:
+            raise OSError(
+                f"ShellExecuteW failed: {result}"
+            )
+
+        return
+
+    kwargs = {
+        "cwd": str(cwd),
+        "close_fds": True,
+    }
+
+    flags = no_window_creationflags()
+
+    if flags:
+        kwargs["creationflags"] = flags
+
+    subprocess.Popen(
+        [str(executable)],
+        **kwargs,
+    )
+
+
 def unsafe_archive_members(names: list[str]) -> list[str]:
     bad: list[str] = []
     for name in names:
@@ -268,14 +307,10 @@ def main() -> int:
     main_exe = install_dir / args.main_exe
     ui.finish("Обновление установлено. Запускаю программу…", "Update installed. Starting the app…", uk="Оновлення встановлено. Запускаю програму…")
     try:
-        kwargs = {
-            "cwd": str(install_dir),
-            "close_fds": True,
-        }
-        flags = no_window_creationflags()
-        if flags:
-            kwargs["creationflags"] = flags
-        subprocess.Popen([str(main_exe)], **kwargs)
+        launch_updated_application(
+            main_exe,
+            install_dir,
+        )
         time.sleep(0.7)
     except Exception as exc:
         show_error(localized(lang, f"Обновление установлено, но программу не удалось запустить: {exc}", f"Update installed, but the app could not be started: {exc}", f"Оновлення встановлено, але програму не вдалося запустити: {exc}"), lang, ui)

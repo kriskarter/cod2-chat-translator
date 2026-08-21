@@ -12,6 +12,28 @@ class UpdaterSafetyTests(unittest.TestCase):
         bad = updater.unsafe_archive_members(["../evil.exe", "folder/../../evil.dll", r"C:\\evil.exe"])
         self.assertEqual(len(bad), 3)
 
+    def test_updater_uses_elevated_windows_launch(self):
+        source = (
+            Path(updater.__file__)
+            .read_text(encoding="utf-8")
+        )
+
+        self.assertIn(
+            '"runas"',
+            source,
+        )
+
+        self.assertIn(
+            "ShellExecuteW",
+            source,
+        )
+
+        self.assertIn(
+            "launch_updated_application(",
+            source,
+        )
+
+
     def test_sha256_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "a.bin"
