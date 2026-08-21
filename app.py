@@ -3300,6 +3300,7 @@ class ControlApp:
             root=self.root,
             status_var=self.status_var,
             last_var=self.last_var,
+            screenshot_callback=self.capture_game_screenshot,
         )
 
         self._build_ui()
@@ -4632,7 +4633,12 @@ class ControlApp:
                         if name == "F8":
                             self.toggle_overlay_hotkey_visibility()
                         elif name == "F10":
-                            self.capture_game_screenshot()
+                            if not getattr(
+                                self.outgoing_chat,
+                                "popup_visible",
+                                False,
+                            ):
+                                self.capture_game_screenshot()
 
                     self._hotkey_prev[name] = down
             except Exception:

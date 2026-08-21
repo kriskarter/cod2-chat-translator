@@ -87,6 +87,7 @@ VK_ESCAPE = 0x1B
 VK_LWIN = 0x5B
 VK_RWIN = 0x5C
 VK_F9 = 0x78
+VK_F10 = 0x79
 VK_LCONTROL = 0xA2
 VK_RCONTROL = 0xA3
 VK_LMENU = 0xA4
@@ -331,6 +332,7 @@ class KeyboardCapture:
             VK_LWIN,
             VK_RWIN,
             VK_F9,
+            VK_F10,
             VK_SHIFT,
             VK_CONTROL,
             VK_MENU,
@@ -557,6 +559,19 @@ class KeyboardCapture:
                     self.f9_down = False
                     return 1
 
+            # F10 во время F9-режима — скриншот.
+            # Окно ввода не закрываем: оно должно попасть на снимок.
+            if (
+                self.active
+                and vk == VK_F10
+            ):
+                if key_down:
+                    self.events.put(
+                        ("screenshot", None)
+                    )
+
+                return 1
+
             # Win должен оставаться системной клавишей.
             # Сразу выключаем захват, чтобы Windows получила
             # и Win, и следующую клавишу комбинации.
@@ -692,9 +707,16 @@ class KeyboardCapture:
 
 
 class OutgoingChatPrototype:
-    def __init__(self, root=None, status_var=None, last_var=None) -> None:
+    def __init__(
+        self,
+        root=None,
+        status_var=None,
+        last_var=None,
+        screenshot_callback=None,
+    ) -> None:
         self._owns_root = root is None
         self.root = root or tk.Tk()
+        self.screenshot_callback = screenshot_callback
 
         if self._owns_root:
             self.root.title(APP_TITLE)
@@ -1510,6 +1532,15 @@ class OutgoingChatPrototype:
                     self.hide_popup(
                         "Esc: ввод отменён."
                     )
+
+                elif event == "screenshot":
+                    if self.screenshot_callback is not None:
+                        try:
+                            self.screenshot_callback()
+                        except Exception as exc:
+                            self.status_var.set(
+                                f"Ошибка скриншота: {exc}"
+                            )
 
                 elif event == "system_escape":
                     self.hide_popup(
