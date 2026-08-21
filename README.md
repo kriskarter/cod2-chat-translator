@@ -4,7 +4,11 @@
   <img src="docs/images/logo.webp" width="220" alt="COD 2 Chat Translator">
 </p>
 
-<p align="center"><a href="README_RU.md">Русская версия</a></p>
+<p align="center">
+  <strong>English</strong> ·
+  <a href="README_RU.md">Русский</a> ·
+  <a href="README_UK.md">Українська</a>
+</p>
 
 <p align="center">
   <img src="docs/images/readme_banner.webp" width="100%" alt="CoD2 Chat Translator — real-time chat translation overlay for Call of Duty 2">
@@ -28,6 +32,24 @@ CoD2 still has players from many countries, so mixed-language chat is pretty com
 COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages and shows the result in a small overlay over the game.
 
 No DLL injection and no game-memory modification.
+
+## What's new in v1.16
+
+The translator now works in both directions.
+
+- **Incoming chat** — translates other players' messages.
+- **Outgoing chat · F9** — type in your language, preview the translation and send it directly to CoD2 chat.
+- **Screenshots · F10** — capture the game together with translator overlays.
+- **English / Russian / Ukrainian interface**.
+- **v1.16.1** improves Windows administrator-elevation and update compatibility.
+
+## Hotkeys
+
+| Key | Action |
+| --- | --- |
+| **F8** | Hide / show incoming translation overlay |
+| **F9** | Open / close outgoing translated chat |
+| **F10** | Save gameplay screenshot with overlays |
 
 ## In game
 
@@ -72,6 +94,10 @@ The gameplay examples above use Ukrainian and German as output languages. The sa
 ## First launch
 
 Install the app with `Setup.exe` and start it from the shortcut.
+
+The installer supports **English, Russian and Ukrainian**.
+
+Starting with **v1.16.1**, Windows asks for administrator permission when the application starts. This is expected: elevated access is used for reliable global hotkeys and outgoing chat interaction with CoD2.
 
 <p align="center">
   <img src="docs/images/showcase_main_window_en.webp" width="100%" alt="CoD2 Chat Translator main window with Quick Connect">
@@ -118,6 +144,28 @@ Only **one active log** is translated at a time. If several servers use the same
 
 Manual mode remains available for unusual CoD2 installations or servers that automatic detection cannot recognize.
 
+## Outgoing chat · F9
+
+Press **F9** while playing to open the outgoing-chat overlay.
+
+Choose:
+
+- **My language** — the language you type in;
+- **Send as** — the language other players should receive.
+
+Then:
+
+1. Type your message.
+2. Press **Enter** once to translate it.
+3. Check the translated preview.
+4. Press **Enter** again to send it to CoD2 all-chat.
+
+Press **Esc** or **F9** to cancel.
+
+Incoming and outgoing translation settings are independent. For example, you can read server chat in Ukrainian while sending your own messages in English.
+
+The outgoing-chat feature can be disabled from the main window. When disabled, F9 is passed through to the game normally.
+
 ## Overlay
 
 The overlay can be moved, resized and tuned to stay out of the way.
@@ -127,6 +175,16 @@ You can change text size, background opacity, visible-message count and message 
 After the overlay is locked, it becomes click-through so it does not steal the mouse from the game.
 
 `F8` hides or shows the overlay without stopping translation.
+
+## Screenshots · F10
+
+Press **F10** during the game to save a screenshot of the monitor containing CoD2.
+
+The screenshot includes the translator overlays and is saved as PNG in:
+
+%USERPROFILE%\Pictures\CoD2 Chat Translator\Screenshots
+
+The same action is available from the **Screenshot · F10** button in the main window.
 
 ## Gaming slang
 
@@ -175,6 +233,12 @@ The updater attempts to roll back replaced files if installation fails. If Setup
 **Do not publish the complete log.**
 
 The app filters it locally and sends only the extracted chat-message text to the translation service.
+
+## Troubleshooting
+
+Problems with F9, overlays, game detection, screenshots or updates are covered here:
+
+**[Troubleshooting guide](docs/TROUBLESHOOTING.md)**
 
 ## Build from source
 
