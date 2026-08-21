@@ -37,7 +37,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.15.5"
+APP_VERSION = "1.15.6"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -296,6 +296,91 @@ UI_STRINGS = {
 
 
 
+UI_STRINGS["uk"] = {
+    "subtitle": "Автопереклад чату з console_mp.log + налаштовуваний оверлей поверх CoD2.",
+    "log": "Лог CoD2:", "profile": "Сервер / профіль:", "browse": "Додати…", "rescan": "Оновити",
+    "rename_profile": "Перейменувати…", "auto_profile": "автоматично визначати активний сервер",
+    "server": "Сервер:", "server_auto": "● Автоматично", "server_manual": "● Ручний вибір · {name}",
+    "server_settings": "Налаштування сервера…", "server_settings_title": "Сервер і журнал CoD2",
+    "quick_connect": "Швидкий вхід",
+    "quick_connect_connect": "▶  Підключитися",
+    "quick_connect_windows_only": "Швидкий вхід доступний лише у Windows.",
+    "quick_connect_running": "CoD2 вже запущена. Для швидкого підключення закрий гру та натисни «Підключитися» ще раз.",
+    "quick_connect_missing": "Не вдалося знайти CoD2 Multiplayer. Запусти гру один раз або вкажи папку гри в «Налаштування сервера…».",
+    "quick_connect_launching": "Запускаю {name} · {address}",
+    "quick_connect_error": "Не вдалося запустити CoD2: {error}",
+    "quick_connect_discord": "Відкриваю Discord сервера {name}.",
+    "server_settings_hint": "Зазвичай нічого вибирати не потрібно: перекладач сам визначає папку запущеної CoD2 та активний console_mp.log під час зміни сервера.",
+    "game_folder": "Папка гри:", "choose_game_folder": "Вказати папку гри…",
+    "game_folder_hint": "Steam можна встановити на будь-який диск. Для Steam, non-Steam або portable CoD2 найпростіше запустити Multiplayer — перекладач сам знайде папку за CoD2MP_s.exe. Якщо не вийшло, вкажи папку гри один раз вручну.",
+    "game_folder_invalid": "У вибраній папці не знайдено Call of Duty 2. Вибери папку, де знаходиться CoD2MP_s.exe.",
+    "game_folder_saved": "Папку CoD2 збережено: {path}", "game_folder_auto": "CoD2 знайдено автоматично: {path}",
+    "game_folder_wait_log": "Папку CoD2 знайдено. Чекаю появи console_mp.log — запусти Multiplayer і зайди на сервер.",
+    "logging_label": "Логування:", "logging_enabled": "● Увімкнено (logfile 2)",
+    "logging_restart": "● Буде увімкнено після перезапуску Multiplayer",
+    "logging_wait_config": "● Чекаю config_mp.cfg — запусти Multiplayer хоча б один раз",
+    "logging_error": "● Не вдалося змінити config_mp.cfg",
+    "logging_unknown": "● Перевіряю…",
+    "use_selected_profile": "Використовувати вибраний", "profile_list": "Профіль:",
+    "profile_path": "Лог:", "profiles_updated": "Список профілів оновлено",
+    "profile_auto_status": "Активний профіль: {name} (визначено автоматично)",
+    "profile_rename_title": "Назва профілю", "profile_rename_prompt": "Назва профілю:",
+    "translate_to": "Перекладати на:", "other": "Інший…",
+    "show_original": "показувати оригінал", "hide_same": "не дублювати вибрану мову", "smart_chat": "Розумний чат:",
+    "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
+    "hotkey": "F8 — сховати/показати", "enabled": "Перекладач увімкнено", "test": "Тест оверлею", "clear": "Очистити",
+    "configure_overlay": "Налаштувати оверлей", "lock_overlay": "Зафіксувати оверлей", "cod2_top": "CoD2 → поверх",
+    "overlay_view": "Вигляд оверлею", "font_size": "Розмір тексту", "background": "Фон",
+    "bg_only": "фон лише під час повідомлень", "compact_bg": "підкладка за розміром тексту", "show_for": "Показувати",
+    "fade": "плавна поява/зникнення", "messages": "Повідомлень", "text_only": "Лише текст", "minimal": "Мінімальний",
+    "readable": "Читабельний", "standard_place": "Стандартне місце", "wheel": "Ctrl+колесо = розмір",
+    "ready": "Готово", "last": "Останнє повідомлення: —",
+    "privacy": "Важливо: console_mp.log може містити службові дані та паролі сервера. Не публікуй лог повністю. У сервіс перекладу надсилається лише текст уже відфільтрованого повідомлення чату.",
+    "interface": "Інтерфейс:", "check_updates": "Перевірити оновлення", "updates": "Оновлення", "update_checking": "Перевіряю оновлення…",
+    "update_none": "Встановлено останню версію.", "update_unconfigured": "Канал оновлень ще не налаштовано.",
+    "update_available_title": "Доступне оновлення",
+    "update_available": "Доступна версія {version}.\n\n{notes}\n\nВстановити оновлення зараз?",
+    "update_error": "Не вдалося перевірити оновлення: {error}", "choose_log": "Вибери console_mp.log", "all_files": "Усі файли",
+    "about": "Про програму", "developer": "Розробник", "github": "GitHub", "star_project": "⭐ Підтримати проєкт",
+    "repo_pending": "Репозиторій проєкту буде доступний після публікації публічного релізу.",
+    "made_for": "Створено для спільноти Call of Duty 2.", "close": "Закрити",
+    "custom_language": "Інша мова",
+    "custom_prompt": "Введи код мови Google Translate, наприклад: cs, ja, ro, ko, ar",
+    "custom_invalid": "Потрібен короткий код мови, наприклад ja, cs, ro або zh-CN.",
+    "style_clear": "Зрозумілий", "style_live": "Живий", "style_raw": "Без цензури",
+    "watching_log": "Стежу за логом: {path}", "waiting_log": "Чекаю появи console_mp.log…",
+    "choose_log_status": "Вибери console_mp.log", "log_missing_wait": "Лог ще не знайдено — чекаю запуску CoD2…",
+    "log_access_denied": "Немає доступу до логу. Запусти перекладач від звичайного користувача Windows.",
+    "log_read_error": "Помилка читання логу: {error}", "translation_language_status": "Мова перекладу: {code}",
+    "bg_only_on_status": "Фон з’являтиметься лише разом із повідомленнями",
+    "bg_only_off_status": "Фон залишається видимим постійно",
+    "compact_bg_on_status": "Підкладка підлаштовується під довжину тексту",
+    "compact_bg_off_status": "Підкладка використовує всю ширину оверлею",
+    "fade_on_status": "Плавну появу/зникнення увімкнено", "fade_off_status": "Анімацію вимкнено",
+    "preset_text_only_status": "Лише текст: фон повністю прозорий",
+    "preset_minimal_status": "Мінімальний: шрифт 9, фон 15%, 2 повідомлення",
+    "preset_readable_status": "Читабельний: шрифт 10, фон 12%, компактна підкладка, 2 повідомлення",
+    "overlay_default_status": "Оверлей повернуто у стандартне місце ліворуч",
+    "overlay_edit_status": "Налаштування: перетягуй вікно, тягни кут ↘; Ctrl+колесо змінює шрифт",
+    "overlay_locked_status": "Оверлей зафіксовано: миша проходить крізь нього",
+    "borderless_windows_only": "Borderless helper доступний лише у Windows",
+    "cod2_not_found": "Вікно CoD2 не знайдено. Спочатку запусти Multiplayer.",
+    "cod2_borderless_ok": "CoD2 у borderless ({detail}). Оверлей піднято поверх гри.",
+    "cod2_borderless_error": "Не вдалося перемкнути CoD2: {detail}. Якщо гра працює в exclusive fullscreen — /r_fullscreen 0 і /vid_restart.",
+    "translator_on_status": "Перекладач увімкнено", "translator_off_status": "Перекладач вимкнено",
+    "overlay_shown_status": "F8: оверлей показано", "overlay_hidden_status": "F8: оверлей приховано (переклад триває)",
+    "duplicate_skipped": "Повтор пропущено: {nickname}: {text}", "translating_status": "Перекладаю: {nickname}: {text}",
+    "translation_queue_full": "Черга перекладу переповнена — пропускаю повідомлення",
+    "map_change_status": "Зміна карти — старі переклади очищено", "translation_done": "Готово за {elapsed_ms} мс",
+    "last_same_language": "{nickname}: {text}  →  уже вибрана мова, не показую",
+    "same_language_skipped": "Повідомлення вже вибраною мовою — пропущено",
+    "dedupe_status": "Без дублювання ({elapsed_ms} мс)",
+    "translation_unavailable": "Переклад недоступний: {error}",
+    "translation_service_busy": "Сервіс перекладу тимчасово недоступний. Повідомлення не перекладено.",
+    "update_postponed": "Оновлення {version} відкладено",
+}
+
+
 def app_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
@@ -329,7 +414,7 @@ def installer_language_hint() -> str:
     hint = settings_dir() / "ui_language.txt"
     try:
         value = hint.read_text(encoding="utf-8").strip().lower()
-        if value in {"ru", "en"}:
+        if value in {"ru", "uk", "en"}:
             return value
     except Exception:
         pass
@@ -353,7 +438,7 @@ def migrate_legacy_config_if_needed() -> None:
     # First installed launch: let the installer language become the UI language.
     try:
         lang = installer_language_hint()
-        target.write_text(json.dumps({"ui_language": lang, "target_language": ("en" if lang == "en" else "ru")}, ensure_ascii=False, indent=2), encoding="utf-8")
+        target.write_text(json.dumps({"ui_language": lang, "target_language": (lang if lang in {"en", "uk"} else "ru")}, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         pass
 
@@ -3135,7 +3220,8 @@ class ControlApp:
         had_config = config_path().exists() or legacy_config_path().exists()
         self.config = load_config()
         self.fresh_install = not had_config
-        self.ui_language = "en" if str(self.config.get("ui_language", installer_language_hint())).lower() == "en" else "ru"
+        raw_ui_language = str(self.config.get("ui_language", installer_language_hint())).lower()
+        self.ui_language = raw_ui_language if raw_ui_language in {"ru", "uk", "en"} else "ru"
         self.config["ui_language"] = self.ui_language
 
         # Migrate V1.3 config where opacity meant whole-window opacity.
@@ -3183,7 +3269,7 @@ class ControlApp:
         self.slang_var = tk.BooleanVar(value=bool(self.config.get("gaming_slang", True)))
         self.slang_style_var = tk.StringVar(value=self._slang_style_name_for_code(self.config.get("slang_style", "live")))
         self.dedupe_var = tk.BooleanVar(value=bool(self.config.get("deduplicate_messages", True)))
-        self.ui_language_var = tk.StringVar(value="Русский" if self.ui_language == "ru" else "English")
+        self.ui_language_var = tk.StringVar(value={"ru": "Русский", "uk": "Українська", "en": "English"}.get(self.ui_language, "Русский"))
         self.status_var = tk.StringVar(value=self.t("ready"))
         self.last_var = tk.StringVar(value=self.t("last"))
         self.enabled_var = tk.BooleanVar(value=True)
@@ -3200,7 +3286,7 @@ class ControlApp:
         self.max_messages_var = tk.IntVar(value=int(overlay_cfg.get("max_messages", 2)))
         self.font_label_var = tk.StringVar(value=str(self.font_var.get()))
         self.bg_label_var = tk.StringVar(value=f"{self.bg_var.get()}%")
-        self.ttl_label_var = tk.StringVar(value=f"{self.ttl_var.get()} {'с' if self.ui_language == 'ru' else 's'}")
+        self.ttl_label_var = tk.StringVar(value=f"{self.ttl_var.get()} {'с' if self.ui_language in {'ru', 'uk'} else 's'}")
 
         root.title(f"{APP_NAME} v{APP_VERSION}")
         root.geometry("1080x700")
@@ -3361,7 +3447,7 @@ class ControlApp:
         ttk.Separator(outer).pack(fill="x", pady=12)
         footer_controls = ttk.Frame(outer); footer_controls.pack(fill="x")
         ttk.Label(footer_controls, text=self.t("interface")).pack(side="left")
-        ui_combo = ttk.Combobox(footer_controls, state="readonly", values=["Русский", "English"], textvariable=self.ui_language_var, width=12)
+        ui_combo = ttk.Combobox(footer_controls, state="readonly", values=["Русский", "Українська", "English"], textvariable=self.ui_language_var, width=12)
         ui_combo.pack(side="left", padx=(6, 14)); ui_combo.bind("<<ComboboxSelected>>", lambda _e: self.change_ui_language())
         ttk.Button(footer_controls, text=self.t("check_updates"), command=lambda: self.check_updates(manual=True)).pack(side="left")
         ttk.Label(footer_controls, text=f"{self.t('updates')}: stable", foreground="#666666").pack(side="left", padx=(10, 0))
@@ -3634,7 +3720,7 @@ class ControlApp:
         win.geometry(f"+{x}+{y}")
 
     def change_ui_language(self) -> None:
-        new_lang = "en" if self.ui_language_var.get() == "English" else "ru"
+        new_lang = {"Русский": "ru", "Українська": "uk", "English": "en"}.get(self.ui_language_var.get(), "ru")
         if new_lang == self.ui_language:
             return
         self.ui_language = new_lang
@@ -3653,7 +3739,7 @@ class ControlApp:
                     child.destroy()
                 except Exception:
                     pass
-        self.ttl_label_var.set(f"{self.ttl_var.get()} {'с' if new_lang == 'ru' else 's'}")
+        self.ttl_label_var.set(f"{self.ttl_var.get()} {'с' if new_lang in {'ru', 'uk'} else 's'}")
         self.status_var.set(self.t("ready"))
         self.last_var.set(self.t("last"))
         self._build_ui()
@@ -3662,7 +3748,7 @@ class ControlApp:
     def _custom_language_label(self) -> str:
         code = str(self.config.get("target_language", "ru"))
         if code not in TARGET_LANGUAGES.values():
-            prefix = "Другой" if self.ui_language == "ru" else "Other"
+            prefix = {"ru": "Другой", "uk": "Інший", "en": "Other"}.get(self.ui_language, "Other")
             return f"{prefix} ({code})"
         return ""
 
@@ -3670,14 +3756,14 @@ class ControlApp:
         for name, lang_code in TARGET_LANGUAGES.items():
             if lang_code == code:
                 return name
-        prefix = "Другой" if getattr(self, "ui_language", "ru") == "ru" else "Other"
+        prefix = {"ru": "Другой", "uk": "Інший", "en": "Other"}.get(getattr(self, "ui_language", "ru"), "Other")
         return f"{prefix} ({code})" if code else "Русский"
 
     def target_code(self) -> str:
         selected = self.target_name_var.get()
         if selected in TARGET_LANGUAGES:
             return TARGET_LANGUAGES[selected]
-        match = re.fullmatch(r"(?:Другой|Other) \(([^)]+)\)", selected)
+        match = re.fullmatch(r"(?:Другой|Інший|Other) \(([^)]+)\)", selected)
         if match:
             return match.group(1)
         return str(self.config.get("target_language", "ru"))
@@ -3695,7 +3781,7 @@ class ControlApp:
         if not re.fullmatch(r"[A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?", code):
             messagebox.showwarning(self.t("custom_language"), self.t("custom_invalid"))
             return
-        prefix = "Другой" if self.ui_language == "ru" else "Other"
+        prefix = {"ru": "Другой", "uk": "Інший", "en": "Other"}.get(self.ui_language, "Other")
         label = f"{prefix} ({code})"
         values = list(TARGET_LANGUAGES.keys()) + [label]
         self.language_combo.configure(values=values)
@@ -4303,7 +4389,7 @@ class ControlApp:
     def _ttl_slider(self, value) -> None:
         v = max(5, min(20, round(float(value))))
         self.ttl_var.set(v)
-        self.ttl_label_var.set(f"{v} {'с' if self.ui_language == 'ru' else 's'}")
+        self.ttl_label_var.set(f"{v} {'с' if self.ui_language in {'ru', 'uk'} else 's'}")
         if hasattr(self, "overlay"):
             self.overlay.set_ttl(v)
             self._persist_settings()
@@ -4324,7 +4410,7 @@ class ControlApp:
         self.font_var.set(font); self.font_label_var.set(str(font))
         self.bg_var.set(background); self.bg_label_var.set(f"{background}%")
         self.max_messages_var.set(messages)
-        self.ttl_var.set(ttl); self.ttl_label_var.set(f"{ttl} {'с' if self.ui_language == 'ru' else 's'}")
+        self.ttl_var.set(ttl); self.ttl_label_var.set(f"{ttl} {'с' if self.ui_language in {'ru', 'uk'} else 's'}")
         self.overlay._apply_geometry(force_config_height=self.overlay.edit_mode)
         self.overlay.set_font_size(font)
         self.overlay.set_background_opacity(background / 100.0)
@@ -4473,9 +4559,9 @@ class ControlApp:
                         if manual:
                             self.status_var.set(self.t("update_none"))
                     else:
-                        notes = info.notes_ru if self.ui_language == "ru" else info.notes_en
+                        notes = info.notes_ru if self.ui_language in {"ru", "uk"} else info.notes_en
                         if not notes:
-                            notes = ("Исправления и улучшения." if self.ui_language == "ru" else "Fixes and improvements.")
+                            notes = ("Виправлення та покращення." if self.ui_language == "uk" else ("Исправления и улучшения." if self.ui_language == "ru" else "Fixes and improvements."))
                         prompt = self.t("update_available").format(version=info.version, notes=notes)
                         if messagebox.askyesno(self.t("update_available_title"), prompt, parent=self.root):
                             self._launch_updater(info)
