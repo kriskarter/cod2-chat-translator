@@ -276,6 +276,10 @@ class ParserTests(unittest.TestCase):
         self.assertGreater(recommended_overlay_height(5, 10), recommended_overlay_height(3, 10))
         self.assertEqual(recommended_overlay_height(99, 10), recommended_overlay_height(8, 10))
 
+    @unittest.skipIf(
+        os.name == "nt",
+        "Diagnostic build disables background HWND on Windows",
+    )
     def test_background_stays_alive_and_uses_zero_alpha_between_chat_bursts(self):
         class FakeWindow:
             def __init__(self, state="normal"):
