@@ -358,6 +358,64 @@ class ParserTests(unittest.TestCase):
         self.assertAlmostEqual(overlay.bg_window.alpha, 0.15)
         self.assertEqual(overlay.bg_window.deiconify_calls, 0)
 
+    def test_overlay_render_never_clears_canvas_before_redraw(self):
+        import inspect
+
+        source = inspect.getsource(
+            OverlayWindow.render
+        )
+
+        self.assertNotIn(
+            'delete("all")',
+            source,
+        )
+        self.assertIn(
+            "old_canvas_items",
+            source,
+        )
+
+    def test_overlay_geometry_skips_identical_updates(self):
+        overlay = OverlayWindow.__new__(
+            OverlayWindow
+        )
+
+        overlay.edit_mode = False
+        overlay._background_width = 400
+        overlay._background_height = 80
+        overlay._last_text_geometry = None
+        overlay._last_bg_geometry = None
+
+        overlay._geometry_values = (
+            lambda force_config_height=False:
+            (8, 360, 500, 150)
+        )
+
+        overlay._overlay_cfg = lambda: {
+            "compact_background": True
+        }
+
+        class FakeWindow:
+            def __init__(self):
+                self.calls = []
+
+            def geometry(self, value):
+                self.calls.append(value)
+
+        overlay.window = FakeWindow()
+        overlay.bg_window = FakeWindow()
+
+        overlay._apply_geometry()
+        overlay._apply_geometry()
+
+        self.assertEqual(
+            overlay.window.calls,
+            ["500x150+8+360"],
+        )
+        self.assertEqual(
+            overlay.bg_window.calls,
+            ["400x80+8+360"],
+        )
+
     def test_topmost_refresh_never_promotes_background_above_text(self):
         overlay = OverlayWindow.__new__(OverlayWindow)
         overlay.window = object()

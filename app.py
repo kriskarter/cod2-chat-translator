@@ -2546,6 +2546,12 @@ class OverlayWindow:
         self._fade_job = None
         self._fade_generation = 0
 
+        # Avoid reconfiguring Windows layered windows when geometry
+        # did not actually change. Repeated geometry() calls can make
+        # DWM recreate/composite the overlay surface for one frame.
+        self._last_text_geometry = None
+        self._last_bg_geometry = None
+
         # Background is a separate window so only the background is translucent.
         self.bg_window = tk.Toplevel(root)
         self.bg_window.withdraw()
@@ -2602,14 +2608,74 @@ class OverlayWindow:
         return x, y, width, height
 
     def _apply_geometry(self, force_config_height: bool = False) -> None:
-        x, y, width, height = self._geometry_values(force_config_height=force_config_height)
-        self.window.geometry(f"{width}x{height}+{x}+{y}")
-        if self.edit_mode or not self._overlay_cfg().get("compact_background", True):
-            bg_width, bg_height = width, height
+        x, y, width, height = self._geometry_values(
+            force_config_height=force_config_height
+        )
+
+        text_geometry = (
+            f"{width}x{height}+{x}+{y}"
+        )
+
+        if (
+            text_geometry
+            != getattr(
+                self,
+                "_last_text_geometry",
+                None,
+            )
+        ):
+            self.window.geometry(
+                text_geometry
+            )
+            self._last_text_geometry = (
+                text_geometry
+            )
+
+        if (
+            self.edit_mode
+            or not self._overlay_cfg().get(
+                "compact_background",
+                True,
+            )
+        ):
+            bg_width, bg_height = (
+                width,
+                height,
+            )
         else:
-            bg_width = max(1, min(width, int(self._background_width)))
-            bg_height = max(1, min(height, int(self._background_height)))
-        self.bg_window.geometry(f"{bg_width}x{bg_height}+{x}+{y}")
+            bg_width = max(
+                1,
+                min(
+                    width,
+                    int(self._background_width),
+                ),
+            )
+            bg_height = max(
+                1,
+                min(
+                    height,
+                    int(self._background_height),
+                ),
+            )
+
+        bg_geometry = (
+            f"{bg_width}x{bg_height}+{x}+{y}"
+        )
+
+        if (
+            bg_geometry
+            != getattr(
+                self,
+                "_last_bg_geometry",
+                None,
+            )
+        ):
+            self.bg_window.geometry(
+                bg_geometry
+            )
+            self._last_bg_geometry = (
+                bg_geometry
+            )
 
     def _window_hwnd(self, window: "tk.Toplevel") -> int:
         window.update_idletasks()
@@ -3020,9 +3086,19 @@ class OverlayWindow:
 
     def render(self) -> None:
         overlay = self._overlay_cfg()
-        _x, _y, width, configured_height = self._geometry_values(force_config_height=True)
-        self.canvas.delete("all")
-        self.canvas.config(width=width, height=configured_height)
+        _x, _y, width, configured_height = (
+            self._geometry_values(
+                force_config_height=True
+            )
+        )
+
+        # Keep the previous frame alive while the new one is drawn.
+        # Tk processes this whole callback before returning to the
+        # Windows message loop, so DWM never receives an intentionally
+        # empty transparent Canvas between chat messages.
+        old_canvas_items = tuple(
+            self.canvas.find_all()
+        )
 
         font_size = int(overlay.get("font_size", 9))
         show_original = bool(self.config.get("show_original", False))
@@ -3102,8 +3178,20 @@ class OverlayWindow:
             self._background_width = width if self.edit_mode else 1
             self._background_height = configured_height if self.edit_mode else 1
 
-        self._apply_geometry(force_config_height=self.edit_mode)
+        self._apply_geometry(
+            force_config_height=self.edit_mode
+        )
         self._apply_background_visibility()
+
+        # New frame is complete. Remove only objects that belonged
+        # to the previous frame instead of clearing the Canvas first.
+        for old_item_id in old_canvas_items:
+            try:
+                self.canvas.delete(
+                    old_item_id
+                )
+            except Exception:
+                pass
 
 def _win32_api():
     """Return Win32 functions with pointer-safe ctypes signatures.
