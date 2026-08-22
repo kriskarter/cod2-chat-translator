@@ -330,8 +330,44 @@ class KeyboardCapture:
         self.f10_down = False
         self.paste_down = False
 
+        # Key-down, который был перехвачен нашим F9.
+        # Его key-up тоже нельзя отдавать CoD2.
+        # При этом key-up клавиши, зажатой ДО открытия F9,
+        # пропускается игре, чтобы движение не "залипало".
+        self.captured_keys: set[int] = set()
+
     def set_active(self, value: bool) -> None:
         self.active = bool(value)
+
+    def prearm_for_f9(self) -> None:
+        """
+        Включает keyboard capture прямо в low-level hook,
+        ещё до того, как Tk/UI успеет показать F9 overlay.
+
+        Это закрывает короткую гонку:
+        F9 нажат -> UI ещё не обработал событие ->
+        следующая буква могла уйти непосредственно в CoD2.
+        """
+        if self.enabled:
+            self.active = True
+
+    def mark_captured_keydown(
+        self,
+        vk: int,
+    ) -> None:
+        self.captured_keys.add(int(vk))
+
+    def consume_captured_keyup(
+        self,
+        vk: int,
+    ) -> bool:
+        vk = int(vk)
+
+        if vk not in self.captured_keys:
+            return False
+
+        self.captured_keys.discard(vk)
+        return True
 
     def set_enabled(self, value: bool) -> None:
         self.enabled = bool(value)
@@ -593,6 +629,12 @@ class KeyboardCapture:
                 if key_down:
                     if not self.f9_down:
                         self.f9_down = True
+
+                        # Важный момент: захват начинается здесь,
+                        # синхронно с F9. Не ждём Tk root.after().
+                        if not self.active:
+                            self.prearm_for_f9()
+
                         self.events.put(
                             (
                                 "toggle_popup",
@@ -653,6 +695,17 @@ class KeyboardCapture:
                     l_param,
                 )
 
+            # Если key-down был нажат уже внутри F9,
+            # его отпускание тоже принадлежит F9.
+            #
+            # Проверяем это ДО `not self.active`, потому что
+            # overlay мог закрыться между key-down и key-up.
+            if key_up and self.consume_captured_keyup(vk):
+                if vk == ord("V"):
+                    self.paste_down = False
+
+                return 1
+
             if not self.active:
                 return user32.CallNextHookEx(
                     self.hook,
@@ -664,10 +717,9 @@ class KeyboardCapture:
             if key_up and vk == ord("V"):
                 self.paste_down = False
 
-            # Key-up пропускаем.
-            # Это снижает риск "залипшего"
-            # W/Shift, если клавиша была
-            # зажата перед F9.
+            # Если клавиша была зажата ещё ДО F9,
+            # её key-up оставляем игре: это предотвращает
+            # "залипшее" движение/Shift.
             if key_up:
                 return user32.CallNextHookEx(
                     self.hook,
@@ -678,6 +730,10 @@ class KeyboardCapture:
 
             if not key_down:
                 return 1
+
+            # С этого момента key-down принадлежит нашему F9.
+            # Его парный key-up тоже будет поглощён.
+            self.mark_captured_keydown(vk)
 
             if vk == VK_ESCAPE:
                 self.events.put(
@@ -1010,9 +1066,9 @@ class OutgoingChatController:
         ttk.Label(
             box,
             text=(
-                "Для первого теста "
-                "включи RU-раскладку "
-                "до нажатия F9."
+                "F9 использует активную "
+                "раскладку Windows. "
+                "«Мой язык» задаёт язык исходного текста."
             ),
         ).pack(
             anchor="w",
@@ -1460,9 +1516,11 @@ class OutgoingChatController:
 
     def toggle_popup(self) -> None:
         if not self.enabled:
+            self.keyboard.set_active(False)
             return
 
         if self.sending_in_progress:
+            self.keyboard.set_active(False)
             return
 
         if self.popup_visible:

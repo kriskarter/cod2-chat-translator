@@ -159,6 +159,52 @@ class OutgoingChatControllerTests(unittest.TestCase):
             )
 
 
+    def test_f9_prearm_is_immediate(self):
+        capture = KeyboardCapture(
+            __import__("queue").Queue()
+        )
+
+        capture.active = False
+        capture.enabled = True
+
+        capture.prearm_for_f9()
+
+        self.assertTrue(
+            capture.active
+        )
+
+    def test_captured_keyup_is_consumed(self):
+        capture = KeyboardCapture(
+            __import__("queue").Queue()
+        )
+
+        capture.mark_captured_keydown(
+            ord("W")
+        )
+
+        self.assertTrue(
+            capture.consume_captured_keyup(
+                ord("W")
+            )
+        )
+
+        self.assertFalse(
+            capture.consume_captured_keyup(
+                ord("W")
+            )
+        )
+
+    def test_key_held_before_f9_is_not_marked_as_captured(self):
+        capture = KeyboardCapture(
+            __import__("queue").Queue()
+        )
+
+        self.assertFalse(
+            capture.consume_captured_keyup(
+                ord("W")
+            )
+        )
+
     def test_live_translation_uses_short_debounce(self):
         self.assertGreaterEqual(
             LIVE_TRANSLATION_DELAY_MS,
