@@ -17,7 +17,12 @@ class BrandingTests(unittest.TestCase):
         self.assertEqual(app.UI_STRINGS["en"]["about"], "About")
         self.assertEqual(set(app.UI_STRINGS["uk"]), set(app.UI_STRINGS["ru"]))
 
-        self.assertEqual(app.MAX_OVERLAY_MESSAGES, 5)
+        self.assertEqual(app.MIN_OVERLAY_MESSAGES, 4)
+        self.assertEqual(app.MAX_OVERLAY_MESSAGES, 8)
+        self.assertEqual(
+            app.DEFAULT_CONFIG["overlay"]["max_messages"],
+            4,
+        )
         self.assertGreaterEqual(app.recommended_overlay_height(5, 10), 200)
 
     def test_release_config_keeps_developer_metadata(self):

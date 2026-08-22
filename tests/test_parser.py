@@ -274,7 +274,7 @@ class ParserTests(unittest.TestCase):
 
     def test_recommended_height_grows_for_busy_chat(self):
         self.assertGreater(recommended_overlay_height(5, 10), recommended_overlay_height(3, 10))
-        self.assertEqual(recommended_overlay_height(99, 10), recommended_overlay_height(5, 10))
+        self.assertEqual(recommended_overlay_height(99, 10), recommended_overlay_height(8, 10))
 
     def test_background_stays_alive_and_uses_zero_alpha_between_chat_bursts(self):
         class FakeWindow:

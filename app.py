@@ -59,7 +59,8 @@ COD2_EXECUTABLE_NAMES = {"cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe"}
 STEAM_EXECUTABLE_NAMES = {"steam.exe"}
 COD2_CONFIG_NAME = "config_mp.cfg"
 COD2_LOGFILE_VALUE = 2
-MAX_OVERLAY_MESSAGES = 5
+MIN_OVERLAY_MESSAGES = 4
+MAX_OVERLAY_MESSAGES = 8
 
 
 TARGET_LANGUAGES = OrderedDict([
@@ -131,7 +132,7 @@ DEFAULT_CONFIG = {
         "y": 360,
         "width": 500,
         "height": 150,
-        "max_messages": 2,
+        "max_messages": 4,
         "font_size": 10,
         "background_opacity": 0.15,
         "background_only_with_messages": True,
@@ -201,8 +202,8 @@ UI_STRINGS = {
         "compact_bg_on_status": "Подложка подстраивается под длину текста", "compact_bg_off_status": "Подложка использует всю ширину оверлея",
         "fade_on_status": "Плавное появление/исчезновение включено", "fade_off_status": "Анимация отключена",
         "preset_text_only_status": "Только текст: фон полностью прозрачный",
-        "preset_minimal_status": "Минимальный: шрифт 9, фон 15%, 2 сообщения",
-        "preset_readable_status": "Читаемый: шрифт 10, фон 12%, компактная подложка, 2 сообщения",
+        "preset_minimal_status": "Минимальный: шрифт 9, фон 15%, 4 сообщения",
+        "preset_readable_status": "Читаемый: шрифт 10, фон 12%, компактная подложка, 4 сообщения",
         "overlay_default_status": "Оверлей возвращён в стандартное место слева",
         "overlay_edit_status": "Настройка: перетаскивай окно, тяни угол ↘; Ctrl+колесо меняет шрифт",
         "overlay_locked_status": "Оверлей зафиксирован: мышь проходит сквозь него",
@@ -276,8 +277,8 @@ UI_STRINGS = {
         "compact_bg_on_status": "Background fits the text length", "compact_bg_off_status": "Background uses the full overlay width",
         "fade_on_status": "Fade in/out enabled", "fade_off_status": "Animation disabled",
         "preset_text_only_status": "Text only: fully transparent background",
-        "preset_minimal_status": "Minimal: font 9, background 15%, 2 messages",
-        "preset_readable_status": "Readable: font 10, background 12%, compact background, 2 messages",
+        "preset_minimal_status": "Minimal: font 9, background 15%, 4 messages",
+        "preset_readable_status": "Readable: font 10, background 12%, compact background, 4 messages",
         "overlay_default_status": "Overlay returned to the default position on the left",
         "overlay_edit_status": "Setup mode: drag the window, resize from the corner ↘; Ctrl+wheel changes font size",
         "overlay_locked_status": "Overlay locked: mouse clicks pass through it",
@@ -360,8 +361,8 @@ UI_STRINGS["uk"] = {
     "compact_bg_off_status": "Підкладка використовує всю ширину оверлею",
     "fade_on_status": "Плавну появу/зникнення увімкнено", "fade_off_status": "Анімацію вимкнено",
     "preset_text_only_status": "Лише текст: фон повністю прозорий",
-    "preset_minimal_status": "Мінімальний: шрифт 9, фон 15%, 2 повідомлення",
-    "preset_readable_status": "Читабельний: шрифт 10, фон 12%, компактна підкладка, 2 повідомлення",
+    "preset_minimal_status": "Мінімальний: шрифт 9, фон 15%, 4 повідомлення",
+    "preset_readable_status": "Читабельний: шрифт 10, фон 12%, компактна підкладка, 4 повідомлення",
     "overlay_default_status": "Оверлей повернуто у стандартне місце ліворуч",
     "overlay_edit_status": "Налаштування: перетягуй вікно, тягни кут ↘; Ctrl+колесо змінює шрифт",
     "overlay_locked_status": "Оверлей зафіксовано: миша проходить крізь нього",
@@ -2492,7 +2493,7 @@ def recommended_overlay_height(message_count: int, font_size: int = 10) -> int:
     limit does not create a large empty panel. It only gives 4-5 selected
     messages enough room when chat is active.
     """
-    count = max(1, min(int(message_count), MAX_OVERLAY_MESSAGES))
+    count = max(MIN_OVERLAY_MESSAGES, min(int(message_count), MAX_OVERLAY_MESSAGES))
     size = max(7, min(int(font_size), 20))
     per_message = max(36, size * 3 + 8)
     return max(70, 30 + count * per_message)
@@ -2854,7 +2855,7 @@ class OverlayWindow:
 
     def set_max_messages(self, count: int) -> None:
         overlay = self._overlay_cfg()
-        value = max(1, min(int(count), MAX_OVERLAY_MESSAGES))
+        value = max(MIN_OVERLAY_MESSAGES, min(int(count), MAX_OVERLAY_MESSAGES))
         overlay["max_messages"] = value
         # 4-5 messages need more headroom than the historical 150 px cap.
         # Auto-height still keeps the visible panel compact with short history.
@@ -2881,8 +2882,16 @@ class OverlayWindow:
 
         self.items.append(item)
         max_messages = max(
-            1,
-            min(int(self._overlay_cfg().get("max_messages", 3)), MAX_OVERLAY_MESSAGES),
+            MIN_OVERLAY_MESSAGES,
+            min(
+                int(
+                    self._overlay_cfg().get(
+                        "max_messages",
+                        MIN_OVERLAY_MESSAGES,
+                    )
+                ),
+                MAX_OVERLAY_MESSAGES,
+            ),
         )
         while len(self.items) > max_messages:
             self.items.popleft()
@@ -3299,6 +3308,24 @@ class ControlApp:
             overlay_cfg["background_opacity"] = max(0.0, min(float(overlay_cfg.get("opacity", 0.20)) * 0.45, 0.90))
         overlay_cfg.pop("opacity", None)
 
+        try:
+            overlay_cfg["max_messages"] = max(
+                MIN_OVERLAY_MESSAGES,
+                min(
+                    int(
+                        overlay_cfg.get(
+                            "max_messages",
+                            MIN_OVERLAY_MESSAGES,
+                        )
+                    ),
+                    MAX_OVERLAY_MESSAGES,
+                ),
+            )
+        except (TypeError, ValueError):
+            overlay_cfg["max_messages"] = (
+                MIN_OVERLAY_MESSAGES
+            )
+
         self.stop_event = threading.Event()
         self.translation_jobs: "queue.Queue[ChatMessage]" = queue.Queue(maxsize=50)
         self.ui_queue: "queue.Queue[tuple]" = queue.Queue()
@@ -3353,7 +3380,7 @@ class ControlApp:
         self.compact_bg_var = tk.BooleanVar(value=bool(overlay_cfg.get("compact_background", True)))
         self.fade_var = tk.BooleanVar(value=bool(overlay_cfg.get("fade_enabled", True)))
         self.ttl_var = tk.IntVar(value=int(overlay_cfg.get("message_ttl_seconds", 10)))
-        self.max_messages_var = tk.IntVar(value=int(overlay_cfg.get("max_messages", 2)))
+        self.max_messages_var = tk.IntVar(value=int(overlay_cfg.get("max_messages", MIN_OVERLAY_MESSAGES)))
         self.font_label_var = tk.StringVar(value=str(self.font_var.get()))
         self.bg_label_var = tk.StringVar(value=f"{self.bg_var.get()}%")
         self.ttl_label_var = tk.StringVar(value=f"{self.ttl_var.get()} {'с' if self.ui_language in {'ru', 'uk'} else 's'}")
@@ -3652,7 +3679,7 @@ class ControlApp:
 
         row4 = ttk.Frame(box); row4.pack(fill="x", pady=(6, 0))
         ttk.Label(row4, text=self.t("messages"), width=18).pack(side="left")
-        msg_combo = ttk.Combobox(row4, state="readonly", values=list(range(1, MAX_OVERLAY_MESSAGES + 1)), textvariable=self.max_messages_var, width=5)
+        msg_combo = ttk.Combobox(row4, state="readonly", values=list(range(MIN_OVERLAY_MESSAGES, MAX_OVERLAY_MESSAGES + 1)), textvariable=self.max_messages_var, width=5)
         msg_combo.pack(side="left"); msg_combo.bind("<<ComboboxSelected>>", lambda _e: self._max_messages_changed())
         ttk.Button(row4, text=self.t("text_only"), command=self.text_only_preset).pack(side="left", padx=(18, 0))
         ttk.Button(row4, text=self.t("minimal"), command=self.minimal_preset).pack(side="left", padx=(6, 0))
@@ -4611,7 +4638,7 @@ class ControlApp:
             self._persist_settings()
 
     def _max_messages_changed(self) -> None:
-        v = max(1, min(MAX_OVERLAY_MESSAGES, int(self.max_messages_var.get())))
+        v = max(MIN_OVERLAY_MESSAGES, min(MAX_OVERLAY_MESSAGES, int(self.max_messages_var.get())))
         self.config["overlay"]["max_messages"] = v
         if hasattr(self, "overlay"):
             self.overlay.set_max_messages(v)
@@ -4637,13 +4664,13 @@ class ControlApp:
         self.status_var.set(label)
 
     def text_only_preset(self) -> None:
-        self._apply_preset(width=420, height=120, font=9, background=0, messages=2, ttl=10, label=self.t("preset_text_only_status"))
+        self._apply_preset(width=420, height=120, font=9, background=0, messages=4, ttl=10, label=self.t("preset_text_only_status"))
 
     def minimal_preset(self) -> None:
-        self._apply_preset(width=420, height=120, font=9, background=15, messages=2, ttl=10, label=self.t("preset_minimal_status"))
+        self._apply_preset(width=420, height=120, font=9, background=15, messages=4, ttl=10, label=self.t("preset_minimal_status"))
 
     def readable_preset(self) -> None:
-        self._apply_preset(width=500, height=150, font=10, background=12, messages=2, ttl=10, label=self.t("preset_readable_status"))
+        self._apply_preset(width=500, height=150, font=10, background=12, messages=4, ttl=10, label=self.t("preset_readable_status"))
 
     def reset_overlay_position(self) -> None:
         overlay = self.config["overlay"]
