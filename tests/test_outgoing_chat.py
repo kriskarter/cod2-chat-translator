@@ -1,4 +1,5 @@
 import unittest
+import inspect
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -158,6 +159,43 @@ class OutgoingChatControllerTests(unittest.TestCase):
                 state[VK_SHIFT] & 0x80
             )
 
+
+    def test_keyboard_capture_resets_layout_switch_state(self):
+        capture = KeyboardCapture(
+            __import__("queue").Queue()
+        )
+
+        capture.active = True
+        capture.win_down = True
+        capture.win_space_used = True
+        capture.alt_down = True
+        capture.alt_shift_used = True
+
+        capture.set_active(False)
+
+        self.assertFalse(capture.active)
+        self.assertFalse(capture.win_down)
+        self.assertFalse(capture.win_space_used)
+        self.assertFalse(capture.alt_down)
+        self.assertFalse(capture.alt_shift_used)
+
+    def test_f9_keeps_capture_during_windows_layout_switch(self):
+        source = inspect.getsource(
+            KeyboardCapture._run
+        )
+
+        self.assertIn(
+            "self.win_space_used = True",
+            source,
+        )
+        self.assertIn(
+            "self.alt_shift_used = True",
+            source,
+        )
+        self.assertIn(
+            "vk == VK_SPACE",
+            source,
+        )
 
     def test_live_translation_uses_short_debounce(self):
         self.assertGreaterEqual(

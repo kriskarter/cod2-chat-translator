@@ -85,6 +85,7 @@ VK_SHIFT = 0x10
 VK_CONTROL = 0x11
 VK_MENU = 0x12
 VK_ESCAPE = 0x1B
+VK_SPACE = 0x20
 VK_LWIN = 0x5B
 VK_RWIN = 0x5C
 VK_F9 = 0x78
@@ -330,14 +331,27 @@ class KeyboardCapture:
         self.f10_down = False
         self.paste_down = False
 
+        # Состояние системных комбинаций переключения
+        # раскладки во время активного F9.
+        self.win_down = False
+        self.win_space_used = False
+        self.alt_down = False
+        self.alt_shift_used = False
+
     def set_active(self, value: bool) -> None:
         self.active = bool(value)
+
+        if not self.active:
+            self.win_down = False
+            self.win_space_used = False
+            self.alt_down = False
+            self.alt_shift_used = False
 
     def set_enabled(self, value: bool) -> None:
         self.enabled = bool(value)
 
         if not self.enabled:
-            self.active = False
+            self.set_active(False)
             self.f9_down = False
 
     def start(self) -> None:
@@ -633,15 +647,129 @@ class KeyboardCapture:
                     l_param,
                 )
 
-            # Win должен оставаться системной клавишей.
-            # Сразу выключаем захват, чтобы Windows получила
-            # и Win, и следующую клавишу комбинации.
+            # Переключение раскладки Windows должно работать
+            # прямо внутри открытого F9.
+            #
+            # Раньше любое нажатие Win сразу выключало capture.
+            # Поэтому Win+Space мог оставить F9 визуально открытым
+            # на короткий момент, а следующие буквы уже уходили в CoD2.
+            #
+            # Win+Space и Alt+Shift теперь пропускаются Windows,
+            # но F9 остаётся активным.
+
+            win_keys = {
+                VK_LWIN,
+                VK_RWIN,
+            }
+
+            alt_keys = {
+                VK_MENU,
+                VK_LMENU,
+                VK_RMENU,
+            }
+
+            shift_keys = {
+                VK_SHIFT,
+                VK_LSHIFT,
+                VK_RSHIFT,
+            }
+
             if (
                 self.active
-                and vk in {VK_LWIN, VK_RWIN}
+                and vk in win_keys
             ):
                 if key_down:
-                    self.active = False
+                    if not self.win_down:
+                        self.win_space_used = False
+
+                    self.win_down = True
+
+                elif key_up:
+                    keep_f9 = self.win_space_used
+
+                    self.win_down = False
+                    self.win_space_used = False
+
+                    if not keep_f9:
+                        self.set_active(False)
+                        self.events.put(
+                            ("system_escape", None)
+                        )
+
+                return user32.CallNextHookEx(
+                    self.hook,
+                    n_code,
+                    w_param,
+                    l_param,
+                )
+
+            if (
+                self.active
+                and self.win_down
+            ):
+                if vk == VK_SPACE:
+                    self.win_space_used = True
+
+                    return user32.CallNextHookEx(
+                        self.hook,
+                        n_code,
+                        w_param,
+                        l_param,
+                    )
+
+                # Любая другая Win-комбинация остаётся системной.
+                if key_down:
+                    self.set_active(False)
+                    self.events.put(
+                        ("system_escape", None)
+                    )
+
+                return user32.CallNextHookEx(
+                    self.hook,
+                    n_code,
+                    w_param,
+                    l_param,
+                )
+
+            if (
+                self.active
+                and vk in alt_keys
+            ):
+                if key_down:
+                    if not self.alt_down:
+                        self.alt_shift_used = False
+
+                    self.alt_down = True
+
+                elif key_up:
+                    self.alt_down = False
+                    self.alt_shift_used = False
+
+                return user32.CallNextHookEx(
+                    self.hook,
+                    n_code,
+                    w_param,
+                    l_param,
+                )
+
+            if (
+                self.active
+                and self.alt_down
+            ):
+                if vk in shift_keys:
+                    self.alt_shift_used = True
+
+                    return user32.CallNextHookEx(
+                        self.hook,
+                        n_code,
+                        w_param,
+                        l_param,
+                    )
+
+                # Например Alt+Tab — отдаём системе и закрываем F9,
+                # чтобы capture не остался активным в другом окне.
+                if key_down:
+                    self.set_active(False)
                     self.events.put(
                         ("system_escape", None)
                     )
@@ -1010,9 +1138,9 @@ class OutgoingChatController:
         ttk.Label(
             box,
             text=(
-                "Для первого теста "
-                "включи RU-раскладку "
-                "до нажатия F9."
+                "Раскладку Windows можно менять "
+                "через Win+Space или Alt+Shift "
+                "прямо при открытом F9."
             ),
         ).pack(
             anchor="w",
