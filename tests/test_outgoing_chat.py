@@ -275,6 +275,54 @@ class OutgoingChatControllerTests(unittest.TestCase):
             "привет"
         )
 
+    def test_paste_clipboard_inserts_normalized_text(self):
+        controller = OutgoingChatController.__new__(
+            OutgoingChatController
+        )
+
+        controller.popup_visible = True
+        controller.send_after_translation = False
+        controller.sending_in_progress = False
+        controller.root = SimpleNamespace(
+            clipboard_get=lambda: "  привет\nвсем!  "
+        )
+        controller.preview = SimpleNamespace(
+            configure=lambda **_kwargs: None
+        )
+
+        with patch.object(
+            controller,
+            "append_text",
+        ) as append_text:
+            controller.paste_clipboard()
+
+        append_text.assert_called_once_with(
+            "привет всем!"
+        )
+
+    def test_empty_clipboard_does_not_insert_text(self):
+        controller = OutgoingChatController.__new__(
+            OutgoingChatController
+        )
+
+        controller.popup_visible = True
+        controller.send_after_translation = False
+        controller.sending_in_progress = False
+        controller.root = SimpleNamespace(
+            clipboard_get=lambda: ""
+        )
+        controller.preview = SimpleNamespace(
+            configure=lambda **_kwargs: None
+        )
+
+        with patch.object(
+            controller,
+            "append_text",
+        ) as append_text:
+            controller.paste_clipboard()
+
+        append_text.assert_not_called()
+
     def test_keyboard_capture_can_be_disabled(self):
         import queue
 

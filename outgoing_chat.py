@@ -328,6 +328,7 @@ class KeyboardCapture:
         self.down_keys: set[int] = set()
         self.f9_down = False
         self.f10_down = False
+        self.paste_down = False
 
     def set_active(self, value: bool) -> None:
         self.active = bool(value)
@@ -660,6 +661,9 @@ class KeyboardCapture:
                     l_param,
                 )
 
+            if key_up and vk == ord("V"):
+                self.paste_down = False
+
             # Key-up пропускаем.
             # Это снижает риск "залипшего"
             # W/Shift, если клавиша была
@@ -691,6 +695,26 @@ class KeyboardCapture:
                 self.events.put(
                     ("backspace", None)
                 )
+                return 1
+
+            ctrl_pressed = any(
+                key in self.down_keys
+                for key in (
+                    VK_CONTROL,
+                    VK_LCONTROL,
+                    VK_RCONTROL,
+                )
+            )
+
+            # Ctrl+V — вставить текст из буфера обмена
+            # непосредственно в наше F9-поле.
+            if vk == ord("V") and ctrl_pressed:
+                if key_down and not self.paste_down:
+                    self.paste_down = True
+                    self.events.put(
+                        ("paste", None)
+                    )
+
                 return 1
 
             text = self._vk_to_text(
@@ -1482,6 +1506,32 @@ class OutgoingChatController:
         self._render_buffer()
         self._schedule_live_translation()
 
+    def paste_clipboard(self) -> None:
+        if (
+            not self.popup_visible
+            or self.send_after_translation
+            or self.sending_in_progress
+        ):
+            return
+
+        try:
+            value = self.root.clipboard_get()
+        except Exception:
+            self.preview.configure(
+                text="Буфер обмена пуст или не содержит текста.",
+                fg="#ffbf69",
+            )
+            return
+
+        value = normalize_outgoing_text(
+            str(value or "")
+        )
+
+        if not value:
+            return
+
+        self.append_text(value)
+
     def backspace(self) -> None:
         if (
             self.popup_visible
@@ -1780,6 +1830,9 @@ class OutgoingChatController:
 
                 elif event == "backspace":
                     self.backspace()
+
+                elif event == "paste":
+                    self.paste_clipboard()
 
                 elif event == "submit":
                     self.submit()
