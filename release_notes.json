@@ -1,5 +1,5 @@
 {
-  "notes_ru": "Исправлена вставка текста через Ctrl+V в исходящем чате F9. Скопированный текст теперь можно вставить прямо во время игры, после чего перевод появляется автоматически. Также в главном окне теперь явно отображается состояние входящего оверлея F8: включён, скрыт или выключен.",
-  "notes_uk": "Виправлено вставлення тексту через Ctrl+V у вихідному чаті F9. Скопійований текст тепер можна вставити прямо під час гри, після чого переклад з’являється автоматично. Також у головному вікні тепер чітко відображається стан вхідного оверлею F8: увімкнено, приховано або вимкнено.",
-  "notes_en": "Fixed Ctrl+V paste in the outgoing F9 chat. Copied text can now be pasted directly while playing and is translated automatically. The main window also now clearly shows the incoming F8 overlay state: on, hidden or off."
+  "notes_ru": "Исправлена редкая чёрная вспышка входящего оверлея при появлении новых сообщений. В Windows игровой оверлей теперь использует нативную поканальную прозрачность вместо старой chroma-key схемы. Также количество одновременно видимых сообщений расширено до 4–8, по умолчанию показываются 4 сообщения.",
+  "notes_uk": "Виправлено рідкісний чорний спалах вхідного оверлею під час появи нових повідомлень. У Windows ігровий оверлей тепер використовує нативну поканальну прозорість замість старої chroma-key схеми. Також кількість одночасно видимих повідомлень розширено до 4–8, за замовчуванням показуються 4 повідомлення.",
+  "notes_en": "Fixed a rare black flash in the incoming overlay when new messages appear. On Windows, the gameplay overlay now uses native per-pixel alpha transparency instead of the previous chroma-key approach. The visible message range is also now 4–8, with 4 messages shown by default."
 }

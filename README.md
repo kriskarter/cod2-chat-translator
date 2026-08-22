@@ -45,6 +45,8 @@ If you press Enter before translation has finished, CoD2 Chat Translator waits f
 
 **v1.17.1:** Ctrl+V now pastes copied text directly into the F9 outgoing chat. The main window also shows whether the incoming F8 overlay is ON, HIDDEN or OFF.
 
+**v1.17.2:** the incoming Windows overlay now uses native per-pixel alpha transparency, eliminating the intermittent black flash seen when new messages appeared. The visible-message selector now offers 4–8 messages, with 4 by default.
+
 ## What's new in v1.16
 
 The translator now works in both directions.

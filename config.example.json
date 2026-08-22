@@ -13,7 +13,7 @@
     "y": 360,
     "width": 500,
     "height": 150,
-    "max_messages": 2,
+    "max_messages": 4,
     "font_size": 10,
     "background_opacity": 0.15,
     "background_only_with_messages": true,
