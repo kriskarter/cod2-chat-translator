@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -79,6 +80,56 @@ class BrandingTests(unittest.TestCase):
             self.assertIn(
                 "F8",
                 strings["overlay_hotkey_off"],
+            )
+
+    def test_native_per_pixel_alpha_overlay_backend(self):
+        root = Path(__file__).resolve().parents[1]
+
+        native_path = (
+            root
+            / "win32_layered_overlay.py"
+        )
+
+        self.assertTrue(
+            native_path.exists()
+        )
+
+        native_source = native_path.read_text(
+            encoding="utf-8"
+        )
+
+        app_source = (
+            root
+            / "app.py"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "UpdateLayeredWindow",
+            native_source,
+        )
+        self.assertIn(
+            "AC_SRC_ALPHA",
+            native_source,
+        )
+        self.assertIn(
+            "install_native_overlay",
+            native_source,
+        )
+        self.assertIn(
+            "install_native_overlay(",
+            app_source,
+        )
+
+        if os.name == "nt":
+            import win32_layered_overlay
+
+            self.assertTrue(
+                callable(
+                    win32_layered_overlay
+                    .install_native_overlay
+                )
             )
 
     def test_windows_build_uses_runtime_elevation(self):

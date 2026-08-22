@@ -31,6 +31,15 @@ from outgoing_chat import LANGUAGES, OutgoingChatController
 if os.name == "nt":
     from ctypes import wintypes
 
+    try:
+        from win32_layered_overlay import (
+            install_native_overlay,
+        )
+    except Exception:
+        install_native_overlay = None
+else:
+    install_native_overlay = None
+
 try:
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
@@ -3080,6 +3089,23 @@ class OverlayWindow:
         self._apply_geometry(force_config_height=self.edit_mode)
         self._apply_background_visibility()
 
+
+
+# Normal Windows gameplay uses a native per-pixel-alpha
+# layered window. The original Tk overlay remains available
+# for edit mode and as a compatibility fallback.
+if (
+    os.name == "nt"
+    and install_native_overlay is not None
+):
+    try:
+        install_native_overlay(
+            OverlayWindow
+        )
+    except Exception:
+        pass
+
+
 def _win32_api():
     """Return Win32 functions with pointer-safe ctypes signatures.
 
@@ -4960,8 +4986,8 @@ class ControlApp:
     def clear_overlay(self) -> None:
         self.overlay._cancel_fade()
         self.overlay.items.clear()
-        self.overlay._set_text_alpha(1.0)
         self.overlay.render()
+        self.overlay._set_text_alpha(1.0)
 
     def on_log_message(self, msg: ChatMessage) -> None:
         if not self.enabled:
@@ -4985,8 +5011,8 @@ class ControlApp:
                 elif event == "map_change":
                     self.overlay._cancel_fade()
                     self.overlay.items.clear()
-                    self.overlay._set_text_alpha(1.0)
                     self.overlay.render()
+                    self.overlay._set_text_alpha(1.0)
                     self.status_var.set(self.t("map_change_status"))
                 elif event == "translation":
                     _, msg, translated, elapsed_ms = item
@@ -5056,11 +5082,24 @@ class ControlApp:
     def close(self) -> None:
         self._persist_settings()
         self.stop_event.set()
+
+        try:
+            native_surface = getattr(
+                self.overlay,
+                "_native_surface",
+                None,
+            )
+            if native_surface is not None:
+                native_surface.destroy()
+        except Exception:
+            pass
+
         try:
             self.overlay.window.destroy()
             self.overlay.bg_window.destroy()
         except Exception:
             pass
+
         self.root.destroy()
 
 def cli_test_log(path: Path) -> int:
