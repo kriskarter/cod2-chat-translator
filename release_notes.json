@@ -1,5 +1,5 @@
 {
-  "notes_ru": "Исправлена совместимость автоматического обновления со старыми версиями. Программа теперь запрашивает права администратора при запуске вместо требования прав через EXE-манифест. Это предотвращает ошибку Windows 740 после обновления.",
-  "notes_uk": "Виправлено сумісність автоматичного оновлення зі старими версіями. Програма тепер запитує права адміністратора під час запуску замість вимоги прав через EXE-маніфест. Це запобігає помилці Windows 740 після оновлення.",
-  "notes_en": "Fixed automatic-update compatibility with older versions. The application now requests administrator privileges at startup instead of requiring elevation through the EXE manifest. This prevents Windows error 740 after an update."
+  "notes_ru": "Улучшен исходящий чат F9. Перевод теперь появляется автоматически во время ввода после короткой паузы. Для отправки достаточно одного Enter. Если Enter нажать до завершения перевода, программа дождётся актуального перевода и отправит сообщение автоматически.",
+  "notes_uk": "Покращено вихідний чат F9. Переклад тепер з’являється автоматично під час введення після короткої паузи. Для відправлення достатньо одного Enter. Якщо натиснути Enter до завершення перекладу, програма дочекається актуального перекладу та надішле повідомлення автоматично.",
+  "notes_en": "Improved outgoing F9 chat. Translation now appears automatically while typing after a short pause. Only one Enter is needed to send the message. If Enter is pressed before translation finishes, the app waits for the current translation and sends it automatically."
 }

@@ -9,6 +9,12 @@
 3. CoD2 Multiplayer запущен.
 4. Используется актуальная версия программы.
 
+Нормальная работа F9 в v1.17.0:
+
+**F9 → ввод текста → автоматический перевод → один Enter для отправки.**
+
+Если Enter нажать до окончания перевода, программа должна дождаться актуального перевода и отправить сообщение автоматически.
+
 ## Нет входящего перевода
 
 Проверь интернет, настройки перевода и правильность найденной установки CoD2.
@@ -41,7 +47,7 @@
 
 ## English
 
-F9 requires outgoing chat to be enabled, CoD2 Multiplayer to be running and the UAC prompt to be accepted.
+F9 requires outgoing chat to be enabled, CoD2 Multiplayer to be running and the UAC prompt to be accepted. In v1.17.0 the translation appears automatically while typing and one Enter sends it.
 
 F8 restores the incoming translation overlay.
 
@@ -55,7 +61,7 @@ Use **v1.16.1 or newer** if you encounter Windows error 740.
 
 ## Українська
 
-Для F9 вихідний чат має бути увімкнений, CoD2 Multiplayer запущено, а UAC підтверджено.
+Для F9 вихідний чат має бути увімкнений, CoD2 Multiplayer запущено, а UAC підтверджено. У v1.17.0 переклад з’являється автоматично під час введення, а один Enter надсилає повідомлення.
 
 F8 повертає оверлей перекладу.
 

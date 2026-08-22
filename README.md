@@ -33,6 +33,16 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## What's new in v1.17
+
+Outgoing chat is now faster during gameplay.
+
+**F9 → type → automatic translation → Enter to send.**
+
+The translation preview updates automatically after a short pause while typing. There is no longer a separate first Enter just to translate.
+
+If you press Enter before translation has finished, CoD2 Chat Translator waits for the current translation and sends it automatically.
+
 ## What's new in v1.16
 
 The translator now works in both directions.
@@ -153,12 +163,13 @@ Choose:
 - **My language** — the language you type in;
 - **Send as** — the language other players should receive.
 
-Then:
+Then simply:
 
 1. Type your message.
-2. Press **Enter** once to translate it.
-3. Check the translated preview.
-4. Press **Enter** again to send it to CoD2 all-chat.
+2. The translation appears automatically after a short pause.
+3. Press **Enter once** to send the translated message to CoD2 all-chat.
+
+If you press Enter before the translation is ready, the app waits for the latest translation and sends it automatically.
 
 Press **Esc** or **F9** to cancel.
 
