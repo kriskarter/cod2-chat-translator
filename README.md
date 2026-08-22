@@ -43,6 +43,8 @@ The translation preview updates automatically after a short pause while typing. 
 
 If you press Enter before translation has finished, CoD2 Chat Translator waits for the current translation and sends it automatically.
 
+**v1.17.1:** Ctrl+V now pastes copied text directly into the F9 outgoing chat. The main window also shows whether the incoming F8 overlay is ON, HIDDEN or OFF.
+
 ## What's new in v1.16
 
 The translator now works in both directions.

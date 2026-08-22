@@ -1,5 +1,5 @@
 {
-  "notes_ru": "Улучшен исходящий чат F9. Перевод теперь появляется автоматически во время ввода после короткой паузы. Для отправки достаточно одного Enter. Если Enter нажать до завершения перевода, программа дождётся актуального перевода и отправит сообщение автоматически.",
-  "notes_uk": "Покращено вихідний чат F9. Переклад тепер з’являється автоматично під час введення після короткої паузи. Для відправлення достатньо одного Enter. Якщо натиснути Enter до завершення перекладу, програма дочекається актуального перекладу та надішле повідомлення автоматично.",
-  "notes_en": "Improved outgoing F9 chat. Translation now appears automatically while typing after a short pause. Only one Enter is needed to send the message. If Enter is pressed before translation finishes, the app waits for the current translation and sends it automatically."
+  "notes_ru": "Исправлена вставка текста через Ctrl+V в исходящем чате F9. Скопированный текст теперь можно вставить прямо во время игры, после чего перевод появляется автоматически. Также в главном окне теперь явно отображается состояние входящего оверлея F8: включён, скрыт или выключен.",
+  "notes_uk": "Виправлено вставлення тексту через Ctrl+V у вихідному чаті F9. Скопійований текст тепер можна вставити прямо під час гри, після чого переклад з’являється автоматично. Також у головному вікні тепер чітко відображається стан вхідного оверлею F8: увімкнено, приховано або вимкнено.",
+  "notes_en": "Fixed Ctrl+V paste in the outgoing F9 chat. Copied text can now be pasted directly while playing and is translated automatically. The main window also now clearly shows the incoming F8 overlay state: on, hidden or off."
 }
