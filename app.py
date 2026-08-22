@@ -2732,6 +2732,18 @@ class OverlayWindow:
         return max(0.0, min(float(self._overlay_cfg().get("background_opacity", 0.20)), 0.90))
 
     def _apply_background_visibility(self) -> None:
+        # DIAGNOSTIC: completely remove the separate dark
+        # background window on Windows. This is intentionally
+        # stronger than alpha=0: the HWND must not participate
+        # in DWM composition at all.
+        if os.name == "nt":
+            try:
+                if self.bg_window.state() != "withdrawn":
+                    self.bg_window.withdraw()
+            except Exception:
+                pass
+            return
+
         opacity = self._background_opacity()
         only_with_messages = bool(self._overlay_cfg().get("background_only_with_messages", True))
         main_hidden = self.window.state() == "withdrawn"
