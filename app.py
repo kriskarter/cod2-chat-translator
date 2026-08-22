@@ -131,7 +131,7 @@ DEFAULT_CONFIG = {
         "y": 360,
         "width": 500,
         "height": 150,
-        "max_messages": 2,
+        "max_messages": 4,
         "font_size": 10,
         "background_opacity": 0.15,
         "background_only_with_messages": True,
@@ -2512,6 +2512,27 @@ def default_overlay_position(screen_width: int, screen_height: int, width: int =
     return x, y
 
 
+
+def _windows_colorref_from_hex(value: str) -> int:
+    """Convert #RRGGBB to Windows COLORREF (0x00BBGGRR)."""
+    raw = str(value or "").strip().lstrip("#")
+
+    if not re.fullmatch(r"[0-9A-Fa-f]{6}", raw):
+        raise ValueError(
+            f"Invalid RGB color: {value!r}"
+        )
+
+    red = int(raw[0:2], 16)
+    green = int(raw[2:4], 16)
+    blue = int(raw[4:6], 16)
+
+    return (
+        red
+        | (green << 8)
+        | (blue << 16)
+    )
+
+
 class OverlayWindow:
     """Two-layer Windows overlay: opaque text above an independently translucent background.
 
@@ -2581,6 +2602,9 @@ class OverlayWindow:
         self._set_click_through_window(self.bg_window, True)
         self._set_click_through_window(self.window, True)
         self.window.deiconify()
+        self._apply_text_layered_state(
+            self._fade_alpha
+        )
         self._apply_background_visibility()
         self.render()
         self.root.after(500, self._keep_topmost)
@@ -2650,6 +2674,101 @@ class OverlayWindow:
         except Exception:
             pass
 
+    def _apply_text_layered_state(
+        self,
+        alpha: float,
+    ) -> None:
+        alpha = max(
+            0.0,
+            min(float(alpha), 1.0),
+        )
+
+        if os.name != "nt":
+            try:
+                self.window.attributes(
+                    "-alpha",
+                    alpha,
+                )
+            except Exception:
+                pass
+            return
+
+        try:
+            hwnd = self._window_hwnd(
+                self.window
+            )
+
+            api = _win32_api()
+            if not api:
+                raise RuntimeError(
+                    "Win32 API unavailable"
+                )
+
+            (
+                user32,
+                _kernel32,
+                _get_long,
+                _set_long,
+            ) = api
+
+            set_layered = (
+                user32.SetLayeredWindowAttributes
+            )
+
+            set_layered.argtypes = [
+                wintypes.HWND,
+                wintypes.DWORD,
+                wintypes.BYTE,
+                wintypes.DWORD,
+            ]
+            set_layered.restype = wintypes.BOOL
+
+            LWA_COLORKEY = 0x00000001
+            LWA_ALPHA = 0x00000002
+
+            color_key = (
+                _windows_colorref_from_hex(
+                    self.TRANSPARENT_KEY
+                )
+            )
+
+            alpha_byte = max(
+                0,
+                min(
+                    255,
+                    round(alpha * 255),
+                ),
+            )
+
+            ok = set_layered(
+                wintypes.HWND(hwnd),
+                wintypes.DWORD(color_key),
+                wintypes.BYTE(alpha_byte),
+                wintypes.DWORD(
+                    LWA_COLORKEY
+                    | LWA_ALPHA
+                ),
+            )
+
+            if not ok:
+                raise OSError(
+                    ctypes.get_last_error()
+                )
+
+        except Exception:
+            # Fallback for unusual Tk/Windows builds.
+            try:
+                self.window.wm_attributes(
+                    "-transparentcolor",
+                    self.TRANSPARENT_KEY,
+                )
+                self.window.attributes(
+                    "-alpha",
+                    alpha,
+                )
+            except Exception:
+                pass
+
     def _force_topmost_window(self, window: "tk.Toplevel") -> None:
         if os.name != "nt":
             try:
@@ -2715,6 +2834,9 @@ class OverlayWindow:
         # Promote only the text layer.  Then pin the background immediately
         # behind it; never let the dark window become the topmost sibling.
         self._force_topmost_window(self.window)
+        self._apply_text_layered_state(
+            getattr(self, "_fade_alpha", 1.0)
+        )
         self._place_background_behind_text()
 
     def _keep_topmost(self) -> None:
@@ -2760,11 +2882,13 @@ class OverlayWindow:
             self._place_background_behind_text()
 
     def _set_text_alpha(self, alpha: float) -> None:
-        self._fade_alpha = max(0.0, min(float(alpha), 1.0))
-        try:
-            self.window.attributes("-alpha", self._fade_alpha)
-        except Exception:
-            pass
+        self._fade_alpha = max(
+            0.0,
+            min(float(alpha), 1.0),
+        )
+        self._apply_text_layered_state(
+            self._fade_alpha
+        )
         self._apply_background_visibility()
 
     def _cancel_fade(self) -> None:
@@ -2882,7 +3006,7 @@ class OverlayWindow:
         self.items.append(item)
         max_messages = max(
             1,
-            min(int(self._overlay_cfg().get("max_messages", 3)), MAX_OVERLAY_MESSAGES),
+            min(int(self._overlay_cfg().get("max_messages", 4)), MAX_OVERLAY_MESSAGES),
         )
         while len(self.items) > max_messages:
             self.items.popleft()
@@ -3353,7 +3477,7 @@ class ControlApp:
         self.compact_bg_var = tk.BooleanVar(value=bool(overlay_cfg.get("compact_background", True)))
         self.fade_var = tk.BooleanVar(value=bool(overlay_cfg.get("fade_enabled", True)))
         self.ttl_var = tk.IntVar(value=int(overlay_cfg.get("message_ttl_seconds", 10)))
-        self.max_messages_var = tk.IntVar(value=int(overlay_cfg.get("max_messages", 2)))
+        self.max_messages_var = tk.IntVar(value=int(overlay_cfg.get("max_messages", 4)))
         self.font_label_var = tk.StringVar(value=str(self.font_var.get()))
         self.bg_label_var = tk.StringVar(value=f"{self.bg_var.get()}%")
         self.ttl_label_var = tk.StringVar(value=f"{self.ttl_var.get()} {'с' if self.ui_language in {'ru', 'uk'} else 's'}")

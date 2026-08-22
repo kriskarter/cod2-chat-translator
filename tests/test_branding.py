@@ -20,6 +20,45 @@ class BrandingTests(unittest.TestCase):
         self.assertEqual(app.MAX_OVERLAY_MESSAGES, 5)
         self.assertGreaterEqual(app.recommended_overlay_height(5, 10), 200)
 
+    def test_incoming_overlay_defaults_to_four_messages(self):
+        self.assertEqual(
+            app.DEFAULT_CONFIG["overlay"]["max_messages"],
+            4,
+        )
+
+    def test_windows_overlay_colorref_conversion(self):
+        self.assertEqual(
+            app._windows_colorref_from_hex("#010203"),
+            0x00030201,
+        )
+
+    def test_overlay_preserves_colorkey_while_fading(self):
+        root = Path(__file__).resolve().parents[1]
+
+        source = (
+            root / "app.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "SetLayeredWindowAttributes",
+            source,
+        )
+
+        self.assertIn(
+            "LWA_COLORKEY",
+            source,
+        )
+
+        self.assertIn(
+            "LWA_ALPHA",
+            source,
+        )
+
+        self.assertIn(
+            "def _apply_text_layered_state",
+            source,
+        )
+
     def test_release_config_keeps_developer_metadata(self):
         root = Path(__file__).resolve().parents[1]
         cfg = json.loads((root / "release_config.json").read_text(encoding="utf-8"))
