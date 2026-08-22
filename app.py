@@ -176,7 +176,7 @@ UI_STRINGS = {
         "translate_to": "Переводить на:", "other": "Другой…",
         "show_original": "показывать оригинал", "hide_same": "не дублировать выбранный язык", "smart_chat": "Умный чат:",
         "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
-        "hotkey": "F8 — скрыть/показать", "enabled": "Переводчик включён", "test": "Тест оверлея", "clear": "Очистить",
+        "hotkey": "F8 — скрыть/показать", "overlay_hotkey_on": "F8 — входящий оверлей: ВКЛЮЧЕН", "overlay_hotkey_hidden": "F8 — входящий оверлей: СКРЫТ", "overlay_hotkey_off": "F8 — входящий оверлей: ВЫКЛЮЧЕН", "enabled": "Переводчик включён", "test": "Тест оверлея", "clear": "Очистить",
         "configure_overlay": "Настроить оверлей", "lock_overlay": "Зафиксировать оверлей", "cod2_top": "CoD2 → поверх",
         "overlay_view": "Вид оверлея", "font_size": "Размер текста", "background": "Фон",
         "bg_only": "фон только во время сообщений", "compact_bg": "подложка по размеру текста", "show_for": "Показывать",
@@ -251,7 +251,7 @@ UI_STRINGS = {
         "translate_to": "Translate to:", "other": "Other…",
         "show_original": "show original", "hide_same": "hide messages already in target language", "smart_chat": "Smart chat:",
         "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
-        "hotkey": "F8 — hide/show", "enabled": "Translator enabled", "test": "Test overlay", "clear": "Clear",
+        "hotkey": "F8 — hide/show", "overlay_hotkey_on": "F8 — incoming overlay: ON", "overlay_hotkey_hidden": "F8 — incoming overlay: HIDDEN", "overlay_hotkey_off": "F8 — incoming overlay: OFF", "enabled": "Translator enabled", "test": "Test overlay", "clear": "Clear",
         "configure_overlay": "Configure overlay", "lock_overlay": "Lock overlay", "cod2_top": "CoD2 → overlay",
         "overlay_view": "Overlay appearance", "font_size": "Text size", "background": "Background",
         "bg_only": "background only with messages", "compact_bg": "fit background to text", "show_for": "Show for",
@@ -330,7 +330,7 @@ UI_STRINGS["uk"] = {
     "translate_to": "Перекладати на:", "other": "Інший…",
     "show_original": "показувати оригінал", "hide_same": "не дублювати вибрану мову", "smart_chat": "Розумний чат:",
     "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
-    "hotkey": "F8 — сховати/показати", "enabled": "Перекладач увімкнено", "test": "Тест оверлею", "clear": "Очистити",
+    "hotkey": "F8 — сховати/показати", "overlay_hotkey_on": "F8 — вхідний оверлей: УВІМКНЕНО", "overlay_hotkey_hidden": "F8 — вхідний оверлей: ПРИХОВАНО", "overlay_hotkey_off": "F8 — вхідний оверлей: ВИМКНЕНО", "enabled": "Перекладач увімкнено", "test": "Тест оверлею", "clear": "Очистити",
     "configure_overlay": "Налаштувати оверлей", "lock_overlay": "Зафіксувати оверлей", "cod2_top": "CoD2 → поверх",
     "overlay_view": "Вигляд оверлею", "font_size": "Розмір тексту", "background": "Фон",
     "bg_only": "фон лише під час повідомлень", "compact_bg": "підкладка за розміром тексту", "show_for": "Показувати",
@@ -3344,6 +3344,7 @@ class ControlApp:
         self.enabled_var = tk.BooleanVar(value=True)
         self.overlay_editing = False
         self.overlay_hotkey_visible = True
+        self.overlay_hotkey_status_var = tk.StringVar(value="")
         self._hotkey_prev = {"F8": False}
         self.duplicate_filter = RecentDuplicateFilter(float(self.config.get("duplicate_window_seconds", 4)))
         self.font_var = tk.IntVar(value=int(overlay_cfg.get("font_size", 10)))
@@ -3475,7 +3476,12 @@ class ControlApp:
         slang_combo.pack(side="left")
         slang_combo.bind("<<ComboboxSelected>>", lambda _e: self._persist_settings())
         ttk.Checkbutton(smart, text=self.t("dedupe"), variable=self.dedupe_var, command=self._persist_settings).pack(side="left", padx=(12, 0))
-        ttk.Label(smart, text=self.t("hotkey"), foreground="#666666").pack(side="left", padx=(12, 0))
+        self._update_overlay_hotkey_status()
+        ttk.Label(
+            smart,
+            textvariable=self.overlay_hotkey_status_var,
+            foreground="#666666",
+        ).pack(side="left", padx=(12, 0))
 
         outgoing_title = {
             "ru": "Исходящий чат · F9",
@@ -4718,15 +4724,47 @@ class ControlApp:
         self._persist_settings()
         self.overlay.render()
 
+    def _overlay_hotkey_status_text(self) -> str:
+        if not self.enabled:
+            return self.t("overlay_hotkey_off")
+
+        if self.overlay_hotkey_visible:
+            return self.t("overlay_hotkey_on")
+
+        return self.t("overlay_hotkey_hidden")
+
+    def _update_overlay_hotkey_status(self) -> None:
+        self.overlay_hotkey_status_var.set(
+            self._overlay_hotkey_status_text()
+        )
+
     def toggle_enabled(self) -> None:
         self.enabled = bool(self.enabled_var.get())
-        self.overlay.set_visible(self.enabled and self.overlay_hotkey_visible)
-        self.status_var.set(self.t("translator_on_status") if self.enabled else self.t("translator_off_status"))
+        self.overlay.set_visible(
+            self.enabled
+            and self.overlay_hotkey_visible
+        )
+        self._update_overlay_hotkey_status()
+        self.status_var.set(
+            self.t("translator_on_status")
+            if self.enabled
+            else self.t("translator_off_status")
+        )
 
     def toggle_overlay_hotkey_visibility(self) -> None:
-        self.overlay_hotkey_visible = not self.overlay_hotkey_visible
-        self.overlay.set_visible(self.enabled and self.overlay_hotkey_visible)
-        self.status_var.set(self.t("overlay_shown_status") if self.overlay_hotkey_visible else self.t("overlay_hidden_status"))
+        self.overlay_hotkey_visible = (
+            not self.overlay_hotkey_visible
+        )
+        self.overlay.set_visible(
+            self.enabled
+            and self.overlay_hotkey_visible
+        )
+        self._update_overlay_hotkey_status()
+        self.status_var.set(
+            self.t("overlay_shown_status")
+            if self.overlay_hotkey_visible
+            else self.t("overlay_hidden_status")
+        )
 
     def poll_global_hotkeys(self) -> None:
         if self.stop_event.is_set():

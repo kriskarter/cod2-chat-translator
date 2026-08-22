@@ -46,6 +46,36 @@ class BrandingTests(unittest.TestCase):
         self.assertIn("Ukrainian.isl", script)
         self.assertIn("LangCode := 'uk'", script)
 
+    def test_f8_overlay_state_is_localized(self):
+        for language in ("ru", "uk", "en"):
+            strings = app.UI_STRINGS[language]
+
+            self.assertIn(
+                "overlay_hotkey_on",
+                strings,
+            )
+            self.assertIn(
+                "overlay_hotkey_hidden",
+                strings,
+            )
+            self.assertIn(
+                "overlay_hotkey_off",
+                strings,
+            )
+
+            self.assertIn(
+                "F8",
+                strings["overlay_hotkey_on"],
+            )
+            self.assertIn(
+                "F8",
+                strings["overlay_hotkey_hidden"],
+            )
+            self.assertIn(
+                "F8",
+                strings["overlay_hotkey_off"],
+            )
+
     def test_windows_build_uses_runtime_elevation(self):
         root = Path(__file__).resolve().parents[1]
 
