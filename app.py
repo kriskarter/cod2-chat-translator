@@ -2761,11 +2761,36 @@ class OverlayWindow:
             self._place_background_behind_text()
 
     def _set_text_alpha(self, alpha: float) -> None:
-        self._fade_alpha = max(0.0, min(float(alpha), 1.0))
-        try:
-            self.window.attributes("-alpha", self._fade_alpha)
-        except Exception:
-            pass
+        target_alpha = max(
+            0.0,
+            min(float(alpha), 1.0),
+        )
+
+        alpha_changed = (
+            abs(
+                target_alpha
+                - float(self._fade_alpha)
+            )
+            > 0.001
+        )
+
+        self._fade_alpha = target_alpha
+
+        # Do not reapply the same layered-window alpha on
+        # every incoming message. On Windows/DWM this can
+        # briefly expose the chroma-key background as a
+        # dark rectangle for one compositor frame.
+        if alpha_changed:
+            try:
+                self.window.attributes(
+                    "-alpha",
+                    self._fade_alpha,
+                )
+            except Exception:
+                pass
+
+        # Background visibility still needs refreshing
+        # because the message list may have changed.
         self._apply_background_visibility()
 
     def _cancel_fade(self) -> None:

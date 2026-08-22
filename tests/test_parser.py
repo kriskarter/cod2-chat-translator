@@ -276,6 +276,38 @@ class ParserTests(unittest.TestCase):
         self.assertGreater(recommended_overlay_height(5, 10), recommended_overlay_height(3, 10))
         self.assertEqual(recommended_overlay_height(99, 10), recommended_overlay_height(8, 10))
 
+    def test_same_text_alpha_is_not_reapplied(self):
+        overlay = OverlayWindow.__new__(
+            OverlayWindow
+        )
+        overlay._fade_alpha = 1.0
+
+        class FakeWindow:
+            def __init__(self):
+                self.calls = []
+
+            def attributes(self, *args):
+                self.calls.append(args)
+
+        overlay.window = FakeWindow()
+        overlay._apply_background_visibility = (
+            lambda: None
+        )
+
+        overlay._set_text_alpha(1.0)
+
+        self.assertEqual(
+            overlay.window.calls,
+            [],
+        )
+
+        overlay._set_text_alpha(0.5)
+
+        self.assertEqual(
+            overlay.window.calls,
+            [("-alpha", 0.5)],
+        )
+
     def test_background_stays_alive_and_uses_zero_alpha_between_chat_bursts(self):
         class FakeWindow:
             def __init__(self, state="normal"):
