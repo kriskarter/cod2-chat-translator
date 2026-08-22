@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from outgoing_chat import (
     KeyboardCapture,
+    LIVE_TRANSLATION_DELAY_MS,
     VK_LSHIFT,
     VK_RSHIFT,
     VK_SHIFT,
@@ -157,6 +158,122 @@ class OutgoingChatControllerTests(unittest.TestCase):
                 state[VK_SHIFT] & 0x80
             )
 
+
+    def test_live_translation_uses_short_debounce(self):
+        self.assertGreaterEqual(
+            LIVE_TRANSLATION_DELAY_MS,
+            250,
+        )
+        self.assertLessEqual(
+            LIVE_TRANSLATION_DELAY_MS,
+            600,
+        )
+
+    def test_single_enter_sends_ready_live_translation(self):
+        controller = OutgoingChatController.__new__(
+            OutgoingChatController
+        )
+
+        controller.popup_visible = True
+        controller.sending_in_progress = False
+        controller.buffer = "привет"
+        controller.pending_translation = "hello"
+        controller.translation_source = "привет"
+        controller.translation_in_progress = False
+        controller.send_after_translation = False
+        controller.translation_after_id = None
+
+        with (
+            patch.object(
+                controller,
+                "_cancel_live_translation",
+            ),
+            patch.object(
+                controller,
+                "_begin_send",
+            ) as begin_send,
+        ):
+            controller.submit()
+
+        begin_send.assert_called_once_with(
+            "hello"
+        )
+
+    def test_enter_waits_for_running_live_translation(self):
+        controller = OutgoingChatController.__new__(
+            OutgoingChatController
+        )
+
+        controller.popup_visible = True
+        controller.sending_in_progress = False
+        controller.buffer = "привет"
+        controller.pending_translation = ""
+        controller.translation_source = "привет"
+        controller.translation_in_progress = True
+        controller.send_after_translation = False
+        controller.translation_after_id = None
+        controller.preview = SimpleNamespace(
+            configure=lambda **_kwargs: None
+        )
+        controller.hint = SimpleNamespace(
+            configure=lambda **_kwargs: None
+        )
+
+        with (
+            patch.object(
+                controller,
+                "_cancel_live_translation",
+            ),
+            patch.object(
+                controller,
+                "_start_translation",
+            ) as start_translation,
+        ):
+            controller.submit()
+
+        self.assertTrue(
+            controller.send_after_translation
+        )
+        start_translation.assert_not_called()
+
+    def test_enter_starts_immediate_translation_before_debounce(self):
+        controller = OutgoingChatController.__new__(
+            OutgoingChatController
+        )
+
+        controller.popup_visible = True
+        controller.sending_in_progress = False
+        controller.buffer = "привет"
+        controller.pending_translation = ""
+        controller.translation_source = ""
+        controller.translation_in_progress = False
+        controller.send_after_translation = False
+        controller.translation_after_id = None
+        controller.preview = SimpleNamespace(
+            configure=lambda **_kwargs: None
+        )
+        controller.hint = SimpleNamespace(
+            configure=lambda **_kwargs: None
+        )
+
+        with (
+            patch.object(
+                controller,
+                "_cancel_live_translation",
+            ),
+            patch.object(
+                controller,
+                "_start_translation",
+            ) as start_translation,
+        ):
+            controller.submit()
+
+        self.assertTrue(
+            controller.send_after_translation
+        )
+        start_translation.assert_called_once_with(
+            "привет"
+        )
 
     def test_keyboard_capture_can_be_disabled(self):
         import queue

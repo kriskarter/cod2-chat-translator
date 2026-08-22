@@ -23,6 +23,7 @@ APP_TITLE = "CoD2 Outgoing Chat"
 TARGET_CODE = "en"
 TARGET_NAME = "English"
 MAX_MESSAGE_CHARS = 160
+LIVE_TRANSLATION_DELAY_MS = 350
 
 SETTINGS_DIR_NAME = "CoD2ChatTranslator"
 OUTGOING_CONFIG_FILE = "outgoing_chat.json"
@@ -790,6 +791,10 @@ class OutgoingChatController:
         self.buffer = ""
         self.pending_translation = ""
         self.sending_in_progress = False
+        self.translation_request_id = 0
+        self.translation_after_id = None
+        self.translation_source = ""
+        self.send_after_translation = False
 
         self.status_var = status_var or tk.StringVar(
             master=self.root,
@@ -931,8 +936,8 @@ class OutgoingChatController:
             text=(
                 "Запускать ОТ ИМЕНИ "
                 "АДМИНИСТРАТОРА. "
-                "ВНИМАНИЕ: второй Enter "
-                "реально отправляет перевод в CoD2."
+                "F9 → текст → Enter. "
+                "Перевод появляется автоматически."
             ),
             foreground="#a33",
             wraplength=500,
@@ -961,7 +966,7 @@ class OutgoingChatController:
             box,
             text=(
                 "Печатай прямо в игре · "
-                "Enter — перевод · второй Enter — отправить"
+                "перевод появляется сам · Enter — отправить"
             ),
         ).pack(
             anchor="w",
@@ -1211,7 +1216,7 @@ class OutgoingChatController:
             frame,
             text=(
                 "Печатай прямо в игре · "
-                "Enter — перевести · "
+                "перевод появляется сам · Enter — отправить · "
                 "Esc/F9 — закрыть"
             ),
             bg="#101419",
@@ -1362,13 +1367,15 @@ class OutgoingChatController:
         if self.popup_visible:
             return
 
+        self._cancel_live_translation()
+        self.translation_request_id += 1
+
         self.buffer = ""
         self.pending_translation = ""
+        self.translation_source = ""
+        self.send_after_translation = False
         self.mode = "input"
-
-        self.translation_in_progress = (
-            False
-        )
+        self.translation_in_progress = False
 
         self.preview.configure(
             text=""
@@ -1376,8 +1383,8 @@ class OutgoingChatController:
 
         self.hint.configure(
             text=(
-                "Печатай прямо в игре · "
-                "Enter — перевести · "
+                "Печатай — перевод появится сам · "
+                "Enter — отправить · "
                 "Esc/F9 — закрыть"
             )
         )
@@ -1406,16 +1413,18 @@ class OutgoingChatController:
         if not self.popup_visible:
             return
 
+        self._cancel_live_translation()
+        self.translation_request_id += 1
+
         self.keyboard.set_active(
             False
         )
 
         self.popup_visible = False
-
-        self.translation_in_progress = (
-            False
-        )
-
+        self.translation_in_progress = False
+        self.send_after_translation = False
+        self.pending_translation = ""
+        self.translation_source = ""
         self.mode = "input"
 
         self._hide_overlay()
@@ -1445,8 +1454,8 @@ class OutgoingChatController:
     ) -> None:
         if (
             not self.popup_visible
-            or self.mode != "input"
-            or self.translation_in_progress
+            or self.send_after_translation
+            or self.sending_in_progress
         ):
             return
 
@@ -1471,12 +1480,13 @@ class OutgoingChatController:
         ]
 
         self._render_buffer()
+        self._schedule_live_translation()
 
     def backspace(self) -> None:
         if (
             self.popup_visible
-            and self.mode == "input"
-            and not self.translation_in_progress
+            and not self.send_after_translation
+            and not self.sending_in_progress
             and self.buffer
         ):
             self.buffer = (
@@ -1484,50 +1494,170 @@ class OutgoingChatController:
             )
 
             self._render_buffer()
+            self._schedule_live_translation()
+
+    def _cancel_live_translation(self) -> None:
+        after_id = self.translation_after_id
+        self.translation_after_id = None
+
+        if after_id is None:
+            return
+
+        try:
+            self.root.after_cancel(after_id)
+        except Exception:
+            pass
+
+    def _schedule_live_translation(self) -> None:
+        self._cancel_live_translation()
+
+        if (
+            not self.popup_visible
+            or self.send_after_translation
+            or self.sending_in_progress
+        ):
+            return
+
+        source = normalize_outgoing_text(
+            self.buffer
+        )
+
+        if not source:
+            self.translation_request_id += 1
+            self.translation_in_progress = False
+            self.pending_translation = ""
+            self.translation_source = ""
+
+            self.preview.configure(
+                text="",
+                fg="#9de5a7",
+            )
+            return
+
+        if (
+            self.translation_source == source
+            and (
+                self.translation_in_progress
+                or self.pending_translation
+            )
+        ):
+            return
+
+        # Любое изменение текста сразу делает старый
+        # результат перевода неактуальным.
+        self.translation_request_id += 1
+        self.translation_in_progress = False
+        self.pending_translation = ""
+        self.translation_source = ""
+
+        self.preview.configure(
+            text="",
+            fg="#9de5a7",
+        )
+
+        self.translation_after_id = (
+            self.root.after(
+                LIVE_TRANSLATION_DELAY_MS,
+                self._start_live_translation,
+            )
+        )
+
+    def _start_live_translation(self) -> None:
+        self.translation_after_id = None
+
+        if (
+            not self.popup_visible
+            or self.send_after_translation
+            or self.sending_in_progress
+        ):
+            return
+
+        source = normalize_outgoing_text(
+            self.buffer
+        )
+
+        if not source:
+            return
+
+        self._start_translation(source)
+
+    def _start_translation(
+        self,
+        source: str,
+    ) -> None:
+        self.translation_request_id += 1
+        request_id = self.translation_request_id
+
+        self.translation_source = source
+        self.pending_translation = ""
+        self.translation_in_progress = True
+
+        if self.send_after_translation:
+            preview_text = "Перевожу и отправляю…"
+        else:
+            preview_text = "Перевожу…"
+
+        self.preview.configure(
+            text=preview_text,
+            fg="#67d4ff",
+        )
+
+        threading.Thread(
+            target=self._translate_worker,
+            args=(source, request_id),
+            daemon=True,
+            name="OutgoingTranslation",
+        ).start()
+
+    def _begin_send(
+        self,
+        translated: str,
+    ) -> None:
+        translated = normalize_outgoing_text(
+            translated
+        )
+
+        if not translated:
+            self.preview.configure(
+                text="Нет перевода для отправки.",
+                fg="#ff7676",
+            )
+            self.send_after_translation = False
+            return
+
+        self._cancel_live_translation()
+
+        self.send_after_translation = False
+        self.sending_in_progress = True
+        self.translation_in_progress = True
+
+        # Теперь клавиатурные события отправки
+        # должны пройти непосредственно в CoD2.
+        self.keyboard.set_active(False)
+
+        self.popup_visible = False
+        self._hide_overlay()
+
+        self.status_var.set(
+            "Отправляю перевод в общий чат CoD2…"
+        )
+
+        threading.Thread(
+            target=self._send_worker,
+            args=(translated,),
+            daemon=True,
+            name="OutgoingGameSend",
+        ).start()
 
     def submit(self) -> None:
         if (
             not self.popup_visible
-            or self.translation_in_progress
+            or self.sending_in_progress
         ):
             return
 
-        if self.mode == "preview":
-            translated = self.pending_translation.strip()
-
-            if not translated:
-                self.preview.configure(
-                    text="Нет перевода для отправки.",
-                    fg="#ff7676",
-                )
-                return
-
-            self.sending_in_progress = True
-            self.translation_in_progress = True
-
-            # С этого момента hook пропускает наши T/Ctrl+V/Enter в игру.
-            self.keyboard.set_active(False)
-
-            self.popup_visible = False
-            self._hide_overlay()
-
-            self.status_var.set(
-                "Отправляю перевод в общий чат CoD2…"
-            )
-
-            threading.Thread(
-                target=self._send_worker,
-                args=(translated,),
-                daemon=True,
-                name="OutgoingGameSend",
-            ).start()
-
-            return
-
-        source = (
-            normalize_outgoing_text(
-                self.buffer
-            )
+        source = normalize_outgoing_text(
+            self.buffer
         )
 
         if not source:
@@ -1537,25 +1667,50 @@ class OutgoingChatController:
             )
             return
 
-        self.translation_in_progress = (
-            True
-        )
+        self._cancel_live_translation()
+
+        # Если live-перевод уже готов для текущего текста,
+        # один Enter сразу отправляет его.
+        if (
+            self.pending_translation
+            and self.translation_source == source
+            and not self.translation_in_progress
+        ):
+            self._begin_send(
+                self.pending_translation
+            )
+            return
+
+        # Если перевод текущего текста уже выполняется,
+        # просто помечаем его на автоматическую отправку.
+        self.send_after_translation = True
 
         self.preview.configure(
-            text="Перевожу…",
+            text="Перевожу и отправляю…",
             fg="#67d4ff",
         )
 
-        threading.Thread(
-            target=self._translate_worker,
-            args=(source,),
-            daemon=True,
-            name="OutgoingTranslation",
-        ).start()
+        self.hint.configure(
+            text=(
+                "Отправка после перевода… · "
+                "Esc/F9 — отменить"
+            )
+        )
+
+        if (
+            self.translation_in_progress
+            and self.translation_source == source
+        ):
+            return
+
+        # Если пользователь нажал Enter раньше debounce,
+        # перевод запускается немедленно и потом сам отправится.
+        self._start_translation(source)
 
     def _translate_worker(
         self,
         source: str,
+        request_id: int,
     ) -> None:
         try:
             translated = (
@@ -1570,6 +1725,7 @@ class OutgoingChatController:
                 (
                     "translation_ok",
                     (
+                        request_id,
                         source,
                         translated,
                     ),
@@ -1580,7 +1736,11 @@ class OutgoingChatController:
             self.events.put(
                 (
                     "translation_error",
-                    str(exc),
+                    (
+                        request_id,
+                        source,
+                        str(exc),
+                    ),
                 )
             )
 
@@ -1588,7 +1748,7 @@ class OutgoingChatController:
         self,
         translated: str,
     ) -> None:
-        # Небольшая пауза даёт пользователю отпустить второй Enter.
+        # Небольшая пауза даёт пользователю отпустить Enter.
         import time
         time.sleep(0.16)
 
@@ -1666,23 +1826,51 @@ class OutgoingChatController:
                         str(payload)
                     )
 
-                elif (
-                    event
-                    == "translation_ok"
-                ):
-                    source, translated = (
-                        payload
-                    )
+                elif event == "translation_ok":
+                    (
+                        request_id,
+                        source,
+                        translated,
+                    ) = payload
+
+                    # Старые ответы от сервиса игнорируем.
+                    if (
+                        request_id
+                        != self.translation_request_id
+                    ):
+                        continue
 
                     if not self.popup_visible:
                         continue
 
-                    self.translation_in_progress = (
-                        False
+                    current_source = (
+                        normalize_outgoing_text(
+                            self.buffer
+                        )
                     )
 
-                    self.mode = "preview"
+                    if source != current_source:
+                        continue
+
+                    self.translation_in_progress = False
+                    self.translation_source = source
                     self.pending_translation = translated
+
+                    self.last_var.set(
+                        (
+                            "Последний перевод: "
+                            f"{source} → "
+                            f"{translated}"
+                        )
+                    )
+
+                    # Enter мог быть нажат ещё до того,
+                    # как live-перевод успел завершиться.
+                    if self.send_after_translation:
+                        self._begin_send(
+                            translated
+                        )
+                        continue
 
                     self.preview.configure(
                         text=(
@@ -1694,23 +1882,17 @@ class OutgoingChatController:
 
                     self.hint.configure(
                         text=(
-                            "Enter — ОТПРАВИТЬ в общий чат · "
+                            "Enter — ОТПРАВИТЬ · "
                             "Esc/F9 — отменить"
-                        )
-                    )
-
-                    self.last_var.set(
-                        (
-                            "Последний перевод: "
-                            f"{source} → "
-                            f"{translated}"
                         )
                     )
 
                 elif event == "send_ok":
                     self.sending_in_progress = False
                     self.translation_in_progress = False
+                    self.send_after_translation = False
                     self.pending_translation = ""
+                    self.translation_source = ""
                     self.mode = "input"
 
                     self.status_var.set(
@@ -1720,27 +1902,54 @@ class OutgoingChatController:
                 elif event == "send_error":
                     self.sending_in_progress = False
                     self.translation_in_progress = False
+                    self.send_after_translation = False
                     self.pending_translation = ""
+                    self.translation_source = ""
                     self.mode = "input"
 
                     self.status_var.set(
                         f"НЕ отправлено: {payload}"
                     )
 
-                elif (
-                    event
-                    == "translation_error"
-                ):
-                    self.translation_in_progress = (
-                        False
+                elif event == "translation_error":
+                    (
+                        request_id,
+                        source,
+                        error,
+                    ) = payload
+
+                    if (
+                        request_id
+                        != self.translation_request_id
+                    ):
+                        continue
+
+                    current_source = (
+                        normalize_outgoing_text(
+                            self.buffer
+                        )
                     )
+
+                    if source != current_source:
+                        continue
+
+                    self.translation_in_progress = False
+                    self.send_after_translation = False
+                    self.pending_translation = ""
 
                     self.preview.configure(
                         text=(
                             "Ошибка перевода: "
-                            f"{payload}"
+                            f"{error}"
                         ),
                         fg="#ff7676",
+                    )
+
+                    self.hint.configure(
+                        text=(
+                            "Enter — повторить · "
+                            "Esc/F9 — закрыть"
+                        )
                     )
 
         except queue.Empty:

@@ -3,7 +3,7 @@ name: Build CoD2 Chat Translator Release Candidate
 on:
   push:
     branches:
-      - feature/outgoing-chat-prototype
+      - 'feature/**'
       - 'hotfix/**'
   workflow_dispatch:
 
