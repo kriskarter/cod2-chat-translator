@@ -47,6 +47,8 @@ If you press Enter before translation has finished, CoD2 Chat Translator waits f
 
 **v1.17.2:** the incoming Windows overlay now uses native per-pixel alpha transparency, eliminating the intermittent black flash seen when new messages appeared. The visible-message selector now offers 4–8 messages, with 4 by default.
 
+**v1.17.3:** fixed F9 keyboard input when the Ukrainian Windows layout is active. Windows keyboard-layout detection is now handled correctly; Ukrainian, Russian and English layouts were verified in-game.
+
 ## What's new in v1.16
 
 The translator now works in both directions.

@@ -1,5 +1,5 @@
 {
-  "notes_ru": "Исправлена редкая чёрная вспышка входящего оверлея при появлении новых сообщений. В Windows игровой оверлей теперь использует нативную поканальную прозрачность вместо старой chroma-key схемы. Также количество одновременно видимых сообщений расширено до 4–8, по умолчанию показываются 4 сообщения.",
-  "notes_uk": "Виправлено рідкісний чорний спалах вхідного оверлею під час появи нових повідомлень. У Windows ігровий оверлей тепер використовує нативну поканальну прозорість замість старої chroma-key схеми. Також кількість одночасно видимих повідомлень розширено до 4–8, за замовчуванням показуються 4 повідомлення.",
-  "notes_en": "Fixed a rare black flash in the incoming overlay when new messages appear. On Windows, the gameplay overlay now uses native per-pixel alpha transparency instead of the previous chroma-key approach. The visible message range is also now 4–8, with 4 messages shown by default."
+  "notes_ru": "Исправлена проблема исходящего чата F9, из-за которой при украинской раскладке Windows текст мог не вводиться в оверлей. Исправлено определение активной раскладки Windows. Ввод проверен в игре с украинской, русской и английской раскладками.",
+  "notes_uk": "Виправлено проблему вихідного чату F9, через яку з українською розкладкою Windows текст міг не вводитися в оверлей. Виправлено визначення активної розкладки Windows. Введення перевірено в грі з українською, російською та англійською розкладками.",
+  "notes_en": "Fixed an F9 outgoing-chat issue where text could fail to appear in the overlay when the Ukrainian Windows keyboard layout was active. Windows keyboard-layout detection has been corrected. Ukrainian, Russian and English layouts were verified in-game."
 }
