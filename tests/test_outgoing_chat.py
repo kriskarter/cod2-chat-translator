@@ -9,6 +9,8 @@ from outgoing_chat import (
     VK_RSHIFT,
     VK_SHIFT,
     apply_keyboard_modifier_state,
+    configure_keyboard_user32_api,
+    foreground_keyboard_layout,
     OutgoingChatController,
     default_source_code_from_ui_language,
     language_code_for_name,
@@ -158,6 +160,135 @@ class OutgoingChatControllerTests(unittest.TestCase):
                 state[VK_SHIFT] & 0x80
             )
 
+
+    def test_keyboard_win32_api_has_explicit_handle_signatures(self):
+        class FakeFunction:
+            def __init__(self, result=None):
+                self.result = result
+                self.argtypes = None
+                self.restype = None
+                self.calls = []
+
+            def __call__(self, *args):
+                self.calls.append(args)
+                return self.result
+
+        class FakeUser32:
+            def __init__(self):
+                self.GetForegroundWindow = FakeFunction(
+                    12345
+                )
+                self.GetWindowThreadProcessId = FakeFunction(
+                    77
+                )
+                self.GetKeyboardLayout = FakeFunction(
+                    0x0000000000000422
+                )
+                self.GetKeyboardState = FakeFunction(
+                    1
+                )
+                self.ToUnicodeEx = FakeFunction(
+                    1
+                )
+
+        user32 = FakeUser32()
+
+        configure_keyboard_user32_api(
+            user32
+        )
+
+        self.assertIsNotNone(
+            user32.GetForegroundWindow.restype
+        )
+        self.assertIsNotNone(
+            user32.GetWindowThreadProcessId.restype
+        )
+        self.assertIsNotNone(
+            user32.GetKeyboardLayout.restype
+        )
+        self.assertIsNotNone(
+            user32.ToUnicodeEx.restype
+        )
+
+    def test_foreground_keyboard_layout_uses_foreground_thread(self):
+        class FakeUser32:
+            def __init__(self):
+                self.thread_ids = []
+
+            def GetForegroundWindow(self):
+                return 12345
+
+            def GetWindowThreadProcessId(
+                self,
+                hwnd,
+                _process_id,
+            ):
+                self.hwnd = hwnd
+                return 77
+
+            def GetKeyboardLayout(
+                self,
+                thread_id,
+            ):
+                self.thread_ids.append(
+                    thread_id
+                )
+
+                if thread_id == 77:
+                    return 0x00000422
+
+                return 0x00000409
+
+        user32 = FakeUser32()
+
+        layout = foreground_keyboard_layout(
+            user32
+        )
+
+        self.assertEqual(
+            int(layout) & 0xFFFF,
+            0x0422,
+        )
+        self.assertEqual(
+            user32.thread_ids,
+            [77],
+        )
+
+    def test_foreground_keyboard_layout_has_safe_fallback(self):
+        class FakeUser32:
+            def GetForegroundWindow(self):
+                return 0
+
+            def GetWindowThreadProcessId(
+                self,
+                _hwnd,
+                _process_id,
+            ):
+                raise AssertionError(
+                    "Must not be called"
+                )
+
+            def GetKeyboardLayout(
+                self,
+                thread_id,
+            ):
+                self.assert_thread = thread_id
+                return 0x00000409
+
+        user32 = FakeUser32()
+
+        layout = foreground_keyboard_layout(
+            user32
+        )
+
+        self.assertEqual(
+            int(layout) & 0xFFFF,
+            0x0409,
+        )
+        self.assertEqual(
+            user32.assert_thread,
+            0,
+        )
 
     def test_live_translation_uses_short_debounce(self):
         self.assertGreaterEqual(

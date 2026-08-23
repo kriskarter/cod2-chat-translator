@@ -131,6 +131,89 @@ def apply_keyboard_modifier_state(
         )
 
 
+def configure_keyboard_user32_api(
+    user32,
+) -> None:
+    """
+    Configure the Win32 calls used by F9 keyboard input.
+
+    Explicit pointer-sized HWND/HKL signatures are important
+    on 64-bit Windows. Without them ctypes may treat returned
+    handles as ordinary 32-bit integers.
+    """
+
+    user32.GetForegroundWindow.argtypes = []
+    user32.GetForegroundWindow.restype = (
+        wintypes.HWND
+    )
+
+    user32.GetWindowThreadProcessId.argtypes = [
+        wintypes.HWND,
+        ctypes.c_void_p,
+    ]
+    user32.GetWindowThreadProcessId.restype = (
+        wintypes.DWORD
+    )
+
+    user32.GetKeyboardLayout.argtypes = [
+        wintypes.DWORD,
+    ]
+    user32.GetKeyboardLayout.restype = (
+        ctypes.c_void_p
+    )
+
+    user32.GetKeyboardState.argtypes = [
+        ctypes.c_void_p,
+    ]
+    user32.GetKeyboardState.restype = (
+        wintypes.BOOL
+    )
+
+    user32.ToUnicodeEx.argtypes = [
+        wintypes.UINT,
+        wintypes.UINT,
+        ctypes.c_void_p,
+        wintypes.LPWSTR,
+        ctypes.c_int,
+        wintypes.UINT,
+        ctypes.c_void_p,
+    ]
+    user32.ToUnicodeEx.restype = ctypes.c_int
+
+
+def foreground_keyboard_layout(
+    user32,
+):
+    """
+    Return the keyboard layout of the actual foreground
+    window thread.
+
+    If Windows cannot resolve that thread, fall back to the
+    current thread layout instead of using an invalid HWND.
+    """
+
+    hwnd = user32.GetForegroundWindow()
+
+    if hwnd:
+        thread_id = int(
+            user32.GetWindowThreadProcessId(
+                hwnd,
+                None,
+            )
+            or 0
+        )
+
+        if thread_id:
+            layout = user32.GetKeyboardLayout(
+                thread_id
+            )
+
+            if layout:
+                return layout
+
+    return user32.GetKeyboardLayout(0)
+
+
 def normalize_outgoing_text(text: str) -> str:
     text = (text or "").replace("\r", " ").replace("\n", " ")
     return re.sub(r"\s+", " ", text).strip()
@@ -415,22 +498,8 @@ class KeyboardCapture:
             self.down_keys,
         )
 
-        hwnd = int(
-            user32.GetForegroundWindow() or 0
-        )
-
-        thread_id = 0
-        if hwnd:
-            thread_id = int(
-                user32.GetWindowThreadProcessId(
-                    wintypes.HWND(hwnd),
-                    None,
-                )
-                or 0
-            )
-
-        layout = user32.GetKeyboardLayout(
-            thread_id
+        layout = foreground_keyboard_layout(
+            user32
         )
 
         buffer = ctypes.create_unicode_buffer(8)
@@ -484,6 +553,10 @@ class KeyboardCapture:
         kernel32 = ctypes.WinDLL(
             "kernel32",
             use_last_error=True,
+        )
+
+        configure_keyboard_user32_api(
+            user32
         )
 
         class KBDLLHOOKSTRUCT(
@@ -540,11 +613,6 @@ class KeyboardCapture:
             wintypes.UINT,
         ]
         user32.GetMessageW.restype = ctypes.c_int
-
-        user32.GetKeyboardLayout.argtypes = [
-            wintypes.DWORD,
-        ]
-        user32.GetKeyboardLayout.restype = ctypes.c_void_p
 
         @HOOKPROC
         def hook_proc(
