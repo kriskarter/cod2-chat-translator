@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from translation_fallback import (
     TranslationFallbackError,
@@ -43,6 +44,51 @@ class TranslationFallbackTests(
             "zh-cn",
         )
 
+    def test_auto_source_is_detected_before_mymemory(self):
+        observed = {}
+
+        class FakeTranslator:
+            def translate(
+                self,
+                text,
+            ):
+                return "привет"
+
+        def factory(
+            source,
+            target,
+        ):
+            observed["source"] = source
+            observed["target"] = target
+            return FakeTranslator()
+
+        with patch(
+            "translation_fallback.detect_source_language",
+            return_value="pl",
+        ):
+            result = translate_with_mymemory(
+                "czesc",
+                source="auto",
+                target="ru",
+                translator_factory=factory,
+            )
+
+        self.assertEqual(
+            result,
+            "привет",
+        )
+
+        self.assertEqual(
+            observed["source"],
+            "pl",
+        )
+
+        self.assertEqual(
+            observed["target"],
+            "ru",
+        )
+
+
     def test_service_error_detection(self):
         self.assertTrue(
             looks_like_service_error(
@@ -57,6 +103,14 @@ class TranslationFallbackTests(
                 "Error 500 (Server Error). "
                 "That's an error. "
                 "Please try again later."
+            )
+        )
+
+        self.assertTrue(
+            looks_like_service_error(
+                "'AUTO' IS AN INVALID SOURCE LANGUAGE. "
+                "EXAMPLE: LANGPAIR=EN|IT USING 2 LETTER ISO "
+                "OR RFC3066 LIKE ZH-CN."
             )
         )
 
