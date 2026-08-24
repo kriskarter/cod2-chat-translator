@@ -6,6 +6,7 @@ from translation_fallback import (
     _mymemory_language_code,
     looks_like_service_error,
     translate_with_mymemory,
+    unchanged_translation_needs_fallback,
 )
 
 
@@ -87,6 +88,50 @@ class TranslationFallbackTests(
             observed["target"],
             "ru",
         )
+
+
+    def test_unchanged_known_language_requires_fallback(self):
+        self.assertTrue(
+            unchanged_translation_needs_fallback(
+                "добрый вечер",
+                "добрый вечер",
+                source_language="ru",
+                target_language="en",
+            )
+        )
+
+        self.assertFalse(
+            unchanged_translation_needs_fallback(
+                "добрый вечер",
+                "Good evening",
+                source_language="ru",
+                target_language="en",
+            )
+        )
+
+    def test_unchanged_same_language_is_allowed(self):
+        self.assertFalse(
+            unchanged_translation_needs_fallback(
+                "привет",
+                "привет",
+                source_language="ru",
+                target_language="ru",
+            )
+        )
+
+    def test_unchanged_auto_source_can_trigger_fallback(self):
+        with patch(
+            "translation_fallback.detect_source_language",
+            return_value="en",
+        ):
+            self.assertTrue(
+                unchanged_translation_needs_fallback(
+                    "good evening",
+                    "good evening",
+                    source_language="auto",
+                    target_language="ru",
+                )
+            )
 
 
     def test_service_error_detection(self):

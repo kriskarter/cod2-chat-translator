@@ -150,6 +150,74 @@ def detect_source_language(
         ) from exc
 
 
+def unchanged_translation_needs_fallback(
+    source_text: str,
+    translated_text: str,
+    source_language: str,
+    target_language: str,
+) -> bool:
+    """
+    Return True when a translator returned the original text
+    even though source and target languages are different.
+
+    Some unofficial translation endpoints can fail silently
+    and simply return the input text. That must trigger our
+    fallback instead of being shown as a valid translation.
+    """
+
+    source_value = re.sub(
+        r"\s+",
+        " ",
+        str(source_text or ""),
+    ).strip().casefold()
+
+    translated_value = re.sub(
+        r"\s+",
+        " ",
+        str(translated_text or ""),
+    ).strip().casefold()
+
+    if not source_value:
+        return False
+
+    if source_value != translated_value:
+        return False
+
+    if not any(
+        ch.isalpha()
+        for ch in source_value
+    ):
+        return False
+
+    effective_source = str(
+        source_language or ""
+    ).strip().lower()
+
+    target = str(
+        target_language or ""
+    ).strip().lower()
+
+    if not target:
+        return False
+
+    if effective_source == "auto":
+        try:
+            effective_source = (
+                detect_source_language(
+                    source_text
+                )
+            )
+        except Exception:
+            # If detection is uncertain, do not create
+            # a false failure for a valid unchanged word.
+            return False
+
+    return (
+        bool(effective_source)
+        and effective_source != target
+    )
+
+
 def _mymemory_language_code(
     language: str,
 ) -> str:

@@ -31,6 +31,7 @@ from translation_fallback import (
     looks_like_service_error as
     looks_like_fallback_service_error,
     translate_with_mymemory,
+    unchanged_translation_needs_fallback,
 )
 
 if os.name == "nt":
@@ -2432,8 +2433,22 @@ class TranslatorWorker(threading.Thread):
                 self._translator_target = target
             try:
                 result = self._translator.translate(text=text) or text
+
                 if looks_like_translation_service_error(result):
-                    raise TranslationServiceTemporaryError("upstream server error")
+                    raise TranslationServiceTemporaryError(
+                        "upstream server error"
+                    )
+
+                if unchanged_translation_needs_fallback(
+                    text,
+                    result,
+                    source_language="auto",
+                    target_language=target,
+                ):
+                    raise TranslationServiceTemporaryError(
+                        "primary translator returned source text"
+                    )
+
                 self.cache[key] = result
                 self.cache.move_to_end(key)
                 while len(self.cache) > self.cache_limit:

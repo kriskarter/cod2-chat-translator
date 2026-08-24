@@ -13,6 +13,7 @@ from outgoing_send import send_cod2_chat_message
 from translation_fallback import (
     looks_like_service_error,
     translate_with_mymemory,
+    unchanged_translation_needs_fallback,
 )
 
 try:
@@ -382,6 +383,12 @@ def translate_outgoing_text(
             not translated
             or looks_like_service_error(
                 translated
+            )
+            or unchanged_translation_needs_fallback(
+                source,
+                translated,
+                source_language=source_language,
+                target_language=target,
             )
         ):
             raise RuntimeError(
