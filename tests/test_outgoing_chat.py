@@ -78,7 +78,7 @@ class OutgoingChatControllerTests(unittest.TestCase):
     def test_outgoing_uses_fallback_when_google_fails(self):
         with (
             patch(
-                "deep_translator.GoogleTranslator",
+                "outgoing_chat.translate_with_google_fast",
                 side_effect=RuntimeError(
                     "google down"
                 ),
@@ -107,17 +107,10 @@ class OutgoingChatControllerTests(unittest.TestCase):
 
 
     def test_outgoing_falls_back_when_google_returns_source_text(self):
-        class FakeGoogle:
-            def translate(
-                self,
-                text,
-            ):
-                return "добрый вечер"
-
         with (
             patch(
-                "deep_translator.GoogleTranslator",
-                return_value=FakeGoogle(),
+                "outgoing_chat.translate_with_google_fast",
+                return_value="добрый вечер",
             ),
             patch(
                 "outgoing_chat.translate_with_mymemory",

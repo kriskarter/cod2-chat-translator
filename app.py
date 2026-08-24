@@ -31,6 +31,7 @@ from translation_fallback import (
     looks_like_service_error as
     looks_like_fallback_service_error,
     translate_with_mymemory,
+    translate_with_google_fast,
     unchanged_translation_needs_fallback,
 )
 
@@ -2401,8 +2402,18 @@ class TranslatorWorker(threading.Thread):
         return False
 
     def _new_translator(self, target: str):
-        from deep_translator import GoogleTranslator
-        return GoogleTranslator(source="auto", target=target)
+        class FastGoogleTranslator:
+            def translate(
+                _self,
+                text,
+            ):
+                return translate_with_google_fast(
+                    text,
+                    source="auto",
+                    target=target,
+                )
+
+        return FastGoogleTranslator()
 
     def _translate_fallback(
         self,
@@ -2424,7 +2435,9 @@ class TranslatorWorker(threading.Thread):
             return self.cache[key]
 
         last_error: Optional[Exception] = None
-        delays = (0.0, 0.35, 0.8)
+        # One short Google attempt only. A game chat must
+        # fall back quickly instead of retrying for seconds.
+        delays = (0.0,)
         for attempt, delay in enumerate(delays):
             if delay:
                 time.sleep(delay)

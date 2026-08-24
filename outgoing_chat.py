@@ -13,6 +13,7 @@ from outgoing_send import send_cod2_chat_message
 from translation_fallback import (
     looks_like_service_error,
     translate_with_mymemory,
+    translate_with_google_fast,
     unchanged_translation_needs_fallback,
 )
 
@@ -28,7 +29,7 @@ APP_TITLE = "CoD2 Outgoing Chat"
 TARGET_CODE = "en"
 TARGET_NAME = "English"
 MAX_MESSAGE_CHARS = 160
-LIVE_TRANSLATION_DELAY_MS = 350
+LIVE_TRANSLATION_DELAY_MS = 250
 
 SETTINGS_DIR_NAME = "CoD2ChatTranslator"
 OUTGOING_CONFIG_FILE = "outgoing_chat.json"
@@ -365,15 +366,12 @@ def translate_outgoing_text(
     ):
         return source
 
-    from deep_translator import GoogleTranslator
-
-    primary_error = None
-
     try:
-        translated = GoogleTranslator(
+        translated = translate_with_google_fast(
+            source,
             source=source_language,
             target=target,
-        ).translate(source)
+        )
 
         translated = normalize_outgoing_text(
             str(translated or "")
@@ -398,8 +396,8 @@ def translate_outgoing_text(
 
         return translated
 
-    except Exception as exc:
-        primary_error = exc
+    except Exception:
+        pass
 
     # Google occasionally changes/blocks the mobile
     # endpoint used by deep-translator. Do not fail F9:

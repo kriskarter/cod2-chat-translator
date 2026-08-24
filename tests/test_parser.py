@@ -655,7 +655,7 @@ class ParserTests(unittest.TestCase):
         self.assertFalse(looks_like_translation_service_error("server error on our match?"))
         self.assertFalse(looks_like_translation_service_error("ошибка сервера"))
 
-    def test_translator_retries_after_upstream_500_page(self):
+    def test_translator_falls_back_after_upstream_500_page(self):
         worker = TranslatorWorker(
             jobs=__import__("queue").Queue(),
             ui_queue=__import__("queue").Queue(),
@@ -686,13 +686,16 @@ class ParserTests(unittest.TestCase):
             return fake
 
         worker._new_translator = factory
+        worker._translate_fallback = (
+            lambda _text, _target: "да"
+        )
         original_sleep = time.sleep
         try:
             time.sleep = lambda _seconds: None
             self.assertEqual(worker._translate("yes", "ru"), "да")
         finally:
             time.sleep = original_sleep
-        self.assertEqual(len(created), 2)
+        self.assertEqual(len(created), 1)
         self.assertEqual(worker.cache[("ru", "yes")], "да")
 
     def test_translator_uses_fallback_after_google_failure(self):

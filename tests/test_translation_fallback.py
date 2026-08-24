@@ -3,8 +3,11 @@ from unittest.mock import patch
 
 from translation_fallback import (
     TranslationFallbackError,
+    GOOGLE_REQUEST_TIMEOUT,
+    MYMEMORY_REQUEST_TIMEOUT,
     _mymemory_language_code,
     looks_like_service_error,
+    translate_with_google_fast,
     translate_with_mymemory,
     unchanged_translation_needs_fallback,
 )
@@ -13,6 +16,133 @@ from translation_fallback import (
 class TranslationFallbackTests(
     unittest.TestCase
 ):
+    def test_google_fast_translation_uses_bounded_timeout(self):
+        observed = {}
+
+        class FakeResponse:
+            status_code = 200
+            text = (
+                '<html><body>'
+                '<div class="result-container">'
+                'Good evening'
+                '</div>'
+                '</body></html>'
+            )
+
+        def fake_get(
+            url,
+            params=None,
+            headers=None,
+            timeout=None,
+        ):
+            observed["url"] = url
+            observed["params"] = params
+            observed["timeout"] = timeout
+            return FakeResponse()
+
+        result = translate_with_google_fast(
+            "добрый вечер",
+            source="ru",
+            target="en",
+            request_get=fake_get,
+        )
+
+        self.assertEqual(
+            result,
+            "Good evening",
+        )
+
+        self.assertEqual(
+            observed["timeout"],
+            GOOGLE_REQUEST_TIMEOUT,
+        )
+
+        self.assertEqual(
+            observed["params"]["sl"],
+            "ru",
+        )
+
+        self.assertEqual(
+            observed["params"]["tl"],
+            "en",
+        )
+
+    def test_google_fast_rejects_unchanged_source_text(self):
+        class FakeResponse:
+            status_code = 200
+            text = (
+                '<div class="result-container">'
+                'добрый вечер'
+                '</div>'
+            )
+
+        with self.assertRaises(
+            TranslationFallbackError
+        ):
+            translate_with_google_fast(
+                "добрый вечер",
+                source="ru",
+                target="en",
+                request_get=(
+                    lambda *_args, **_kwargs:
+                    FakeResponse()
+                ),
+            )
+
+    def test_direct_mymemory_uses_bounded_timeout(self):
+        observed = {}
+
+        class FakeResponse:
+            status_code = 200
+
+            def json(self):
+                return {
+                    "responseData": {
+                        "translatedText":
+                        "Good evening"
+                    },
+                    "matches": [],
+                }
+
+        def fake_get(
+            url,
+            params=None,
+            headers=None,
+            timeout=None,
+        ):
+            observed["url"] = url
+            observed["params"] = params
+            observed["timeout"] = timeout
+            return FakeResponse()
+
+        result = translate_with_mymemory(
+            "добрый вечер",
+            source="ru",
+            target="en",
+            request_get=fake_get,
+        )
+
+        self.assertEqual(
+            result,
+            "Good evening",
+        )
+
+        self.assertEqual(
+            observed["timeout"],
+            MYMEMORY_REQUEST_TIMEOUT,
+        )
+
+        self.assertIn(
+            "ru",
+            observed["params"]["langpair"].lower(),
+        )
+
+        self.assertIn(
+            "en",
+            observed["params"]["langpair"].lower(),
+        )
+
+
     def test_mymemory_language_mapping(self):
         self.assertTrue(
             _mymemory_language_code(

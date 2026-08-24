@@ -3,9 +3,42 @@ from __future__ import annotations
 import re
 from typing import Callable, Optional
 
+import requests
+from bs4 import BeautifulSoup
+
 
 class TranslationFallbackError(RuntimeError):
     """Both the primary and fallback translation path failed."""
+
+
+GOOGLE_MOBILE_URL = (
+    "https://translate.google.com/m"
+)
+
+MYMEMORY_URL = (
+    "https://api.mymemory.translated.net/get"
+)
+
+# Gameplay must not wait several seconds for a broken
+# translation endpoint.
+GOOGLE_REQUEST_TIMEOUT = (
+    0.40,  # connect
+    0.70,  # read
+)
+
+MYMEMORY_REQUEST_TIMEOUT = (
+    0.45,  # connect
+    0.90,  # read
+)
+
+TRANSLATION_HTTP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 "
+        "(Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 "
+        "Chrome/120 Safari/537.36"
+    ),
+}
 
 
 def looks_like_service_error(result: object) -> bool:
@@ -218,6 +251,136 @@ def unchanged_translation_needs_fallback(
     )
 
 
+def translate_with_google_fast(
+    text: str,
+    source: str,
+    target: str,
+    request_get=None,
+    timeout=GOOGLE_REQUEST_TIMEOUT,
+) -> str:
+    """
+    Fast bounded Google mobile translation.
+
+    deep-translator uses the same public Google mobile
+    endpoint but does not set a requests timeout.
+    For a game overlay we prefer a quick fallback instead
+    of blocking for several seconds.
+    """
+
+    source_text = str(
+        text or ""
+    ).strip()
+
+    if not source_text:
+        raise TranslationFallbackError(
+            "Empty Google translation source"
+        )
+
+    if (
+        source != "auto"
+        and source == target
+    ):
+        return source_text
+
+    getter = request_get or requests.get
+
+    try:
+        response = getter(
+            GOOGLE_MOBILE_URL,
+            params={
+                "sl": source,
+                "tl": target,
+                "q": source_text,
+            },
+            headers=TRANSLATION_HTTP_HEADERS,
+            timeout=timeout,
+        )
+
+        status = int(
+            getattr(
+                response,
+                "status_code",
+                200,
+            )
+            or 200
+        )
+
+        if status >= 400:
+            raise TranslationFallbackError(
+                f"Google HTTP {status}"
+            )
+
+        page = str(
+            getattr(
+                response,
+                "text",
+                "",
+            )
+            or ""
+        )
+
+        if not page:
+            raise TranslationFallbackError(
+                "Google returned empty page"
+            )
+
+        soup = BeautifulSoup(
+            page,
+            "html.parser",
+        )
+
+        element = soup.find(
+            "div",
+            {"class": "result-container"},
+        )
+
+        if element is None:
+            element = soup.find(
+                "div",
+                {"class": "t0"},
+            )
+
+        if element is None:
+            raise TranslationFallbackError(
+                "Google translation not found"
+            )
+
+        result = str(
+            element.get_text(
+                strip=True
+            )
+            or ""
+        ).strip()
+
+        if looks_like_service_error(
+            result
+        ):
+            raise TranslationFallbackError(
+                "Google returned invalid response"
+            )
+
+        if unchanged_translation_needs_fallback(
+            source_text,
+            result,
+            source_language=source,
+            target_language=target,
+        ):
+            raise TranslationFallbackError(
+                "Google returned source text"
+            )
+
+        return result
+
+    except TranslationFallbackError:
+        raise
+
+    except Exception as exc:
+        raise TranslationFallbackError(
+            "Google translation timeout "
+            "or network failure"
+        ) from exc
+
+
 def _mymemory_language_code(
     language: str,
 ) -> str:
@@ -310,6 +473,8 @@ def translate_with_mymemory(
     translator_factory: Optional[
         Callable[[str, str], object]
     ] = None,
+    request_get=None,
+    timeout=MYMEMORY_REQUEST_TIMEOUT,
 ) -> str:
     """
     Emergency translation path.
@@ -339,20 +504,115 @@ def translate_with_mymemory(
     if effective_source == target:
         return source_text
 
-    factory = (
-        translator_factory
-        or new_mymemory_translator
-    )
-
     try:
-        translator = factory(
-            effective_source,
-            target,
-        )
+        if translator_factory is not None:
+            translator = translator_factory(
+                effective_source,
+                target,
+            )
 
-        result = translator.translate(
-            text=source_text
-        )
+            result = translator.translate(
+                text=source_text
+            )
+
+        else:
+            getter = (
+                request_get
+                or requests.get
+            )
+
+            source_code = (
+                _mymemory_language_code(
+                    effective_source
+                )
+            )
+
+            target_code = (
+                _mymemory_language_code(
+                    target
+                )
+            )
+
+            response = getter(
+                MYMEMORY_URL,
+                params={
+                    "q": source_text,
+                    "langpair": (
+                        f"{source_code}"
+                        "|"
+                        f"{target_code}"
+                    ),
+                },
+                headers=TRANSLATION_HTTP_HEADERS,
+                timeout=timeout,
+            )
+
+            status = int(
+                getattr(
+                    response,
+                    "status_code",
+                    200,
+                )
+                or 200
+            )
+
+            if status >= 400:
+                raise TranslationFallbackError(
+                    f"MyMemory HTTP {status}"
+                )
+
+            data = response.json()
+
+            response_data = (
+                data.get(
+                    "responseData",
+                    {}
+                )
+                if isinstance(
+                    data,
+                    dict,
+                )
+                else {}
+            )
+
+            result = (
+                response_data.get(
+                    "translatedText"
+                )
+                or ""
+            )
+
+            if not result:
+                matches = (
+                    data.get(
+                        "matches",
+                        []
+                    )
+                    if isinstance(
+                        data,
+                        dict,
+                    )
+                    else []
+                )
+
+                for match in matches:
+                    if not isinstance(
+                        match,
+                        dict,
+                    ):
+                        continue
+
+                    candidate = str(
+                        match.get(
+                            "translation",
+                            "",
+                        )
+                        or ""
+                    ).strip()
+
+                    if candidate:
+                        result = candidate
+                        break
 
         result = str(
             result or ""
@@ -366,6 +626,16 @@ def translate_with_mymemory(
                 "an invalid response"
             )
 
+        if unchanged_translation_needs_fallback(
+            source_text,
+            result,
+            source_language=effective_source,
+            target_language=target,
+        ):
+            raise TranslationFallbackError(
+                "Fallback returned source text"
+            )
+
         return result
 
     except TranslationFallbackError:
@@ -373,6 +643,6 @@ def translate_with_mymemory(
 
     except Exception as exc:
         raise TranslationFallbackError(
-            "Fallback translation "
-            "service unavailable"
+            "Fallback translation timeout "
+            "or network failure"
         ) from exc
