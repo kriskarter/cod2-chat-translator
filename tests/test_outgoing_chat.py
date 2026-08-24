@@ -75,6 +75,37 @@ class OutgoingChatControllerTests(unittest.TestCase):
         )
 
 
+    def test_outgoing_uses_fallback_when_google_fails(self):
+        with (
+            patch(
+                "deep_translator.GoogleTranslator",
+                side_effect=RuntimeError(
+                    "google down"
+                ),
+            ),
+            patch(
+                "outgoing_chat.translate_with_mymemory",
+                return_value="hello everyone",
+            ) as fallback,
+        ):
+            result = translate_outgoing_text(
+                "привет всем",
+                target="en",
+                source_language="ru",
+            )
+
+        self.assertEqual(
+            result,
+            "hello everyone",
+        )
+
+        fallback.assert_called_once_with(
+            "привет всем",
+            source="ru",
+            target="en",
+        )
+
+
     def test_embedded_constructor_initializes_route_before_overlay(self):
         class DummyVar:
             def __init__(self, value=""):

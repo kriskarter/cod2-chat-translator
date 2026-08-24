@@ -27,6 +27,11 @@ from server_catalog import (
 )
 
 from outgoing_chat import LANGUAGES, OutgoingChatController
+from translation_fallback import (
+    looks_like_service_error as
+    looks_like_fallback_service_error,
+    translate_with_mymemory,
+)
 
 if os.name == "nt":
     from ctypes import wintypes
@@ -2353,27 +2358,10 @@ class TranslationServiceTemporaryError(RuntimeError):
 
 
 def looks_like_translation_service_error(result: str) -> bool:
-    """Reject HTML/server-error pages accidentally returned as translated text.
-
-    deep-translator normally raises for transport failures, but an upstream
-    endpoint can occasionally return a human-readable 5xx page as text.  Such
-    content must never be cached or displayed as a translation.
-    """
-    folded = re.sub(r"\s+", " ", str(result or "")).strip().casefold()
-    if not folded:
-        return False
-    if "<!doctype html" in folded or "<html" in folded:
-        return True
-    markers = (
-        "error 500",
-        "server error",
-        "that's an error",
-        "there was an error",
-        "please try again later",
-        "that's all we know",
+    """Reject invalid upstream responses before caching/display."""
+    return looks_like_fallback_service_error(
+        result
     )
-    hits = sum(1 for marker in markers if marker in folded)
-    return hits >= 2 or folded.startswith("error 500")
 
 
 
@@ -2415,6 +2403,17 @@ class TranslatorWorker(threading.Thread):
         from deep_translator import GoogleTranslator
         return GoogleTranslator(source="auto", target=target)
 
+    def _translate_fallback(
+        self,
+        text: str,
+        target: str,
+    ) -> str:
+        return translate_with_mymemory(
+            text,
+            source="auto",
+            target=target,
+        )
+
     def _translate(self, text: str, target: str) -> str:
         if self._skip_translation(text):
             return text
@@ -2447,7 +2446,46 @@ class TranslatorWorker(threading.Thread):
                 if attempt == len(delays) - 1:
                     break
 
-        raise TranslationServiceTemporaryError("translation service temporarily unavailable") from last_error
+        # Google failed after all retries.
+        # Try a completely separate translation backend.
+        try:
+            result = (
+                self._translate_fallback(
+                    text,
+                    target,
+                )
+                or text
+            )
+
+            if (
+                looks_like_translation_service_error(
+                    result
+                )
+            ):
+                raise (
+                    TranslationServiceTemporaryError(
+                        "fallback server error"
+                    )
+                )
+
+            self.cache[key] = result
+            self.cache.move_to_end(key)
+
+            while (
+                len(self.cache)
+                > self.cache_limit
+            ):
+                self.cache.popitem(
+                    last=False
+                )
+
+            return result
+
+        except Exception as fallback_error:
+            raise TranslationServiceTemporaryError(
+                "translation services "
+                "temporarily unavailable"
+            ) from fallback_error
 
     def run(self) -> None:
         while not self.stop_event.is_set():

@@ -695,6 +695,56 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(len(created), 2)
         self.assertEqual(worker.cache[("ru", "yes")], "да")
 
+    def test_translator_uses_fallback_after_google_failure(self):
+        worker = TranslatorWorker(
+            jobs=__import__("queue").Queue(),
+            ui_queue=__import__("queue").Queue(),
+            target_getter=lambda: "ru",
+            hide_same_getter=lambda: False,
+            slang_enabled_getter=lambda: False,
+            slang_style_getter=lambda: "live",
+            stop_event=threading.Event(),
+        )
+
+        class AlwaysBroken:
+            def translate(self, text):
+                raise RuntimeError(
+                    "google unavailable"
+                )
+
+        worker._new_translator = (
+            lambda _target: AlwaysBroken()
+        )
+
+        worker._translate_fallback = (
+            lambda _text, _target: "привет"
+        )
+
+        original_sleep = time.sleep
+
+        try:
+            time.sleep = (
+                lambda _seconds: None
+            )
+
+            self.assertEqual(
+                worker._translate(
+                    "hello",
+                    "ru",
+                ),
+                "привет",
+            )
+        finally:
+            time.sleep = original_sleep
+
+        self.assertEqual(
+            worker.cache[
+                ("ru", "hello")
+            ],
+            "привет",
+        )
+
+
     def test_translator_never_caches_repeated_upstream_error_page(self):
         worker = TranslatorWorker(
             jobs=__import__("queue").Queue(),
@@ -711,6 +761,19 @@ class ParserTests(unittest.TestCase):
                 return "Error 500 (Server Error). That's an error. Please try again later."
 
         worker._new_translator = lambda _target: AlwaysBroken()
+
+        def broken_fallback(
+            _text,
+            _target,
+        ):
+            raise RuntimeError(
+                "fallback down"
+            )
+
+        worker._translate_fallback = (
+            broken_fallback
+        )
+
         original_sleep = time.sleep
         try:
             time.sleep = lambda _seconds: None

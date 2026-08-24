@@ -10,6 +10,10 @@ from ctypes import wintypes
 from pathlib import Path
 
 from outgoing_send import send_cod2_chat_message
+from translation_fallback import (
+    looks_like_service_error,
+    translate_with_mymemory,
+)
 
 try:
     import tkinter as tk
@@ -362,21 +366,61 @@ def translate_outgoing_text(
 
     from deep_translator import GoogleTranslator
 
-    translated = GoogleTranslator(
-        source=source_language,
-        target=target,
-    ).translate(source)
+    primary_error = None
 
-    translated = normalize_outgoing_text(
-        str(translated or "")
-    )
+    try:
+        translated = GoogleTranslator(
+            source=source_language,
+            target=target,
+        ).translate(source)
 
-    if not translated:
-        raise RuntimeError(
-            "Сервис перевода вернул пустой ответ"
+        translated = normalize_outgoing_text(
+            str(translated or "")
         )
 
-    return translated
+        if (
+            not translated
+            or looks_like_service_error(
+                translated
+            )
+        ):
+            raise RuntimeError(
+                "Primary translator "
+                "returned no translation"
+            )
+
+        return translated
+
+    except Exception as exc:
+        primary_error = exc
+
+    # Google occasionally changes/blocks the mobile
+    # endpoint used by deep-translator. Do not fail F9:
+    # transparently switch to an independent backend.
+    try:
+        translated = translate_with_mymemory(
+            source,
+            source=source_language,
+            target=target,
+        )
+
+        translated = normalize_outgoing_text(
+            str(translated or "")
+        )
+
+        if not translated:
+            raise RuntimeError(
+                "Fallback returned "
+                "an empty translation"
+            )
+
+        return translated
+
+    except Exception as fallback_error:
+        raise RuntimeError(
+            "Сервисы перевода временно "
+            "недоступны"
+        ) from fallback_error
 
 
 def is_running_as_admin() -> bool:
