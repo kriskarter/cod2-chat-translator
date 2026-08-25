@@ -49,6 +49,8 @@ If you press Enter before translation has finished, CoD2 Chat Translator waits f
 
 **v1.17.3:** fixed F9 keyboard input when the Ukrainian Windows layout is active. Windows keyboard-layout detection is now handled correctly; Ukrainian, Russian and English layouts were verified in-game.
 
+**v1.17.4:** translation is now faster and more resilient when an online translation endpoint is slow or temporarily fails. Incoming chat and F9 use short bounded requests and automatically switch to a fallback translator when the primary result is unavailable, invalid or simply returns the original text. Incoming source language is detected locally before fallback translation. No user API key is required.
+
 ## What's new in v1.16
 
 The translator now works in both directions.
@@ -133,7 +135,7 @@ If automatic detection still fails, open **Server settings… → Choose game fo
 
 Choose the language you want to read and start playing.
 
-> Translation requires an internet connection. Only the extracted chat-message text is sent to the online translation service.
+> Translation requires an internet connection. Only the extracted chat-message text is sent to the active online translation service. Starting with v1.17.4, a slow or failed primary translation can automatically fall back to a secondary online service. The full `console_mp.log` is never sent.
 
 ## Servers and profiles
 
@@ -249,7 +251,7 @@ The updater attempts to roll back replaced files if installation fails. If Setup
 
 **Do not publish the complete log.**
 
-The app filters it locally and sends only the extracted chat-message text to the translation service.
+The app filters the log locally and sends only the extracted chat-message text to the active translation service. The primary translation path uses Google's public mobile translation endpoint; when v1.17.4 fallback is needed, the same extracted message text may instead be sent to MyMemory. The complete `console_mp.log`, server configuration and unrelated console output are not sent.
 
 ## Troubleshooting
 

@@ -9,8 +9,8 @@ import app
 
 
 class BrandingTests(unittest.TestCase):
-    def test_v1173_branding(self):
-        self.assertEqual(app.APP_VERSION, "1.17.3")
+    def test_v1174_branding(self):
+        self.assertEqual(app.APP_VERSION, "1.17.4")
         self.assertEqual(app.PROJECT_AUTHOR, "kriskarter")
         self.assertEqual(app.PROJECT_PROFILE_URL, "https://github.com/kriskarter")
         self.assertEqual(app.UI_STRINGS["ru"]["about"], "О программе")
