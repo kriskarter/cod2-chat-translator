@@ -13,7 +13,7 @@ from outgoing_send import send_cod2_chat_message
 from translation_fallback import (
     looks_like_service_error,
     translate_with_mymemory,
-    translate_with_google_fast,
+    translate_with_google_resilient,
     unchanged_translation_needs_fallback,
 )
 
@@ -367,7 +367,7 @@ def translate_outgoing_text(
         return source
 
     try:
-        translated = translate_with_google_fast(
+        translated = translate_with_google_resilient(
             source,
             source=source_language,
             target=target,

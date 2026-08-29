@@ -4,10 +4,13 @@ from unittest.mock import patch
 from translation_fallback import (
     TranslationFallbackError,
     GOOGLE_REQUEST_TIMEOUT,
+    GOOGLE_GTX_REQUEST_TIMEOUT,
     MYMEMORY_REQUEST_TIMEOUT,
     _mymemory_language_code,
     looks_like_service_error,
     translate_with_google_fast,
+    translate_with_google_gtx,
+    translate_with_google_resilient,
     translate_with_mymemory,
     unchanged_translation_needs_fallback,
 )
@@ -66,6 +69,126 @@ class TranslationFallbackTests(
             observed["params"]["tl"],
             "en",
         )
+
+    def test_google_gtx_translation_uses_json_route(self):
+        observed = {}
+
+        class FakeResponse:
+            status_code = 200
+
+            def json(self):
+                return [
+                    [
+                        ["Good ", "Добрый ", None, None],
+                        ["evening", "вечер", None, None],
+                    ],
+                    None,
+                    "ru",
+                ]
+
+        def fake_get(
+            url,
+            params=None,
+            headers=None,
+            timeout=None,
+        ):
+            observed["url"] = url
+            observed["params"] = params
+            observed["timeout"] = timeout
+            return FakeResponse()
+
+        result = translate_with_google_gtx(
+            "добрый вечер",
+            source="ru",
+            target="en",
+            request_get=fake_get,
+        )
+
+        self.assertEqual(
+            result,
+            "Good evening",
+        )
+
+        self.assertEqual(
+            observed["timeout"],
+            GOOGLE_GTX_REQUEST_TIMEOUT,
+        )
+
+        self.assertEqual(
+            observed["params"]["client"],
+            "gtx",
+        )
+
+        self.assertEqual(
+            observed["params"]["sl"],
+            "ru",
+        )
+
+        self.assertEqual(
+            observed["params"]["tl"],
+            "en",
+        )
+
+    def test_google_resilient_uses_gtx_after_mobile_failure(self):
+        with (
+            patch(
+                "translation_fallback.translate_with_google_fast",
+                side_effect=TranslationFallbackError(
+                    "mobile unavailable"
+                ),
+            ) as mobile,
+            patch(
+                "translation_fallback.translate_with_google_gtx",
+                return_value="Good evening",
+            ) as gtx,
+        ):
+            result = translate_with_google_resilient(
+                "добрый вечер",
+                source="ru",
+                target="en",
+            )
+
+        self.assertEqual(
+            result,
+            "Good evening",
+        )
+
+        mobile.assert_called_once_with(
+            "добрый вечер",
+            source="ru",
+            target="en",
+        )
+
+        gtx.assert_called_once_with(
+            "добрый вечер",
+            source="ru",
+            target="en",
+        )
+
+    def test_google_resilient_fails_only_after_both_routes_fail(self):
+        with (
+            patch(
+                "translation_fallback.translate_with_google_fast",
+                side_effect=TranslationFallbackError(
+                    "mobile unavailable"
+                ),
+            ),
+            patch(
+                "translation_fallback.translate_with_google_gtx",
+                side_effect=TranslationFallbackError(
+                    "gtx unavailable"
+                ),
+            ),
+        ):
+            with self.assertRaises(
+                TranslationFallbackError
+            ):
+                translate_with_google_resilient(
+                    "добрый вечер",
+                    source="ru",
+                    target="en",
+                )
+
 
     def test_google_fast_rejects_unchanged_source_text(self):
         class FakeResponse:

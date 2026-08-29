@@ -31,7 +31,7 @@ from translation_fallback import (
     looks_like_service_error as
     looks_like_fallback_service_error,
     translate_with_mymemory,
-    translate_with_google_fast,
+    translate_with_google_resilient,
     unchanged_translation_needs_fallback,
 )
 
@@ -2407,7 +2407,7 @@ class TranslatorWorker(threading.Thread):
                 _self,
                 text,
             ):
-                return translate_with_google_fast(
+                return translate_with_google_resilient(
                     text,
                     source="auto",
                     target=target,

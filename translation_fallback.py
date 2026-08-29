@@ -15,6 +15,11 @@ GOOGLE_MOBILE_URL = (
     "https://translate.google.com/m"
 )
 
+GOOGLE_GTX_URL = (
+    "https://translate.googleapis.com/"
+    "translate_a/single"
+)
+
 MYMEMORY_URL = (
     "https://api.mymemory.translated.net/get"
 )
@@ -26,9 +31,17 @@ GOOGLE_REQUEST_TIMEOUT = (
     0.70,  # read
 )
 
+# Second Google route. Give it slightly more room than the
+# ultra-fast mobile attempt, but still keep gameplay responsive.
+GOOGLE_GTX_REQUEST_TIMEOUT = (
+    0.60,  # connect
+    1.20,  # read
+)
+
+# MyMemory is the final independent online fallback.
 MYMEMORY_REQUEST_TIMEOUT = (
-    0.45,  # connect
-    0.90,  # read
+    0.65,  # connect
+    1.30,  # read
 )
 
 TRANSLATION_HTTP_HEADERS = {
@@ -379,6 +392,156 @@ def translate_with_google_fast(
             "Google translation timeout "
             "or network failure"
         ) from exc
+
+
+def translate_with_google_gtx(
+    text: str,
+    source: str,
+    target: str,
+    request_get=None,
+    timeout=GOOGLE_GTX_REQUEST_TIMEOUT,
+) -> str:
+    """
+    Secondary free Google translation route.
+
+    Unlike the mobile HTML endpoint, this endpoint returns JSON.
+    Having two different Google routes makes a temporary HTML
+    change / slowdown less likely to break gameplay translation.
+    """
+
+    source_text = str(
+        text or ""
+    ).strip()
+
+    if not source_text:
+        raise TranslationFallbackError(
+            "Empty GTX translation source"
+        )
+
+    if (
+        source != "auto"
+        and source == target
+    ):
+        return source_text
+
+    getter = request_get or requests.get
+
+    try:
+        response = getter(
+            GOOGLE_GTX_URL,
+            params={
+                "client": "gtx",
+                "sl": source,
+                "tl": target,
+                "dt": "t",
+                "q": source_text,
+            },
+            headers=TRANSLATION_HTTP_HEADERS,
+            timeout=timeout,
+        )
+
+        status = int(
+            getattr(
+                response,
+                "status_code",
+                200,
+            )
+            or 200
+        )
+
+        if status >= 400:
+            raise TranslationFallbackError(
+                f"Google GTX HTTP {status}"
+            )
+
+        data = response.json()
+
+        if (
+            not isinstance(data, list)
+            or not data
+            or not isinstance(data[0], list)
+        ):
+            raise TranslationFallbackError(
+                "Google GTX returned invalid JSON"
+            )
+
+        parts = []
+
+        for item in data[0]:
+            if (
+                isinstance(item, list)
+                and item
+                and item[0] is not None
+            ):
+                parts.append(
+                    str(item[0])
+                )
+
+        result = "".join(parts).strip()
+
+        if looks_like_service_error(
+            result
+        ):
+            raise TranslationFallbackError(
+                "Google GTX returned invalid response"
+            )
+
+        if unchanged_translation_needs_fallback(
+            source_text,
+            result,
+            source_language=source,
+            target_language=target,
+        ):
+            raise TranslationFallbackError(
+                "Google GTX returned source text"
+            )
+
+        return result
+
+    except TranslationFallbackError:
+        raise
+
+    except Exception as exc:
+        raise TranslationFallbackError(
+            "Google GTX timeout or network failure"
+        ) from exc
+
+
+def translate_with_google_resilient(
+    text: str,
+    source: str,
+    target: str,
+) -> str:
+    """
+    Try two independent free Google routes.
+
+    Route 1 stays deliberately very fast. If it is temporarily
+    slow or its HTML changes, immediately try the JSON route.
+    MyMemory remains outside this helper as the independent
+    final fallback used by incoming and outgoing translation.
+    """
+
+    first_error = None
+
+    try:
+        return translate_with_google_fast(
+            text,
+            source=source,
+            target=target,
+        )
+    except Exception as exc:
+        first_error = exc
+
+    try:
+        return translate_with_google_gtx(
+            text,
+            source=source,
+            target=target,
+        )
+    except Exception as second_error:
+        raise TranslationFallbackError(
+            "Google translation routes unavailable"
+        ) from second_error
 
 
 def _mymemory_language_code(
