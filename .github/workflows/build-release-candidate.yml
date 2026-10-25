@@ -122,6 +122,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: CoD2-Chat-Translator-RC-Installer
           path: |
             release/CoD2ChatTranslator_Setup_v*.exe
