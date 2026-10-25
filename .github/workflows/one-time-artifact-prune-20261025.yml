@@ -1,0 +1,70 @@
+# One-time cleanup of obsolete CI artifacts only.
+# This intentionally does not change GitHub Releases, release assets, source files or tags.
+name: One-time CoD2 stale CI artifact cleanup (2026-10-25)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/one-time-artifact-prune-20261025.yml'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  prune-old-cod2-artifacts:
+    if: github.repository == 'kriskarter/cod2-chat-translator'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Remove only old recognized CI build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "kriskarter/cod2-chat-translator"
+          inventory="$RUNNER_TEMP/cod2-artifacts.tsv"
+          candidates="$RUNNER_TEMP/cod2-cleanup-candidates.tsv"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | [.id, .name, .size_in_bytes, .created_at, .expired] | @tsv' > "$inventory"
+          : > "$candidates"
+          while IFS=$'\t' read -r id name size created expired; do
+            [[ "$id" =~ ^[0-9]+$ ]] || continue
+            [[ "$size" =~ ^[0-9]+$ ]] || continue
+            [[ "$expired" == "false" ]] || continue
+            [[ "$created" < "2026-10-01T00:00:00Z" ]] || continue
+            case "$name" in
+              CoD2ChatTranslator-Windows|CoD2-Chat-Translator-RC-Installer) ;;
+              *) continue ;;
+            esac
+            # Keep last Aug 29 RC as a fallback until its original expiry.
+            [[ "$id" == "9710656664" ]] && continue
+            printf '%s\t%s\t%s\n' "$id" "$name" "$size" >> "$candidates"
+          done < "$inventory"
+          count=$(wc -l < "$candidates")
+          if (( count > 100 )); then
+            echo "::error::Unexpected artifact count $count; refusing cleanup"
+            exit 1
+          fi
+          echo "Found $count approved old build artifacts to delete"
+          deleted=0
+          bytes=0
+          while IFS=$'\t' read -r id name size; do
+            [[ -n "$id" ]] || continue
+            # DELETE /actions/artifacts/{id}: no release-asset deletion endpoint used.
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id"
+            deleted=$((deleted + 1))
+            bytes=$((bytes + size))
+            echo "Deleted artifact id=$id name=$name bytes=$size"
+          done < "$candidates"
+          echo "Deleted $deleted old CI artifacts; freed $bytes bytes"
+          {
+            echo "### One-time CoD2 CI artifact cleanup"
+            echo "Deleted temporary artifacts: $deleted"
+            echo "Freed bytes (artifact ZIP sizes): $bytes"
+            echo "Preserved latest RC: 9710656664"
+            echo "GitHub Release assets: untouched"
+          } >> "$GITHUB_STEP_SUMMARY"
