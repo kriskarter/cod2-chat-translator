@@ -1,0 +1,133 @@
+name: One-time cleanup 21 legacy CoD2 test archives 2026-10-27
+
+on:
+  push:
+    branches:
+      - maintenance/cleanup-21-cod2-test-artifacts-20261027
+    paths:
+      - .github/workflows/one-time-cleanup-21-legacy-tests-20261027.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  cleanup:
+    if: github.repository == 'kriskarter/cod2-chat-translator' && github.ref == 'refs/heads/maintenance/cleanup-21-cod2-test-artifacts-20261027'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Guarded exact-ID preflight and one-time deletion (21 only)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          test "$GH_REPO" = "kriskarter/cod2-chat-translator"
+          cat > /tmp/cod2-cleanup-manifest.txt <<'MANIFEST'
+          KEEP WINDOWS 40237349377 12615397701 81608307
+          KEEP WINDOWS 40237217526 12614843422 81606665
+          KEEP WINDOWS 40236957441 12615870535 81607400
+          KEEP RC 33238504970 9710656664 41497394
+          DELETE UNIFIED 32462083148 9439304125 25969833
+          DELETE UNIFIED 32460343577 9438747242 25969400
+          DELETE UNIFIED 32458873828 9438236175 25966959
+          DELETE UNIFIED 32457531867 9437784536 25968487
+          DELETE UNIFIED 32456106273 9437312164 19660278
+          DELETE UNIFIED 32455475873 9437109652 19659342
+          DELETE OUTGOING 32453525513 9436460227 19002542
+          DELETE OUTGOING 32404043982 9419595461 19000746
+          DELETE OUTGOING 32403240822 9419300182 19002183
+          DELETE OUTGOING 32400981028 9418471658 18994669
+          DELETE OUTGOING 32399471465 9417953649 18994543
+          DELETE OUTGOING 32397693591 9417288315 18990533
+          DELETE OUTGOING 32396949997 9417015521 18990738
+          DELETE OUTGOING 32395505057 9416496600 18989159
+          DELETE OUTGOING 32393569686 9415797942 18990747
+          DELETE OUTGOING 32393038160 9415618444 18987974
+          DELETE QUICK 32265026461 9369862032 31519406
+          DELETE QUICK 32234440480 9358449641 31520328
+          DELETE QUICK 32233039403 9357974700 31525849
+          DELETE QUICK 32230847894 9357194781 31522265
+          DELETE QUICK 32229648452 9356787226 31520847
+          MANIFEST
+
+          name_of() {
+            case "$1" in
+              UNIFIED) printf 'CoD2-Chat-Translator-UNIFIED-TEST';;
+              OUTGOING) printf 'CoD2-Outgoing-Chat-Prototype-TEST';;
+              QUICK) printf 'CoD2ChatTranslator-QuickConnect-TEST';;
+              WINDOWS) printf 'CoD2ChatTranslator-Windows';;
+              RC) printf 'CoD2-Chat-Translator-RC-Installer';;
+              *) return 1;;
+            esac
+          }
+          workflow_of() {
+            case "$1" in
+              UNIFIED|OUTGOING) printf '.github/workflows/build-outgoing-chat-prototype.yml';;
+              QUICK) printf '.github/workflows/build-quick-connect-test.yml';;
+              WINDOWS) printf '.github/workflows/build-windows.yml';;
+              RC) printf '.github/workflows/build-release-candidate.yml';;
+              *) return 1;;
+            esac
+          }
+
+          verify() {
+            local operation="$1" kind="$2" run="$3" id="$4" bytes="$5"
+            local name path doc date run_info
+            name="$(name_of "$kind")"
+            path="$(workflow_of "$kind")"
+            doc="$(gh api "repos/$GH_REPO/actions/artifacts/$id")"
+            echo "$doc" | jq -e --arg name "$name" \
+               --argjson id "$id" --argjson run "$run" --argjson bytes "$bytes" \
+               '.id == $id and .workflow_run.id == $run and .name == $name and .size_in_bytes == $bytes and .expired == false' >/dev/null
+            date="$(echo "$doc" | jq -r .created_at)"
+            run_info="$(gh api "repos/$GH_REPO/actions/runs/$run")"
+            echo "$run_info" | jq -e --arg path "$path" \
+               '.path == $path and .conclusion == "success" and .status == "completed"' >/dev/null
+            if [[ "$operation" == "DELETE" ]]; then
+              [[ "$date" < "2026-09-01T00:00:00Z" ]] || { echo "Refused unexpected deletion date id=$id"; return 1; }
+            elif [[ "$operation" == "KEEP" && "$kind" == "WINDOWS" ]]; then
+              [[ "$date" > "2026-10-25T00:00:00Z" ]] || { echo "Keep archive changed"; return 1; }
+            elif [[ "$operation" == "KEEP" && "$kind" == "RC" ]]; then
+              [[ "$date" > "2026-08-28T00:00:00Z" ]] || { echo "Keep RC changed"; return 1; }
+            else echo "Invalid manifest action"; return 1
+            fi
+          }
+
+          delete_count=0; retain_count=0; bytes_total=0
+          while read -r operation kind run id bytes; do
+            verify "$operation" "$kind" "$run" "$id" "$bytes"
+            if [[ "$operation" == "DELETE" ]]; then
+              delete_count=$((delete_count+1))
+              bytes_total=$((bytes_total+bytes))
+            else
+              retain_count=$((retain_count+1))
+            fi
+          done < /tmp/cod2-cleanup-manifest.txt
+
+          [[ "$delete_count" -eq 21 && "$retain_count" -eq 4 && "$bytes_total" -eq 490746828 ]] || { echo "Manifest drift; no deletion"; exit 4; }
+          echo "PREFLIGHT_PASS delete=21 keep=4 expected_bytes=490746828"
+          removed=0
+          while read -r operation kind run id bytes; do
+            [[ "$operation" == "DELETE" ]] || continue
+            gh api -X DELETE "repos/$GH_REPO/actions/artifacts/$id" >/dev/null
+            removed=$((removed+1))
+            echo "DELETED exact_id=$id name=$(name_of "$kind") verified_bytes=$bytes"
+          done < /tmp/cod2-cleanup-manifest.txt
+          [[ "$removed" -eq 21 ]] || exit 6
+          retained=0
+          while read -r operation kind run id bytes; do
+            [[ "$operation" == "KEEP" ]] || continue
+            verify "$operation" "$kind" "$run" "$id" "$bytes"
+            retained=$((retained+1))
+          done < /tmp/cod2-cleanup-manifest.txt
+          [[ "$retained" -eq 4 ]] || exit 7
+          echo "COMPLETE deleted=$removed freed_bytes=490746828 recent_builds_and_rc_verified=$retained"
+          {
+            echo "### Legacy CoD2 test archive cleanup"
+            echo "- 21 old test-only archives deleted: 490,746,828 bytes (468.0 MiB)."
+            echo "- Three Oct 25 Windows build artifacts and Aug 29 RC verified preserved."
+            echo "- No releases, release assets, source, runs, TSA or other repositories touched."
+          } >> "$GITHUB_STEP_SUMMARY"
