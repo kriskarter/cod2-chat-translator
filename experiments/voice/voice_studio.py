@@ -19,7 +19,11 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 import numpy as np
 
 from voice_native_overlay import VoiceNativeOverlay
-from voice_quality import evaluate_transcription
+from voice_quality import evaluate_transcription, RecognitionQuality
+from voice_vosk_ru import (
+    MODEL_NAME as VOSK_RU_TEST,
+    ensure_vosk_model, is_vosk_model, recognize_vosk, vosk_quality_reason,
+)
 from voice_capture_setup import ensure_voice_capture
 from voice_nick_research import VoiceNickResearch
 from voice_screen_probe import (
@@ -46,7 +50,7 @@ from voice_engine import (
 
 APP_NAME = "CoD2 Voice Prototype"
 LIVE_POLL_SECONDS = 0.08
-SUPPORTED_MODELS = ("tiny", "base")
+SUPPORTED_MODELS = ("tiny", "base", VOSK_RU_TEST)
 SUPPORTED_TARGETS = {"Русский": "ru", "Українська": "uk", "English": "en"}
 
 
@@ -175,7 +179,7 @@ class VoiceStudio:
         # Tk is only the editing/fallback surface; gameplay uses native Win32.
         self.root.after(200, self._apply_overlay_window_style)
         self.root.after(1200, self._keep_overlay_topmost)
-        self.worker = threading.Thread(target=self._worker_loop, daemon=True, name="VoiceWhisperWorker")
+        self.worker = threading.Thread(target=self._worker_loop, daemon=True, name="VoiceASRWorker")
         self.worker.start()
         self.translation_worker = threading.Thread(
             target=self._translate_loop, daemon=True, name="VoiceTranslationWorker"
@@ -217,9 +221,9 @@ class VoiceStudio:
 
         settings = ttk.Frame(outer)
         settings.pack(fill="x", pady=(12, 8))
-        ttk.Label(settings, text="Модель Whisper:").pack(side="left")
+        ttk.Label(settings, text="Распознавание:").pack(side="left")
         ttk.Combobox(
-            settings, state="readonly", width=8, textvariable=self.model_var,
+            settings, state="readonly", width=21, textvariable=self.model_var,
             values=SUPPORTED_MODELS,
         ).pack(side="left", padx=(6, 16))
         ttk.Label(settings, text="Перевод на:").pack(side="left")
@@ -712,7 +716,7 @@ class VoiceStudio:
             self.mode_var.set("Остановлено")
 
     def _preload_model(self, gen: int, model: str, fast: bool):
-        """Start model loading before the first incoming voice packet arrives."""
+        """Warm selected speech-recognition model before voice arrives."""
         self.jobs.put_nowait((gen, AudioJob(0, b"", "preload"), model, "", False, fast))
 
     def _enqueue(self, gen: int, raw: bytes, origin: str, model: str, target: str, translate: bool, fast: bool):
@@ -800,47 +804,80 @@ class VoiceStudio:
                 queue_seconds = max(0.0, time.monotonic() - job.queued_at)
                 model_seconds = 0.0
                 if self.model is None or self.current_model_name != model_name:
-                    self.events.put(("status", gen, f"Загружаю Whisper {model_name} (при первом запуске скачивается модель)…"))
-                    from faster_whisper import WhisperModel
                     loading = time.perf_counter()
-                    self.model = WhisperModel(
-                        model_name, device="cpu", compute_type="int8",
-                        cpu_threads=max(1, min(4, os.cpu_count() or 2)),
-                        download_root=str(app_data_folder() / "models"),
-                    )
+                    if is_vosk_model(model_name):
+                        self.events.put(("status", gen, (
+                            "Загружаю Vosk RU (русский язык; тест скорости)…"
+                        )))
+                        path = ensure_vosk_model(
+                            app_data_folder() / "vosk_models",
+                            status=lambda message: self.events.put(
+                                ("status", gen, message)
+                            ),
+                        )
+                        from vosk import Model, SetLogLevel
+                        SetLogLevel(-1)
+                        self.model = Model(str(path))
+                    else:
+                        self.events.put(("status", gen, (
+                            f"Загружаю Whisper {model_name} "
+                            "(при первом запуске скачивается модель)…"
+                        )))
+                        from faster_whisper import WhisperModel
+                        self.model = WhisperModel(
+                            model_name, device="cpu", compute_type="int8",
+                            cpu_threads=max(1, min(4, os.cpu_count() or 2)),
+                            download_root=str(app_data_folder() / "models"),
+                        )
                     self.current_model_name = model_name
                     model_seconds = time.perf_counter() - loading
                 if job.origin == "preload":
                     self.events.put(("status", gen, (
-                        f"Whisper {model_name} готов ({model_seconds:.1f} с). "
+                        f"{model_name} готов ({model_seconds:.1f} с). "
                         "Ожидаю новых голосовых сообщений."
                     )))
                     continue
-                self.events.put(("status", gen, f"Распознаю фрагмент {job.seq}…"))
+                mode_label = "Vosk RU" if is_vosk_model(model_name) else "Whisper"
+                self.events.put((
+                    "status", gen, f"{mode_label}: распознаю фрагмент {job.seq}…"
+                ))
                 inference_start = time.perf_counter()
-                samples = to_whisper_audio(job.raw_pcm)
-                pieces, info = self.model.transcribe(
-                    samples,
-                    language=None,
-                    **asr_profile(fast),
-                )
-                pieces = list(pieces)  # inference occurs during iteration
-                asr_seconds = time.perf_counter() - inference_start
-                recognized = " ".join(
-                    segment.text.strip() for segment in pieces if segment.text.strip()
-                ).strip()
-                language = str(info.language or "auto")
-                probability = float(getattr(info, "language_probability", 0.0) or 0.0)
                 seconds = len(job.raw_pcm) / BYTE_RATE
+                if is_vosk_model(model_name):
+                    recognized = recognize_vosk(self.model, job.raw_pcm)
+                    # Russian is selected by user, NOT automatically detected.
+                    language = "ru"
+                    probability = None  # Vosk does not provide Whisper language score.
+                    reason = vosk_quality_reason(recognized)
+                    verdict = RecognitionQuality(
+                        trustworthy=reason is None, reason=reason or ""
+                    )
+                else:
+                    samples = to_whisper_audio(job.raw_pcm)
+                    pieces, info = self.model.transcribe(
+                        samples, language=None, **asr_profile(fast),
+                    )
+                    pieces = list(pieces)  # inference occurs during iteration
+                    recognized = " ".join(
+                        segment.text.strip() for segment in pieces if segment.text.strip()
+                    ).strip()
+                    language = str(info.language or "auto")
+                    probability = float(
+                        getattr(info, "language_probability", 0.0) or 0.0
+                    )
+                    verdict = evaluate_transcription(
+                        recognized, language, probability, pieces, seconds
+                    )
+                asr_seconds = time.perf_counter() - inference_start
                 timings = {
                     "queue_seconds": queue_seconds,
                     "model_seconds": model_seconds,
                     "asr_seconds": asr_seconds,
-                    "total_seconds": max(0.0, time.monotonic() - job.queued_at),
+                    "total_seconds": max(
+                        0.0, time.monotonic() - job.queued_at
+                    ),
+                    "engine": mode_label,
                 }
-                verdict = evaluate_transcription(
-                    recognized, language, probability, pieces, seconds
-                )
                 if not verdict.trustworthy:
                     if gen == self.generation:
                         self.events.put(("uncertain", gen, {
@@ -876,7 +913,7 @@ class VoiceStudio:
                     except queue.Full:
                         self.events.put(("status", gen, "Очередь онлайн-перевода заполнена."))
             except Exception as exc:
-                self.events.put(("status", gen, f"Ошибка Whisper: {type(exc).__name__}: {exc}"))
+                self.events.put(("status", gen, f"Ошибка распознавания: {type(exc).__name__}: {exc}"))
             finally:
                 self.jobs.task_done()
 
@@ -921,7 +958,7 @@ class VoiceStudio:
                         f"⚠ Пропущено: {payload['reason']}. "
                         f"Черновик: {payload['text'] or 'нет текста'} "
                         f"[очередь {payload['queue_seconds']:.1f}с; "
-                        f"Whisper {payload['asr_seconds']:.1f}с]"
+                        f"{payload['engine']} {payload['asr_seconds']:.1f}с]"
                     )
                 elif event_type == "translation":
                     if payload["translation"]:
@@ -957,18 +994,23 @@ class VoiceStudio:
                 elif event_type == "result":
                     self.count += 1
                     self.count_var.set(f"Распознано: {self.count}")
-                    lang = f"{payload['language'].upper()} ({payload['probability']:.0%})"
+                    lang = (
+                        f"{payload['language'].upper()} "
+                        f"({payload['probability']:.0%})"
+                        if payload['probability'] is not None
+                        else "RU (Vosk · язык задан вручную)"
+                    )
                     msg = f"🎙 [{lang}] {payload['text']}"
                     if payload["provider"] == "pending":
                         msg += "\n    ↳ Перевод запрошен (без блокировки Whisper)."
                     msg += (
                         f" [очередь {payload['queue_seconds']:.1f}с; "
-                        f"Whisper {payload['asr_seconds']:.1f}с; "
+                        f"{payload['engine']} {payload['asr_seconds']:.1f}с; "
                         f"модель {payload['model_seconds']:.1f}с]"
                     )
                     self._write_log(msg)
                     self.status_var.set(
-                        f"Распознано: Whisper {payload['asr_seconds']:.1f} с; "
+                        f"Распознано: {payload['engine']} {payload['asr_seconds']:.1f} с; "
                         f"очередь {payload['queue_seconds']:.1f} с; "
                         f"загрузка модели {payload['model_seconds']:.1f} с"
                     )

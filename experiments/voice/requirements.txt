@@ -3,3 +3,4 @@ faster-whisper==1.2.1
 numpy>=1.26,<3
 requests>=2.31,<3
 pillow==12.3.0
+vosk==0.3.45
