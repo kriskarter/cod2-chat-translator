@@ -582,7 +582,7 @@ class VoiceStudio:
         if not allowed:
             self.packet_capture_var.set(False)
             return
-        journal = app_data_folder() / f"voice_packet_probe_{os.getpid()}_{int(time.time())}.jsonl"
+        journal = app_data_folder() / f"voice_packet_probe_{os.getpid()}_{time.time_ns()}.jsonl"
         stopfile = journal.with_suffix(".stop")
         try:
             stopfile.unlink(missing_ok=True)
