@@ -18,6 +18,12 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 import numpy as np
 
+from voice_game_window import (
+    configure_overlay,
+    find_cod2_window,
+    make_cod2_borderless,
+    raise_overlay,
+)
 from voice_engine import (
     AudioJob,
     BYTE_RATE,
@@ -146,6 +152,8 @@ class VoiceStudio:
         self.target_var = tk.StringVar(value="Русский")
         self.translate_var = tk.BooleanVar(value=True)
         self.overlay_var = tk.BooleanVar(value=True)
+        # In-game subtitles must never intercept mouse clicks.
+        self.move_overlay_var = tk.BooleanVar(value=False)
         self.save_var = tk.BooleanVar(value=False)
         self.status_var = tk.StringVar(value="Готов. Выбери запись или запусти CoD2.")
         self.mode_var = tk.StringVar(value="Ожидание")
@@ -156,6 +164,9 @@ class VoiceStudio:
         self.overlay = None
         self._make_overlay()
         self._set_overlay_visibility()
+        # HWND wrapper may be created after the first Tk update cycle.
+        self.root.after(200, self._apply_overlay_window_style)
+        self.root.after(1200, self._keep_overlay_topmost)
         self.worker = threading.Thread(target=self._worker_loop, daemon=True, name="VoiceWhisperWorker")
         self.worker.start()
         self.root.after(100, self._pump_ui)
@@ -206,6 +217,10 @@ class VoiceStudio:
             command=self._set_overlay_visibility,
         ).pack(side="left", padx=(14, 0))
         ttk.Checkbutton(opts, text="Сохранять текстовый журнал", variable=self.save_var).pack(side="left", padx=(14, 0))
+        ttk.Checkbutton(
+            opts, text="Перемещать субтитры", variable=self.move_overlay_var,
+            command=self._apply_overlay_window_style,
+        ).pack(side="left", padx=(14, 0))
 
         btns = ttk.Frame(outer)
         btns.pack(fill="x", pady=(12, 7))
@@ -215,6 +230,10 @@ class VoiceStudio:
         self.record_btn.pack(side="left", padx=8)
         self.stop_btn = ttk.Button(btns, text="■ Стоп", command=self.stop)
         self.stop_btn.pack(side="left")
+        ttk.Button(
+            btns, text="CoD2 → поверх",
+            command=self.enable_cod2_borderless,
+        ).pack(side="left", padx=(10, 0))
         ttk.Button(btns, text="Очистить вывод", command=self._clear_log).pack(side="right")
 
         ttk.Label(outer, textvariable=self.status_var, wraplength=700).pack(fill="x", anchor="w")
@@ -230,8 +249,10 @@ class VoiceStudio:
         self.output.pack(fill="both", expand=True)
 
         ttk.Label(
-            outer, text="Не перехватывает микрофон. Ник игроков из voice.wav определить нельзя."
-                  " В эксклюзивном полноэкранном режиме оверлей может быть скрыт.",
+            outer, text="Субтитры поверх игры требуют оконный/borderless CoD2. "
+                  "Если в игре они не видны: открой консоль (~), введи /r_fullscreen 0, "
+                  "затем /vid_restart, после чего нажми «CoD2 → поверх». "
+                  "Сними «Перемещать субтитры» для кликов сквозь оверлей.",
             foreground="#777", wraplength=700,
         ).pack(anchor="w", pady=(8, 0))
 
@@ -261,17 +282,78 @@ class VoiceStudio:
         self.overlay = win
 
     def _start_drag(self, event):
-        self._drag_origin = (event.x_root - self.overlay.winfo_x(), event.y_root - self.overlay.winfo_y())
+        if not self.move_overlay_var.get():
+            return
+        self._drag_origin = (
+            event.x_root - self.overlay.winfo_x(),
+            event.y_root - self.overlay.winfo_y(),
+        )
 
     def _drag(self, event):
+        if not self.move_overlay_var.get() or not hasattr(self, "_drag_origin"):
+            return
         ox, oy = self._drag_origin
         self.overlay.geometry(f"+{event.x_root - ox}+{event.y_root - oy}")
+
+    def _apply_overlay_window_style(self):
+        if self.overlay is None or not self.overlay.winfo_exists():
+            return
+        if os.name == "nt":
+            try:
+                configure_overlay(
+                    self.overlay,
+                    click_through=not self.move_overlay_var.get(),
+                )
+            except Exception as exc:
+                self.status_var.set(
+                    f"Не удалось настроить оверлей: {type(exc).__name__}: {exc}"
+                )
+
+    def _keep_overlay_topmost(self):
+        # Win32 raises it without activating/focusing the game overlay.
+        # Does not circumvent exclusive fullscreen; borderless is required.
+        if self.overlay is not None and self.overlay_var.get() and os.name == "nt":
+            try:
+                raise_overlay(self.overlay)
+            except Exception:
+                pass
+        if self.root.winfo_exists():
+            self.root.after(1500, self._keep_overlay_topmost)
+
+    def enable_cod2_borderless(self):
+        if os.name != "nt":
+            self.status_var.set("Режим CoD2 → поверх доступен только в Windows.")
+            return
+        hwnd = find_cod2_window()
+        if not hwnd:
+            self.status_var.set(
+                "Окно CoD2 Multiplayer не найдено. Запусти игру."
+            )
+            return
+        ok, detail = make_cod2_borderless(hwnd)
+        if not ok:
+            self.status_var.set(detail)
+            messagebox.showinfo(
+                "CoD2 · субтитры поверх игры",
+                detail + "\n\n"
+                "В игре: консоль (~) → /r_fullscreen 0 → Enter, "
+                "затем /vid_restart → Enter. "
+                "После перезапуска изображения нажми эту кнопку снова.",
+            )
+            return
+        self.overlay_var.set(True)
+        self._set_overlay_visibility()
+        self._apply_overlay_window_style()
+        raise_overlay(self.overlay)
+        self.status_var.set(detail + ". Субтитры подняты поверх окна игры.")
 
     def _set_overlay_visibility(self):
         if self.overlay is None:
             return
         if self.overlay_var.get():
             self.overlay.deiconify()
+            self.overlay.attributes("-topmost", True)
+            self.root.after(60, self._apply_overlay_window_style)
         else:
             self.overlay.withdraw()
 

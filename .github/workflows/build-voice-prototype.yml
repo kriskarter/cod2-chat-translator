@@ -35,7 +35,7 @@ jobs:
       - name: Compile and unit tests
         shell: pwsh
         run: |
-          python -m py_compile experiments/voice/voice_engine.py experiments/voice/voice_studio.py
+          python -m py_compile experiments/voice/voice_engine.py experiments/voice/voice_game_window.py experiments/voice/voice_studio.py
           python -m unittest discover -s experiments/voice/tests -v
 
       - name: Build isolated portable Windows app
