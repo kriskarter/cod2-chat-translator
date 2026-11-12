@@ -20,10 +20,13 @@ import numpy as np
 
 from voice_native_overlay import VoiceNativeOverlay
 from voice_quality import evaluate_transcription
+from voice_capture_setup import ensure_voice_capture
+from voice_nick_research import VoiceNickResearch
 from voice_performance import asr_profile, capture_idle_seconds, discard_pending
 from voice_game_window import (
     configure_overlay,
     find_cod2_window,
+    is_cod2_running,
     make_cod2_borderless,
     raise_overlay,
 )
@@ -122,8 +125,8 @@ class VoiceStudio:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title(APP_NAME + " — эксперимент")
-        self.root.geometry("780x570")
-        self.root.minsize(620, 480)
+        self.root.geometry("805x620")
+        self.root.minsize(680, 520)
 
         self.events: queue.Queue = queue.Queue()
         self.jobs: queue.Queue[tuple[int, AudioJob, str, str, bool, bool]] = queue.Queue(maxsize=96)
@@ -144,6 +147,12 @@ class VoiceStudio:
         # In-game subtitles must never intercept mouse clicks.
         self.move_overlay_var = tk.BooleanVar(value=False)
         self.save_var = tk.BooleanVar(value=False)
+        self.auto_capture_var = tk.BooleanVar(value=True)
+        self.nick_research_var = tk.BooleanVar(value=True)
+        self.nick_input_var = tk.StringVar(value="")
+        self.capture_setup_var = tk.StringVar(value="Запись голоса: проверка настроек CoD2…")
+        self._capture_deferred = False
+        self.nick_research = None
         self.status_var = tk.StringVar(value="Готов. Выбери запись или запусти CoD2.")
         self.mode_var = tk.StringVar(value="Ожидание")
         self.count_var = tk.StringVar(value="Распознано: 0")
@@ -165,6 +174,8 @@ class VoiceStudio:
         )
         self.translation_worker.start()
         self.root.after(100, self._pump_ui)
+        self.root.after(700, self._prepare_capture)
+        self.root.after(5000, self._retry_deferred_capture)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
     def _build_ui(self):
@@ -220,8 +231,38 @@ class VoiceStudio:
             command=self._overlay_edit_changed,
         ).pack(side="left", padx=(14, 0))
 
+        capture = ttk.Frame(outer)
+        capture.pack(fill="x", pady=(7, 0))
+        ttk.Checkbutton(
+            capture, text="Автоматически включать запись голоса",
+            variable=self.auto_capture_var, command=self._prepare_capture,
+        ).pack(side="left")
+        ttk.Checkbutton(
+            capture, text="Исследовать ники (локально)",
+            variable=self.nick_research_var, command=self._prepare_capture,
+        ).pack(side="left", padx=(10, 0))
+        ttk.Button(
+            capture, text="Проверить настройки",
+            command=self._prepare_capture,
+        ).pack(side="right")
+        ttk.Label(
+            outer, textvariable=self.capture_setup_var, wraplength=740,
+            foreground="#4a5568",
+        ).pack(fill="x", anchor="w", pady=(3, 0))
+
+        nickrow = ttk.Frame(outer)
+        nickrow.pack(fill="x", pady=(5, 0))
+        ttk.Label(nickrow, text="Ник для последней реплики (если знаешь):").pack(side="left")
+        ttk.Entry(nickrow, textvariable=self.nick_input_var, width=18).pack(
+            side="left", padx=(6, 5)
+        )
+        ttk.Button(nickrow, text="Отметить", command=self.annotate_last_nick).pack(side="left")
+        ttk.Button(
+            nickrow, text="Открыть сведения о никах", command=self.open_nick_diagnostics,
+        ).pack(side="right")
+
         btns = ttk.Frame(outer)
-        btns.pack(fill="x", pady=(12, 7))
+        btns.pack(fill="x", pady=(10, 7))
         self.live_btn = ttk.Button(btns, text="▶ Слушать игру", command=self.start_live)
         self.live_btn.pack(side="left")
         self.record_btn = ttk.Button(btns, text="▶ Проверить запись", command=self.start_replay)
@@ -407,6 +448,73 @@ class VoiceStudio:
         )
         if filename:
             self.path_var.set(filename)
+            self._prepare_capture()
+
+    def _prepare_capture(self):
+        if not self.auto_capture_var.get():
+            self.capture_setup_var.set(
+                "Автоматическая настройка выключена. Запись требует winvoice_save_voice 1."
+            )
+            self._capture_deferred = False
+            return
+        path = Path(self.path_var.get().strip())
+        # Never touch configs for a sample like voice(3).wav in Downloads.
+        if path.name.casefold() != "voice.wav":
+            self.capture_setup_var.set(
+                "Для автоматической настройки выбери voice.wav в корне папки игры."
+            )
+            self._capture_deferred = False
+            return
+        running = is_cod2_running()
+        summary = ensure_voice_capture(
+            path, game_running=running,
+            include_logfile=self.nick_research_var.get(),
+        )
+        self._capture_deferred = summary.deferred > 0
+        if summary.found == 0:
+            message = "Не найдены игровые config_mp.cfg; проверь путь к CoD2 и профиль."
+        elif summary.failed:
+            message = (
+                f"Настройки CoD2: ошибок {summary.failed}/{summary.found}. "
+                f"{summary.error}"
+            )
+        elif summary.deferred:
+            message = (
+                f"Найдено профилей: {summary.found}. Игра уже запущена: "
+                "изменения будут применены после её закрытия. "
+                "Для включения прямо сейчас: /seta winvoice_save_voice 1 "
+                + (", /seta logfile 2" if self.nick_research_var.get() else "")
+            )
+        else:
+            message = (
+                f"Запись голоса настроена в {summary.ready} профилях "
+                f"(изменено {summary.changed}, резервные копии .cod2voice.bak). "
+                "Если игра уже была запущена, нужна следующая загрузка игры."
+            )
+        self.capture_setup_var.set(message)
+
+    def _retry_deferred_capture(self):
+        if self._capture_deferred and self.auto_capture_var.get():
+            self._prepare_capture()
+        if self.root.winfo_exists():
+            self.root.after(5000, self._retry_deferred_capture)
+
+    def annotate_last_nick(self):
+        if self.nick_research is None:
+            self.status_var.set("Включи «Исследовать ники» и «Слушать игру».")
+            return
+        if self.nick_research.annotate(self.nick_input_var.get()):
+            self.status_var.set("Пометка последней реплики сохранена локально.")
+            self.nick_input_var.set("")
+        else:
+            self.status_var.set("Сначала дождись реплики и введи ник игрока.")
+
+    def open_nick_diagnostics(self):
+        folder = app_data_folder()
+        if os.name == "nt":
+            os.startfile(str(folder))
+        else:
+            self.status_var.set("Папка диагностики: " + str(folder))
 
     def _clear_log(self):
         self.output.configure(state="normal")
@@ -430,7 +538,13 @@ class VoiceStudio:
         path = Path(self.path_var.get().strip())
         if not str(path):
             return
+        self._prepare_capture()
         gen, flag = self._start_session()
+        self.nick_research = (
+            VoiceNickResearch(
+                path, app_data_folder() / "voice_nickname_research.jsonl"
+            ) if self.nick_research_var.get() else None
+        )
         self._preload_model(gen, self.model_var.get(), self.fast_mode_var.get())
         self.mode_var.set("Режим: живая CoD2")
         self.status_var.set("Ожидаю новые байты в voice.wav (старые пропускаются).")
@@ -442,6 +556,7 @@ class VoiceStudio:
         ).start()
 
     def start_replay(self):
+        self.nick_research = None
         path = Path(self.path_var.get().strip())
         if not path.is_file():
             messagebox.showwarning(APP_NAME, "Выбери существующий voice.wav с записью.")
@@ -487,6 +602,18 @@ class VoiceStudio:
         for piece in split_utterances(raw):
             self.seq += 1
             item = (gen, AudioJob(self.seq, piece, origin), model, target, translate, fast)
+            if origin == "live" and self.nick_research is not None:
+                try:
+                    self.nick_research.observe(
+                        seq=self.seq,
+                        seconds=len(piece) / BYTE_RATE,
+                        origin=origin,
+                    )
+                except (OSError, ValueError) as exc:
+                    self.events.put((
+                        "status", gen,
+                        "Диагностика ника недоступна: " + str(exc)
+                    ))
             if origin == "live":
                 # Keep one *pending* live phrase, not a long backlog of stale
                 # commands. The running STT cannot be preempted.

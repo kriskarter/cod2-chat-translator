@@ -142,6 +142,30 @@ def find_cod2_window() -> int | None:
     return found[0] if found else None
 
 
+def is_cod2_running() -> bool:
+    """Detect even a minimized CoD2 process, to avoid editing its live config."""
+    if os.name != "nt":
+        return False
+    if find_cod2_window():
+        return True
+    # Some exclusive-fullscreen games do not expose a visible top-level HWND.
+    # tasklist also detects a minimized/hidden CoD2 process without injecting.
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["tasklist.exe", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            timeout=3,
+            check=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        raw = result.stdout.decode("latin-1", errors="replace").casefold()
+        return any(('"' + exe + '"') in raw for exe in COD2_EXES)
+    except (OSError, subprocess.SubprocessError):
+        # Conservative choice: do not write to configs if state is unknown.
+        return True
+
+
 def _monitor_rect(user32, hwnd) -> tuple[int, int, int, int]:
     monitor = user32.MonitorFromWindow(wintypes.HWND(hwnd), MONITOR_DEFAULTTONEAREST)
     if not monitor:

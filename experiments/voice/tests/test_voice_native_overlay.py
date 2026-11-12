@@ -45,7 +45,7 @@ class VoiceNativeOverlayTests(unittest.TestCase):
             surface = VoiceNativeOverlay(90, 75)
             surface.update("PL", "idę na B", "Иду на B")
         last = surface.surface.render_calls[-1]
-        self.assertEqual(last[0][0].nickname, "ГОЛОС · PL")
+        self.assertEqual(last[0][0].nickname, "Игрок (ник неизвестен) · PL")
         self.assertIn("Иду на B", last[0][0].translated)
         self.assertEqual(last[1]["x"], 90)
         self.assertEqual(last[1]["y"], 75)

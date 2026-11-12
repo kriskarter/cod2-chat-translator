@@ -20,6 +20,7 @@ from voice_game_window import (
     WS_VISIBLE,
     borderless_styles,
     find_cod2_window,
+    is_cod2_running,
     overlay_styles,
 )
 
@@ -44,6 +45,7 @@ class VoiceOverlayTests(unittest.TestCase):
         # Real Win32 signature smoke-test in the Windows CI runner.
         if os.name == "nt":
             self.assertIsNone(find_cod2_window())
+            self.assertFalse(is_cod2_running())
 
     def test_click_through_does_not_destroy_tk_layered_style(self):
         layered = 0x00080000
