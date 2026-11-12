@@ -19,6 +19,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 import numpy as np
 
 from voice_native_overlay import VoiceNativeOverlay
+from voice_quality import evaluate_transcription
 from voice_game_window import (
     configure_overlay,
     find_cod2_window,
@@ -67,23 +68,6 @@ def read_recording(path: Path) -> bytes:
     if len(raw) % 2:
         raw = raw[:-1]
     return raw
-
-
-def looks_like_speech(text: str, segments) -> bool:
-    """Suppress empty/obvious no-speech ASR results, not valid game slang."""
-    if len(text.strip()) < 2:
-        return False
-    if all(getattr(item, "no_speech_prob", 0.0) > 0.82 for item in segments):
-        return False
-    # Recurrent hallucinations on pure silence in Whisper tiny.
-    if text.strip().lower() in {
-        "thank you for watching.",
-        "thanks for watching.",
-        "подписывайтесь на канал.",
-        "субтитры сделал dimatorzok",
-    }:
-        return False
-    return True
 
 
 def translate_text(text: str, source: str, target: str) -> tuple[str, str]:
@@ -557,10 +541,24 @@ class VoiceStudio:
                 recognized = " ".join(
                     segment.text.strip() for segment in pieces if segment.text.strip()
                 ).strip()
-                if not looks_like_speech(recognized, pieces):
-                    continue
                 language = str(info.language or "auto")
                 probability = float(getattr(info, "language_probability", 0.0) or 0.0)
+                seconds = len(job.raw_pcm) / BYTE_RATE
+                verdict = evaluate_transcription(
+                    recognized, language, probability, pieces, seconds
+                )
+                if not verdict.trustworthy:
+                    # Do not send uncertain Japanese/other guesses to Google:
+                    # an apparently fluent translation can mask bad STT.
+                    if gen == self.generation:
+                        self.events.put(("uncertain", gen, {
+                            "language": language,
+                            "probability": probability,
+                            "text": recognized,
+                            "reason": verdict.reason,
+                            "seconds": seconds,
+                        }))
+                    continue
                 translation, provider = "", "off"
                 if do_translate and language != target:
                     translation, provider = translate_text(recognized, language, target)
@@ -587,6 +585,14 @@ class VoiceStudio:
                     continue
                 if event_type == "status":
                     self.status_var.set(payload)
+                elif event_type == "uncertain":
+                    self.status_var.set(
+                        f"Сомнительная речь ({payload['seconds']:.1f} с) — не переводил."
+                    )
+                    self._write_log(
+                        f"⚠ Пропущено: {payload['reason']}. "
+                        f"Черновик: {payload['text'] or 'нет текста'}"
+                    )
                 elif event_type == "result":
                     self.count += 1
                     self.count_var.set(f"Распознано: {self.count}")

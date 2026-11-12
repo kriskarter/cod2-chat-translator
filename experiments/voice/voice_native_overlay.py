@@ -50,10 +50,10 @@ class VoiceNativeOverlay:
 
     def update(self, language: str, original: str, translated: str = ""):
         self.language = str(language or "VOICE")
+        # The HUD should show the actual translation, not a second line of
+        # potentially unsupported non-Latin glyphs in square brackets.
+        # Original speech remains available in the main transcript window.
         self.text = str(translated or original or "").strip()
-        if translated and original and translated.strip() != original.strip():
-            # Keep source context, but prioritize user-language subtitles.
-            self.text = str(translated).strip() + "  [" + str(original).strip() + "]"
         if not self.text:
             self.text = "Ожидание входящего голоса"
         self.render()
