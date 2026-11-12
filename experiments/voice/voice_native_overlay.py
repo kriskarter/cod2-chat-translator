@@ -42,7 +42,7 @@ class VoiceNativeOverlay:
     def render(self):
         """Reuse native text/image renderer; title and subtitle stay legible."""
         item = SimpleNamespace(
-            nickname=f"🎙 {self.language}",
+            nickname=f"ГОЛОС · {self.language}",
             translated=self.text,
             original=self.text,
         )
