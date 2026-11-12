@@ -99,7 +99,11 @@ class VoiceNickResearch:
         self.last_voice_seq: int | None = None
         self._lock = threading.Lock()
 
-    def observe(self, *, seq: int, seconds: float, origin: str) -> None:
+    def observe(
+        self, *, seq: int, seconds: float, origin: str,
+        speaker_slot: int | None = None, speaker_name: str | None = None,
+        speaker_method: str = "unknown",
+    ) -> None:
         with self._lock:
             self.last_voice_seq = int(seq)
         if origin != "live":
@@ -109,8 +113,16 @@ class VoiceNickResearch:
             "event": "incoming_voice",
             "seq": int(seq),
             "seconds": round(float(seconds), 2),
-            "identity_status": "unknown",
-            "evidence_source": "voice.wav (PCM without talker ID)",
+            "identity_status": (
+                "packet_slot_and_checked_client_info"
+                if speaker_name is not None and speaker_slot is not None
+                else "packet_slot_only" if speaker_slot is not None
+                else "unknown"
+            ),
+            "speaker_slot": speaker_slot,
+            "speaker_name": speaker_name,
+            "speaker_method": str(speaker_method)[:100],
+            "evidence_source": "voice.wav + optional passive UDP event; audio has no talker ID",
             "console_clues_unverified": self.tailer.recent_clues(),
         })
 

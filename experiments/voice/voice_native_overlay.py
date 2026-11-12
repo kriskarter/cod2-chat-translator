@@ -36,20 +36,25 @@ class VoiceNativeOverlay:
         }
         self.text = "Ожидание входящего голоса"
         self.language = "VOICE"
+        self.nickname = "Игрок (ник неизвестен)"
         self.render()
         self.surface.show()
 
     def render(self):
         """Reuse native text/image renderer; title and subtitle stay legible."""
         item = SimpleNamespace(
-            nickname=f"Игрок (ник неизвестен) · {self.language}",
+            nickname=f"{self.nickname} · {self.language}",
             translated=self.text,
             original=self.text,
         )
         return self.surface.render([item], self.config, show_original=False)
 
-    def update(self, language: str, original: str, translated: str = ""):
+    def update(
+        self, language: str, original: str, translated: str = "",
+        nickname: str | None = None,
+    ):
         self.language = str(language or "VOICE")
+        self.nickname = str(nickname or "Игрок (ник неизвестен)")[:64]
         # The HUD should show the actual translation, not a second line of
         # potentially unsupported non-Latin glyphs in square brackets.
         # Original speech remains available in the main transcript window.

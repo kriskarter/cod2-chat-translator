@@ -23,6 +23,9 @@ class AudioJob:
     raw_pcm: bytes
     origin: str
     queued_at: float = field(default_factory=time.monotonic)
+    speaker_slot: int | None = None
+    speaker_label: str = "Игрок (ник неизвестен)"
+    speaker_evidence: str = "not_checked"
 
 
 class FileTail:

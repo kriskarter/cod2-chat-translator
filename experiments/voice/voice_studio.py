@@ -5,6 +5,7 @@ microphone recording, or game assets. Only reads new voice.wav bytes.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import queue
@@ -26,6 +27,9 @@ from voice_vosk_ru import (
 )
 from voice_capture_setup import ensure_voice_capture
 from voice_nick_research import VoiceNickResearch
+from voice_wire_cod2 import VoicePacketJournal, run_windows_packet_helper
+from voice_packet_launcher import launch_elevated_packet_probe, disable_probe
+from voice_cod2_names import read_cod2_client_names
 from voice_screen_probe import (
     FrameThrottle, capture_if_game_foreground,
 )
@@ -133,8 +137,8 @@ class VoiceStudio:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title(APP_NAME + " — эксперимент")
-        self.root.geometry("805x620")
-        self.root.minsize(680, 520)
+        self.root.geometry("850x690")
+        self.root.minsize(720, 560)
 
         self.events: queue.Queue = queue.Queue()
         self.jobs: queue.Queue[tuple[int, AudioJob, str, str, bool, bool]] = queue.Queue(maxsize=96)
@@ -162,6 +166,16 @@ class VoiceStudio:
         self.frame_capture_queue: queue.Queue = queue.Queue(maxsize=2)
         self.frame_throttle = FrameThrottle(min_interval=2.0)
         self.nick_input_var = tk.StringVar(value="")
+        self.packet_capture_var = tk.BooleanVar(value=False)
+        self.packet_capture_enabled = False
+        self.memory_names_var = tk.BooleanVar(value=False)
+        self.memory_names_enabled = False
+        self.packet_journal = None
+        self.packet_stop_file = None
+        self.live_game_root = None
+        self.packet_status_var = tk.StringVar(
+            value="ID говорящего: сбор UDP выключен (без изменения игры)."
+        )
         self.capture_setup_var = tk.StringVar(value="Запись голоса: проверка настроек CoD2…")
         self._capture_deferred = False
         self.nick_research = None
@@ -279,6 +293,21 @@ class VoiceStudio:
             photo, text="Не более 12 кадров · только локально",
             foreground="#777",
         ).pack(side="left", padx=(10, 0))
+
+        packetrow = ttk.Frame(outer)
+        packetrow.pack(fill="x", pady=(5, 0))
+        ttk.Checkbutton(
+            packetrow, text="Получать ID говорящего из UDP (Windows UAC)",
+            variable=self.packet_capture_var, command=self._packet_probe_changed,
+        ).pack(side="left")
+        ttk.Checkbutton(
+            packetrow, text="Ники из памяти CoD2 1.3 (чтение)",
+            variable=self.memory_names_var, command=self._memory_names_changed,
+        ).pack(side="left", padx=(12, 0))
+        ttk.Label(
+            outer, textvariable=self.packet_status_var,
+            foreground="#4a5568", wraplength=790,
+        ).pack(fill="x", anchor="w", pady=(3, 0))
 
         nickrow = ttk.Frame(outer)
         nickrow.pack(fill="x", pady=(5, 0))
@@ -529,6 +558,77 @@ class VoiceStudio:
         if self.root.winfo_exists():
             self.root.after(5000, self._retry_deferred_capture)
 
+    def _packet_probe_changed(self):
+        if not self.packet_capture_var.get():
+            self.packet_capture_enabled = False
+            if self.packet_stop_file is not None:
+                try:
+                    disable_probe(self.packet_stop_file)
+                except OSError:
+                    pass
+            self.packet_journal = None
+            self.packet_status_var.set("ID говорящего: сетевой сбор отключён.")
+            return
+        allowed = messagebox.askyesno(
+            "CoD2 · пассивные пакеты голосового чата",
+            "В CoD2 1.3 сервер передаёт номер говорящего в UDP-пакетах. "
+            "Разрешить отдельному процессу Windows наблюдать входящие UDP-пакеты?\n\n"
+            "Windows попросит права администратора (UAC). "
+            "Аудио и содержимое сетевых пакетов не сохраняются; в локальном "
+            "журнале остаются только времена и номера игроков.\n\n"
+            "Обычная игра не изменяется. Некоторые античиты могут ограничивать "
+            "сетевые диагностические инструменты. По умолчанию функция выключена.",
+        )
+        if not allowed:
+            self.packet_capture_var.set(False)
+            return
+        journal = app_data_folder() / f"voice_packet_probe_{os.getpid()}_{int(time.time())}.jsonl"
+        stopfile = journal.with_suffix(".stop")
+        try:
+            stopfile.unlink(missing_ok=True)
+            self.packet_journal = VoicePacketJournal(journal)
+            result = launch_elevated_packet_probe(
+                parent_pid=os.getpid(), journal_path=journal, stop_path=stopfile,
+            )
+            if not result.ok:
+                self.packet_capture_var.set(False)
+                self.packet_journal = None
+                self.packet_status_var.set(result.message)
+                return
+            self.packet_capture_enabled = True
+            self.packet_stop_file = stopfile
+            self.packet_status_var.set(result.message)
+        except (OSError, ValueError) as exc:
+            self.packet_capture_var.set(False)
+            self.packet_capture_enabled = False
+            self.packet_journal = None
+            self.packet_status_var.set(
+                "Невозможно запустить сетевую диагностику: " + type(exc).__name__
+            )
+
+    def _memory_names_changed(self):
+        if not self.memory_names_var.get():
+            self.memory_names_enabled = False
+            return
+        allowed = messagebox.askyesno(
+            "CoD2 1.3 · чтение ников",
+            "Для сопоставления ID с ником будет выполняться ЧТЕНИЕ небольшой "
+            "таблицы игроков из работающего CoD2MP_s.exe.\n\n"
+            "Адрес таблицы получен из открытого проекта CoD2x и проверяется "
+            "по структуре; в другой сборке игры может не работать.\n\n"
+            "Программа никогда не записывает в память игры и не внедряет DLL. "
+            "Некоторые античиты могут реагировать даже на чтение памяти. "
+            "Используй только в тестовой сессии без античита. Включить?",
+        )
+        if not allowed:
+            self.memory_names_var.set(False)
+            return
+        self.memory_names_enabled = True
+        self.packet_status_var.set(
+            "Чтение ников разрешено для теста CoD2 1.3. "
+            "Ники появятся только при доказанном ID говорящего."
+        )
+
     def _frame_capture_changed(self):
         if self.frame_capture_var.get():
             consent = messagebox.askyesno(
@@ -663,6 +763,7 @@ class VoiceStudio:
         if not str(path):
             return
         self._prepare_capture()
+        self.live_game_root = path.parent
         gen, flag = self._start_session()
         self.nick_research = (
             VoiceNickResearch(
@@ -719,19 +820,50 @@ class VoiceStudio:
         """Warm selected speech-recognition model before voice arrives."""
         self.jobs.put_nowait((gen, AudioJob(0, b"", "preload"), model, "", False, fast))
 
-    def _enqueue(self, gen: int, raw: bytes, origin: str, model: str, target: str, translate: bool, fast: bool):
+    def _enqueue(
+        self, gen: int, raw: bytes, origin: str, model: str,
+        target: str, translate: bool, fast: bool,
+        started_at: float | None = None, finished_at: float | None = None,
+    ):
         if gen != self.generation:
             return
+        slot = None
+        name = None
+        evidence = "network_probe_off"
+        journal = self.packet_journal
+        if (
+            origin == "live" and started_at is not None
+            and finished_at is not None and self.packet_capture_enabled
+            and journal is not None
+        ):
+            slot, evidence = journal.match(started_at, finished_at)
+            if slot is not None and self.memory_names_enabled:
+                checked = read_cod2_client_names(
+                    self.live_game_root or Path("")
+                )
+                name = checked.slots.get(slot)
+                evidence += "|" + checked.state
+        label = (
+            name if name is not None
+            else f"Игрок #{slot} (ник неизвестен)" if slot is not None
+            else "Игрок (ник неизвестен)"
+        )
         # Tiny packets usually represent mic-clicks, not a spoken phrase.
         for piece in split_utterances(raw):
             self.seq += 1
-            item = (gen, AudioJob(self.seq, piece, origin), model, target, translate, fast)
+            item = (
+                gen, AudioJob(
+                    self.seq, piece, origin, speaker_slot=slot,
+                    speaker_label=label, speaker_evidence=evidence,
+                ), model, target, translate, fast,
+            )
             if origin == "live" and self.nick_research is not None:
                 try:
                     self.nick_research.observe(
                         seq=self.seq,
                         seconds=len(piece) / BYTE_RATE,
-                        origin=origin,
+                        origin=origin, speaker_slot=slot,
+                        speaker_name=name, speaker_method=evidence,
                     )
                 except (OSError, ValueError) as exc:
                     self.events.put((
@@ -757,23 +889,46 @@ class VoiceStudio:
         collector = LiveCollector(idle_seconds=capture_idle_seconds(fast))
         previous_offset = None
         last_notice = 0.0
+        speech_started = None
+        previous_probe_status = None
         while not stop_flag.is_set():
+            journal = self.packet_journal
+            if journal is not None:
+                journal.poll()
+                if journal.status != previous_probe_status:
+                    previous_probe_status = journal.status
+                    self.events.put((
+                        "packet_status", gen,
+                        "UDP-диагностика CoD2: " + journal.status,
+                    ))
             if not path.exists() and time.monotonic() - last_notice > 5:
                 self.events.put(("status", gen, "Жду создания файла: " + str(path)))
                 last_notice = time.monotonic()
             data = tail.read_new()
             if previous_offset is not None and tail.offset is not None and tail.offset < previous_offset:
                 collector.reset()
+                speech_started = None
             previous_offset = tail.offset
             if data:
-                if not collector.buffer:
+                now = time.monotonic()
+                if not collector.buffer and speech_started is None:
+                    speech_started = now
                     self._queue_speaker_frame(gen)
-                for complete in collector.feed(data):
-                    self._enqueue(gen, complete, "live", model, target, translate, fast)
+                for complete in collector.feed(data, now=now):
+                    self._enqueue(
+                        gen, complete, "live", model, target, translate, fast,
+                        started_at=speech_started or now, finished_at=now,
+                    )
+                    speech_started = now
             else:
-                complete = collector.flush_if_idle()
+                now = time.monotonic()
+                complete = collector.flush_if_idle(now=now)
                 if complete is not None:
-                    self._enqueue(gen, complete, "live", model, target, translate, fast)
+                    self._enqueue(
+                        gen, complete, "live", model, target, translate, fast,
+                        started_at=speech_started or now, finished_at=now,
+                    )
+                    speech_started = None
             stop_flag.wait(LIVE_POLL_SECONDS)
         # Do not enqueue partial stale speech after Stop.
 
@@ -886,6 +1041,9 @@ class VoiceStudio:
                             "text": recognized,
                             "reason": verdict.reason,
                             "seconds": seconds,
+                            "speaker_label": job.speaker_label,
+                            "speaker_slot": job.speaker_slot,
+                            "speaker_evidence": job.speaker_evidence,
                             **timings,
                         }))
                     continue
@@ -902,13 +1060,19 @@ class VoiceStudio:
                         "provider": "pending" if waiting_translation else "off",
                         "origin": job.origin,
                         "seconds": seconds,
+                        "speaker_label": job.speaker_label,
+                        "speaker_slot": job.speaker_slot,
+                        "speaker_evidence": job.speaker_evidence,
                         **timings,
                     }))
                 if waiting_translation and gen == self.generation:
                     discard_pending(self.translations, max_pending=1)
                     try:
                         self.translations.put_nowait(
-                            (gen, job.seq, recognized, language, target, job.queued_at)
+                            (
+                                gen, job.seq, recognized, language, target,
+                                job.queued_at, job.speaker_label,
+                            )
                         )
                     except queue.Full:
                         self.events.put(("status", gen, "Очередь онлайн-перевода заполнена."))
@@ -920,7 +1084,7 @@ class VoiceStudio:
     def _translate_loop(self):
         """Network calls run independently of CPU speech recognition."""
         while True:
-            gen, seq, original, language, target, queued_at = self.translations.get()
+            gen, seq, original, language, target, queued_at, speaker_label = self.translations.get()
             try:
                 if gen != self.generation:
                     continue
@@ -934,6 +1098,7 @@ class VoiceStudio:
                     "provider": provider,
                     "network_seconds": time.perf_counter() - start,
                     "total_seconds": max(0.0, time.monotonic() - queued_at),
+                    "speaker_label": speaker_label,
                 }))
             except Exception as exc:
                 self.events.put(("status", gen, f"Ошибка онлайн-перевода: {type(exc).__name__}: {exc}"))
@@ -948,6 +1113,9 @@ class VoiceStudio:
                     continue
                 if event_type == "status":
                     self.status_var.set(payload)
+                elif event_type == "packet_status":
+                    self.packet_status_var.set(str(payload))
+                    self._write_log(str(payload))
                 elif event_type == "frame_saved":
                     self._write_log("📷 " + str(payload))
                 elif event_type == "uncertain":
@@ -978,7 +1146,8 @@ class VoiceStudio:
                         if payload["translation"]:
                             if self.overlay is not None:
                                 self.overlay_text.configure(
-                                    text=f"🎙 {payload['language'].upper()}: "
+                                    text=f"🎙 {payload['speaker_label']} · "
+                                         f"{payload['language'].upper()}: "
                                          f"{payload['original']}\n→ {payload['translation']}"
                                 )
                             if self.native_overlay is not None:
@@ -986,6 +1155,7 @@ class VoiceStudio:
                                     language=payload["language"].upper(),
                                     original=payload["original"],
                                     translated=payload["translation"],
+                                    nickname=payload["speaker_label"],
                                 )
                         self.status_var.set(
                             f"Перевод: сеть {payload['network_seconds']:.1f} с; "
@@ -1000,7 +1170,10 @@ class VoiceStudio:
                         if payload['probability'] is not None
                         else "RU (Vosk · язык задан вручную)"
                     )
-                    msg = f"🎙 [{lang}] {payload['text']}"
+                    msg = (
+                        f"🎙 {payload['speaker_label']} "
+                        f"[{lang}] {payload['text']}"
+                    )
                     if payload["provider"] == "pending":
                         msg += "\n    ↳ Перевод запрошен (без блокировки Whisper)."
                     msg += (
@@ -1016,7 +1189,10 @@ class VoiceStudio:
                     )
                     self.latest_displayed_seq = payload["seq"]
                     if self.overlay is not None:
-                        display = f"🎙 {payload['language'].upper()}: {payload['text']}"
+                        display = (
+                            f"🎙 {payload['speaker_label']} · "
+                            f"{payload['language'].upper()}: {payload['text']}"
+                        )
                         if payload["translation"]:
                             display += "\n→ " + payload["translation"]
                         self.overlay_text.configure(text=display)
@@ -1026,6 +1202,7 @@ class VoiceStudio:
                                 language=payload["language"].upper(),
                                 original=payload["text"],
                                 translated=payload["translation"],
+                                nickname=payload["speaker_label"],
                             )
                         except Exception as exc:
                             self.status_var.set(
@@ -1045,6 +1222,11 @@ class VoiceStudio:
             self.root.after(100, self._pump_ui)
 
     def close(self):
+        if self.packet_stop_file is not None:
+            try:
+                disable_probe(self.packet_stop_file)
+            except OSError:
+                pass
         self.stop()
         if self.native_overlay is not None:
             try:
@@ -1068,4 +1250,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--cod2-voice-probe" in sys.argv:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--cod2-voice-probe", action="store_true")
+        parser.add_argument("--parent-pid", type=int, required=True)
+        parser.add_argument("--journal", type=Path, required=True)
+        parser.add_argument("--stop-file", type=Path, required=True)
+        args = parser.parse_args()
+        sys.exit(run_windows_packet_helper(
+            args.parent_pid, args.journal, args.stop_file
+        ))
+    else:
+        main()

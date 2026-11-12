@@ -51,6 +51,17 @@ class VoiceNativeOverlayTests(unittest.TestCase):
         self.assertEqual(last[1]["y"], 75)
         self.assertFalse(last[2])
 
+    def test_validated_nickname_is_rendered_and_does_not_change_translation(self):
+        with patch("voice_native_overlay.Win32LayeredOverlay", FakeSurface):
+            surface = VoiceNativeOverlay(90, 75)
+            surface.update(
+                "RU", "Привет земляк", "",
+                nickname="^1Pirat",
+            )
+        last = surface.surface.render_calls[-1]
+        self.assertEqual(last[0][0].nickname, "^1Pirat · RU")
+        self.assertEqual(last[0][0].translated, "Привет земляк")
+
     def test_moving_preview_updates_future_native_render(self):
         with patch("voice_native_overlay.Win32LayeredOverlay", FakeSurface):
             surface = VoiceNativeOverlay(90, 75)
