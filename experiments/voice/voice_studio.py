@@ -22,10 +22,14 @@ from voice_native_overlay import VoiceNativeOverlay
 from voice_quality import evaluate_transcription
 from voice_capture_setup import ensure_voice_capture
 from voice_nick_research import VoiceNickResearch
+from voice_screen_probe import (
+    FrameThrottle, capture_if_game_foreground,
+)
 from voice_performance import asr_profile, capture_idle_seconds, discard_pending
 from voice_game_window import (
     configure_overlay,
     find_cod2_window,
+    is_cod2_foreground,
     is_cod2_running,
     make_cod2_borderless,
     raise_overlay,
@@ -149,6 +153,10 @@ class VoiceStudio:
         self.save_var = tk.BooleanVar(value=False)
         self.auto_capture_var = tk.BooleanVar(value=True)
         self.nick_research_var = tk.BooleanVar(value=True)
+        self.frame_capture_var = tk.BooleanVar(value=False)
+        self.frame_capture_enabled = False  # thread-safe snapshot; no Tk access off UI thread
+        self.frame_capture_queue: queue.Queue = queue.Queue(maxsize=2)
+        self.frame_throttle = FrameThrottle(min_interval=2.0)
         self.nick_input_var = tk.StringVar(value="")
         self.capture_setup_var = tk.StringVar(value="Запись голоса: проверка настроек CoD2…")
         self._capture_deferred = False
@@ -173,6 +181,11 @@ class VoiceStudio:
             target=self._translate_loop, daemon=True, name="VoiceTranslationWorker"
         )
         self.translation_worker.start()
+        self.frame_worker = threading.Thread(
+            target=self._capture_frames_loop, daemon=True,
+            name="CoD2SpeakerFrameEvidence",
+        )
+        self.frame_worker.start()
         self.root.after(100, self._pump_ui)
         self.root.after(700, self._prepare_capture)
         self.root.after(5000, self._retry_deferred_capture)
@@ -249,6 +262,19 @@ class VoiceStudio:
             outer, textvariable=self.capture_setup_var, wraplength=740,
             foreground="#4a5568",
         ).pack(fill="x", anchor="w", pady=(3, 0))
+
+        photo = ttk.Frame(outer)
+        photo.pack(fill="x", pady=(5, 0))
+        ttk.Checkbutton(
+            photo,
+            text="Сохранять игровые кадры с иконкой говорящего (эксперимент)",
+            variable=self.frame_capture_var,
+            command=self._frame_capture_changed,
+        ).pack(side="left")
+        ttk.Label(
+            photo, text="Не более 12 кадров · только локально",
+            foreground="#777",
+        ).pack(side="left", padx=(10, 0))
 
         nickrow = ttk.Frame(outer)
         nickrow.pack(fill="x", pady=(5, 0))
@@ -499,11 +525,93 @@ class VoiceStudio:
         if self.root.winfo_exists():
             self.root.after(5000, self._retry_deferred_capture)
 
+    def _frame_capture_changed(self):
+        if self.frame_capture_var.get():
+            consent = messagebox.askyesno(
+                "Снимки говорящего в CoD2",
+                "Для эксперимента программа будет сохранять до 12 "
+                "снимков экрана, когда обнаружит голос игрока.\n\n"
+                "Снимки могут содержать сообщения чата и другую информацию "
+                "с экрана. Они остаются только на компьютере в папке "
+                "%LOCALAPPDATA%\\CoD2VoicePrototype\\speaker_frames.\n\n"
+                "Разрешить сохранение снимков?",
+            )
+            if not consent:
+                self.frame_capture_var.set(False)
+                return
+            if not self.nick_research_var.get():
+                self.nick_research_var.set(True)
+                self._nick_research_changed()
+            self.frame_capture_enabled = True
+            self.status_var.set(
+                "Сбор кадров разрешён. Окно CoD2 должно быть активным."
+            )
+        else:
+            self.frame_capture_enabled = False
+            self.status_var.set("Сбор снимков говорящих выключен.")
+
+    def _queue_speaker_frame(self, gen: int):
+        if (
+            gen != self.generation
+            or not self.frame_capture_enabled
+            or self.nick_research is None
+            or not self.frame_throttle.allow()
+        ):
+            return
+        name = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        try:
+            self.frame_capture_queue.put_nowait(
+                (gen, self.seq + 1, name, self.nick_research)
+            )
+        except queue.Full:
+            pass  # never block voice capture due to screenshots
+
+    def _capture_frames_loop(self):
+        while True:
+            gen, hint, label, research = self.frame_capture_queue.get()
+            try:
+                if gen != self.generation or not self.frame_capture_enabled:
+                    continue
+                # Give the game's speaking icon time to appear, outside the
+                # STT / voice-file watcher thread.
+                time.sleep(0.18)
+                if gen != self.generation or not self.frame_capture_enabled:
+                    continue
+                quality, path = capture_if_game_foreground(
+                    app_data_folder() / "speaker_frames",
+                    label,
+                    is_cod2_foreground,
+                )
+                research.record_screen_frame(
+                    seq_hint=hint,
+                    file_name=path.name if path else None,
+                    quality=quality,
+                )
+                if path:
+                    self.events.put((
+                        "frame_saved", gen,
+                        "Игровой кадр сохранён для исследования ника: " + path.name,
+                    ))
+                elif quality != "game_not_foreground":
+                    self.events.put((
+                        "frame_saved", gen,
+                        "Игровой кадр не получен: " + quality,
+                    ))
+            except (OSError, ValueError) as exc:
+                self.events.put((
+                    "frame_saved", gen,
+                    "Ошибка снимка для проверки ника: " + type(exc).__name__,
+                ))
+            finally:
+                self.frame_capture_queue.task_done()
+
     def _nick_research_changed(self):
         # Toggling local diagnostic collection off must take effect immediately,
         # even if the user does not restart live transcription.
         if not self.nick_research_var.get():
             self.nick_research = None
+            self.frame_capture_var.set(False)
+            self.frame_capture_enabled = False
         elif self.mode_var.get() == "Режим: живая CoD2":
             path = Path(self.path_var.get().strip())
             self.nick_research = VoiceNickResearch(
@@ -654,6 +762,8 @@ class VoiceStudio:
                 collector.reset()
             previous_offset = tail.offset
             if data:
+                if not collector.buffer:
+                    self._queue_speaker_frame(gen)
                 for complete in collector.feed(data):
                     self._enqueue(gen, complete, "live", model, target, translate, fast)
             else:
@@ -801,6 +911,8 @@ class VoiceStudio:
                     continue
                 if event_type == "status":
                     self.status_var.set(payload)
+                elif event_type == "frame_saved":
+                    self._write_log("📷 " + str(payload))
                 elif event_type == "uncertain":
                     self.status_var.set(
                         f"Сомнительная речь ({payload['seconds']:.1f} с) — не переводил."

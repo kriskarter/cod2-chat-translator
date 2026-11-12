@@ -114,6 +114,17 @@ class VoiceNickResearch:
             "console_clues_unverified": self.tailer.recent_clues(),
         })
 
+    def record_screen_frame(self, *, seq_hint: int, file_name: str | None, quality: str) -> None:
+        """A visual clue only. No automatic audio-to-nickname assertion."""
+        self._append({
+            "event": "speaker_screen_sample",
+            "voice_seq_hint_not_verified": int(seq_hint),
+            "capture_quality": str(quality)[:80],
+            "local_frame_file": str(file_name)[:120] if file_name else None,
+            "identity_status": "unknown",
+            "interpretation": "game HUD screenshot; speaker association not verified",
+        })
+
     def annotate(self, nickname: str) -> bool:
         """Manual ground truth; never automatically assign to other utterances."""
         name = "".join(c for c in str(nickname).strip() if c >= " ")[:40]

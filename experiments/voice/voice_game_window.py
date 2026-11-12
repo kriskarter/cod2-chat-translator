@@ -142,6 +142,39 @@ def find_cod2_window() -> int | None:
     return found[0] if found else None
 
 
+def is_cod2_foreground() -> bool:
+    """Verify that the focused HWND belongs to CoD2 before saving a frame.
+
+    Prevents recording unrelated desktop apps after Alt+Tab. We deliberately
+    choose no screenshot if process inspection fails.
+    """
+    api = _win32()
+    if api is None:
+        return False
+    user32, kernel32, _, _ = api
+    user32.GetForegroundWindow.argtypes = []
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return False
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    if not pid.value:
+        return False
+    handle = kernel32.OpenProcess(0x1000, False, pid.value)
+    if not handle:
+        return False
+    try:
+        size = wintypes.DWORD(32768)
+        buf = ctypes.create_unicode_buffer(size.value)
+        if not kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+            return False
+        name = os.path.basename(buf.value.replace("\\", "/")).lower()
+        return name in COD2_EXES
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def is_cod2_running() -> bool:
     """Detect even a minimized CoD2 process, to avoid editing its live config."""
     if os.name != "nt":

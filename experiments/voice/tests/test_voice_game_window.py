@@ -21,6 +21,7 @@ from voice_game_window import (
     borderless_styles,
     find_cod2_window,
     is_cod2_running,
+    is_cod2_foreground,
     overlay_styles,
 )
 
@@ -46,6 +47,7 @@ class VoiceOverlayTests(unittest.TestCase):
         if os.name == "nt":
             self.assertIsNone(find_cod2_window())
             self.assertFalse(is_cod2_running())
+            self.assertFalse(is_cod2_foreground())
 
     def test_click_through_does_not_destroy_tk_layered_style(self):
         layered = 0x00080000

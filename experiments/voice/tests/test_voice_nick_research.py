@@ -51,6 +51,24 @@ class VoiceNickResearchTests(unittest.TestCase):
             self.assertEqual(lines[1]["nickname"], "VooDoo")
             self.assertEqual(lines[1]["identity_status"], "user_verified_for_this_utterance_only")
 
+    def test_screen_frame_does_not_assign_speaker_automatically(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            report = root / "voice_nickname_research.jsonl"
+            research = VoiceNickResearch(root / "voice.wav", report)
+            research.record_screen_frame(
+                seq_hint=19,
+                file_name="voice_speaker_20261112_111111.jpg",
+                quality="ok",
+            )
+            entry = json.loads(report.read_text("utf-8").splitlines()[0])
+            self.assertEqual(entry["identity_status"], "unknown")
+            self.assertNotIn("nickname", entry)
+            self.assertEqual(
+                entry["voice_seq_hint_not_verified"], 19
+            )
+            self.assertEqual(entry["capture_quality"], "ok")
+
     def test_recording_mode_no_raw_voice_copy(self):
         with tempfile.TemporaryDirectory() as folder:
             report = Path(folder) / "report.jsonl"
