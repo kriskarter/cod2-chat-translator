@@ -2398,6 +2398,7 @@ class TranslatorWorker(threading.Thread):
         # Only short, same-speaker chat context is used for local ambiguity
         # resolution. This buffer is never sent to online providers.
         self.context_history: deque[ContextMessage] = deque(maxlen=4)
+        self.context_lock = threading.Lock()
 
     @staticmethod
     def _skip_translation(text: str) -> bool:
@@ -2539,11 +2540,12 @@ class TranslatorWorker(threading.Thread):
                     # Preserve original chat. Legacy dictionaries only provide
                     # optional hints rather than destructive pre-processing.
                     now = time.monotonic()
-                    recent_context = tuple(
-                        entry for entry in self.context_history
-                        if entry.nickname == msg.nickname
-                        and now - entry.timestamp <= 8
-                    )
+                    with self.context_lock:
+                        recent_context = tuple(
+                            entry for entry in self.context_history
+                            if entry.nickname == msg.nickname
+                            and now - entry.timestamp <= 8
+                        )
                     request = TranslationRequest(
                         text=msg.text,
                         target_lang=target,
@@ -2584,9 +2586,10 @@ class TranslatorWorker(threading.Thread):
             except Exception as exc:
                 self.ui_queue.put(("translation_error", msg, str(exc)))
             finally:
-                self.context_history.append(
-                    ContextMessage(msg.text, msg.nickname, time.monotonic())
-                )
+                with self.context_lock:
+                    self.context_history.append(
+                        ContextMessage(msg.text, msg.nickname, time.monotonic())
+                    )
                 self.jobs.task_done()
 
 
@@ -5128,7 +5131,8 @@ class ControlApp:
                     self.status_var.set(item[1])
                 elif event == "map_change":
                     # Previous map context must never influence a new match.
-                    self.translator.context_history.clear()
+                    with self.translator.context_lock:
+                        self.translator.context_history.clear()
                     self.overlay._cancel_fade()
                     self.overlay.items.clear()
                     self.overlay.render()
