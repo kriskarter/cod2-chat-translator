@@ -30,7 +30,7 @@ class VoiceNickResearchTests(unittest.TestCase):
             path = root / "main" / "console_mp.log"
             path.parent.mkdir()
             path.write_bytes(b"Voice older=1\n")
-            self.assertIn(path, voice_console_logs(root / "voice.wav"))
+            self.assertIn(path.resolve(), voice_console_logs(root / "voice.wav"))
             tail = LogClueTail(root / "voice.wav")
             self.assertEqual(tail.recent_clues(), [])
             with path.open("ab") as log:
