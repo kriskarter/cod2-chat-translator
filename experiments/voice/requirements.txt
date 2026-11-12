@@ -1,0 +1,4 @@
+# Isolated experimental runtime; NOT part of stable CoD2 Chat Translator.
+faster-whisper==1.2.1
+numpy>=1.26,<3
+requests>=2.31,<3
