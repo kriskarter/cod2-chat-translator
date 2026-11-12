@@ -239,7 +239,7 @@ class VoiceStudio:
         ).pack(side="left")
         ttk.Checkbutton(
             capture, text="Исследовать ники (локально)",
-            variable=self.nick_research_var, command=self._prepare_capture,
+            variable=self.nick_research_var, command=self._nick_research_changed,
         ).pack(side="left", padx=(10, 0))
         ttk.Button(
             capture, text="Проверить настройки",
@@ -498,6 +498,18 @@ class VoiceStudio:
             self._prepare_capture()
         if self.root.winfo_exists():
             self.root.after(5000, self._retry_deferred_capture)
+
+    def _nick_research_changed(self):
+        # Toggling local diagnostic collection off must take effect immediately,
+        # even if the user does not restart live transcription.
+        if not self.nick_research_var.get():
+            self.nick_research = None
+        elif self.mode_var.get() == "Режим: живая CoD2":
+            path = Path(self.path_var.get().strip())
+            self.nick_research = VoiceNickResearch(
+                path, app_data_folder() / "voice_nickname_research.jsonl"
+            )
+        self._prepare_capture()
 
     def annotate_last_nick(self):
         if self.nick_research is None:
