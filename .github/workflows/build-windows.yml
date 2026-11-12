@@ -50,6 +50,9 @@ jobs:
       - name: Test
         run: python -m unittest discover -s tests -v
 
+      - name: Smart Engine synthetic semantic safety gate
+        run: python tools/smart_quality_check.py
+
       - name: Configure release repository
         shell: pwsh
         run: |

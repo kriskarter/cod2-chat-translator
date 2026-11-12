@@ -27,6 +27,7 @@ from server_catalog import (
 )
 
 from outgoing_chat import LANGUAGES, OutgoingChatController
+from smart_engine import DEFAULT_ENGINE, ContextMessage, TranslationRequest
 from translation_fallback import (
     looks_like_service_error as
     looks_like_fallback_service_error,
@@ -55,7 +56,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.17.4"
+APP_VERSION = "1.18.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -140,6 +141,7 @@ DEFAULT_CONFIG = {
     "show_original": False,
     "hide_same_language": True,
     "gaming_slang": True,
+    "smart_engine_enabled": True,
     "slang_style": "live",
     "deduplicate_messages": True,
     "duplicate_window_seconds": 4,
@@ -192,7 +194,7 @@ UI_STRINGS = {
         "profile_rename_title": "Имя профиля", "profile_rename_prompt": "Название профиля:",
         "translate_to": "Переводить на:", "other": "Другой…",
         "show_original": "показывать оригинал", "hide_same": "не дублировать выбранный язык", "smart_chat": "Умный чат:",
-        "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
+        "smart_engine": "Smart V1", "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
         "hotkey": "F8 — скрыть/показать", "overlay_hotkey_on": "F8 — входящий оверлей: ВКЛЮЧЕН", "overlay_hotkey_hidden": "F8 — входящий оверлей: СКРЫТ", "overlay_hotkey_off": "F8 — входящий оверлей: ВЫКЛЮЧЕН", "enabled": "Переводчик включён", "test": "Тест оверлея", "clear": "Очистить",
         "configure_overlay": "Настроить оверлей", "lock_overlay": "Зафиксировать оверлей", "cod2_top": "CoD2 → поверх",
         "overlay_view": "Вид оверлея", "font_size": "Размер текста", "background": "Фон",
@@ -267,7 +269,7 @@ UI_STRINGS = {
         "profile_rename_title": "Profile name", "profile_rename_prompt": "Profile name:",
         "translate_to": "Translate to:", "other": "Other…",
         "show_original": "show original", "hide_same": "hide messages already in target language", "smart_chat": "Smart chat:",
-        "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
+        "smart_engine": "Smart V1", "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
         "hotkey": "F8 — hide/show", "overlay_hotkey_on": "F8 — incoming overlay: ON", "overlay_hotkey_hidden": "F8 — incoming overlay: HIDDEN", "overlay_hotkey_off": "F8 — incoming overlay: OFF", "enabled": "Translator enabled", "test": "Test overlay", "clear": "Clear",
         "configure_overlay": "Configure overlay", "lock_overlay": "Lock overlay", "cod2_top": "CoD2 → overlay",
         "overlay_view": "Overlay appearance", "font_size": "Text size", "background": "Background",
@@ -346,7 +348,7 @@ UI_STRINGS["uk"] = {
     "profile_rename_title": "Назва профілю", "profile_rename_prompt": "Назва профілю:",
     "translate_to": "Перекладати на:", "other": "Інший…",
     "show_original": "показувати оригінал", "hide_same": "не дублювати вибрану мову", "smart_chat": "Розумний чат:",
-    "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
+    "smart_engine": "Smart V1", "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
     "hotkey": "F8 — сховати/показати", "overlay_hotkey_on": "F8 — вхідний оверлей: УВІМКНЕНО", "overlay_hotkey_hidden": "F8 — вхідний оверлей: ПРИХОВАНО", "overlay_hotkey_off": "F8 — вхідний оверлей: ВИМКНЕНО", "enabled": "Перекладач увімкнено", "test": "Тест оверлею", "clear": "Очистити",
     "configure_overlay": "Налаштувати оверлей", "lock_overlay": "Зафіксувати оверлей", "cod2_top": "CoD2 → поверх",
     "overlay_view": "Вигляд оверлею", "font_size": "Розмір тексту", "background": "Фон",
@@ -2378,6 +2380,7 @@ class TranslatorWorker(threading.Thread):
         slang_enabled_getter: Callable[[], bool],
         slang_style_getter: Callable[[], str],
         stop_event: threading.Event,
+        smart_enabled_getter: Optional[Callable[[], bool]] = None,
     ):
         super().__init__(daemon=True, name="translator-worker")
         self.jobs = jobs
@@ -2387,10 +2390,14 @@ class TranslatorWorker(threading.Thread):
         self.slang_enabled_getter = slang_enabled_getter
         self.slang_style_getter = slang_style_getter
         self.stop_event = stop_event
+        self.smart_enabled_getter = smart_enabled_getter or (lambda: True)
         self.cache: OrderedDict[tuple[str, str], str] = OrderedDict()
         self.cache_limit = 400
         self._translator = None
         self._translator_target = None
+        # Only short, same-speaker chat context is used for local ambiguity
+        # resolution. This buffer is never sent to online providers.
+        self.context_history: deque[ContextMessage] = deque(maxlen=4)
 
     @staticmethod
     def _skip_translation(text: str) -> bool:
@@ -2528,13 +2535,47 @@ class TranslatorWorker(threading.Thread):
                     self.ui_queue.put(("same_language", msg, 0))
                     continue
 
-                source_text = msg.text
-                direct_result = None
-                if self.slang_enabled_getter():
-                    source_text, direct_result = gaming_slang_transform(msg.text, target, self.slang_style_getter())
-                translated = direct_result if direct_result is not None else self._translate(source_text, target)
+                if self.smart_enabled_getter():
+                    # Preserve original chat. Legacy dictionaries only provide
+                    # optional hints rather than destructive pre-processing.
+                    now = time.monotonic()
+                    recent_context = tuple(
+                        entry for entry in self.context_history
+                        if entry.nickname == msg.nickname
+                        and now - entry.timestamp <= 8
+                    )
+                    request = TranslationRequest(
+                        text=msg.text,
+                        target_lang=target,
+                        style=self.slang_style_getter(),
+                        nickname=msg.nickname,
+                        direction="incoming",
+                        context=recent_context,
+                        use_slang=self.slang_enabled_getter(),
+                    )
+                    result = DEFAULT_ENGINE.translate(
+                        request,
+                        provider=lambda text, destination, _source:
+                            self._translate(text, destination),
+                        legacy_transform=gaming_slang_transform,
+                    )
+                    translated = result.text
+                    uncertain = not result.safe
+                else:
+                    # Instant rollback switch: retain the previous behaviour.
+                    source_text, direct = msg.text, None
+                    if self.slang_enabled_getter():
+                        source_text, direct = gaming_slang_transform(
+                            msg.text, target, self.slang_style_getter()
+                        )
+                    translated = direct if direct is not None else self._translate(source_text, target)
+                    uncertain = False
+
                 elapsed_ms = int((time.monotonic() - started) * 1000)
-                if self.hide_same_getter() and normalize_for_compare(translated) == normalize_for_compare(msg.text):
+                if uncertain:
+                    # Never hide an uncertain tactical message as a duplicate.
+                    self.ui_queue.put(("translation", msg, "⚠ " + msg.text, elapsed_ms))
+                elif self.hide_same_getter() and normalize_for_compare(translated) == normalize_for_compare(msg.text):
                     self.ui_queue.put(("same_language", msg, elapsed_ms))
                 else:
                     self.ui_queue.put(("translation", msg, translated, elapsed_ms))
@@ -2543,6 +2584,9 @@ class TranslatorWorker(threading.Thread):
             except Exception as exc:
                 self.ui_queue.put(("translation_error", msg, str(exc)))
             finally:
+                self.context_history.append(
+                    ContextMessage(msg.text, msg.nickname, time.monotonic())
+                )
                 self.jobs.task_done()
 
 
@@ -3455,6 +3499,7 @@ class ControlApp:
         self.show_original_var = tk.BooleanVar(value=bool(self.config.get("show_original", False)))
         self.hide_same_var = tk.BooleanVar(value=bool(self.config.get("hide_same_language", True)))
         self.slang_var = tk.BooleanVar(value=bool(self.config.get("gaming_slang", True)))
+        self.smart_engine_var = tk.BooleanVar(value=bool(self.config.get("smart_engine_enabled", True)))
         self.slang_style_var = tk.StringVar(value=self._slang_style_name_for_code(self.config.get("slang_style", "live")))
         self.dedupe_var = tk.BooleanVar(value=bool(self.config.get("deduplicate_messages", True)))
         self.ui_language_var = tk.StringVar(value={"ru": "Русский", "uk": "Українська", "en": "English"}.get(self.ui_language, "Русский"))
@@ -3488,6 +3533,10 @@ class ControlApp:
             status_var=self.status_var,
             last_var=self.last_var,
             screenshot_callback=self.capture_game_screenshot,
+            legacy_transform=gaming_slang_transform,
+            style_getter=lambda: self.slang_style_code(),
+            slang_enabled_getter=lambda: bool(self.slang_var.get()),
+            smart_enabled_getter=lambda: bool(self.smart_engine_var.get()),
         )
 
         self._build_ui()
@@ -3513,6 +3562,7 @@ class ControlApp:
             slang_enabled_getter=lambda: bool(self.slang_var.get()),
             slang_style_getter=self.slang_style_code,
             stop_event=self.stop_event,
+            smart_enabled_getter=lambda: bool(self.smart_engine_var.get()),
         )
         self.tailer.start()
         self.translator.start()
@@ -3587,6 +3637,7 @@ class ControlApp:
         smart = ttk.Frame(outer)
         smart.pack(fill="x", pady=(8, 0))
         ttk.Label(smart, text=self.t("smart_chat"), width=15).pack(side="left")
+        ttk.Checkbutton(smart, text=self.t("smart_engine"), variable=self.smart_engine_var, command=self._persist_settings).pack(side="left", padx=(0, 8))
         ttk.Checkbutton(smart, text=self.t("gaming_slang"), variable=self.slang_var, command=self._persist_settings).pack(side="left")
         ttk.Label(smart, text=self.t("style")).pack(side="left", padx=(10, 4))
         style_values = [self._style_label(code) for code in ("clear", "live", "raw")]
@@ -4667,6 +4718,7 @@ class ControlApp:
         self.config["show_original"] = bool(self.show_original_var.get())
         self.config["hide_same_language"] = bool(self.hide_same_var.get())
         self.config["gaming_slang"] = bool(self.slang_var.get())
+        self.config["smart_engine_enabled"] = bool(self.smart_engine_var.get())
         self.config["slang_style"] = self.slang_style_code()
         self.config["deduplicate_messages"] = bool(self.dedupe_var.get())
         overlay = self.config.setdefault("overlay", {})
@@ -5075,6 +5127,8 @@ class ControlApp:
                 if event == "status":
                     self.status_var.set(item[1])
                 elif event == "map_change":
+                    # Previous map context must never influence a new match.
+                    self.translator.context_history.clear()
                     self.overlay._cancel_fade()
                     self.overlay.items.clear()
                     self.overlay.render()

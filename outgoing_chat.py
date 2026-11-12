@@ -10,6 +10,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 from outgoing_send import send_cod2_chat_message
+from smart_engine import DEFAULT_ENGINE, TranslationRequest
 from translation_fallback import (
     looks_like_service_error,
     translate_with_mymemory,
@@ -350,7 +351,7 @@ def save_outgoing_preferences(
     os.replace(temp, path)
 
 
-def translate_outgoing_text(
+def _online_translate_outgoing(
     text: str,
     target: str = TARGET_CODE,
     source_language: str = "auto",
@@ -426,6 +427,48 @@ def translate_outgoing_text(
             "Сервисы перевода временно "
             "недоступны"
         ) from fallback_error
+
+
+
+def translate_outgoing_text(
+    text: str,
+    target: str = TARGET_CODE,
+    source_language: str = "auto",
+    *,
+    style: str = "live",
+    slang_enabled: bool = True,
+    legacy_transform=None,
+    smart_enabled: bool = True,
+) -> str:
+    """F9 uses the same semantic engine as the incoming F8 overlay."""
+    source = normalize_outgoing_text(text)
+    if not source:
+        raise ValueError("Пустое сообщение")
+    if not smart_enabled:
+        return _online_translate_outgoing(source, target, source_language)
+
+    result = DEFAULT_ENGINE.translate(
+        TranslationRequest(
+            text=source,
+            target_lang=target,
+            source_lang=source_language,
+            style=style,
+            direction="outgoing",
+            use_slang=slang_enabled,
+        ),
+        provider=lambda prepared, destination, language: _online_translate_outgoing(
+            prepared, target=destination, source_language=language,
+        ),
+        legacy_transform=legacy_transform,
+    )
+    if not result.safe:
+        # F9 can automatically send on Enter; never send an unchecked or
+        # corrupted tactical translation merely because a provider responded.
+        raise RuntimeError(
+            "Не удалось безопасно перевести сообщение. "
+            "Проверьте оригинал и попробуйте ещё раз."
+        )
+    return normalize_outgoing_text(result.text)
 
 
 def is_running_as_admin() -> bool:
@@ -914,7 +957,15 @@ class OutgoingChatController:
         status_var=None,
         last_var=None,
         screenshot_callback=None,
+        legacy_transform=None,
+        style_getter=None,
+        slang_enabled_getter=None,
+        smart_enabled_getter=None,
     ) -> None:
+        self.legacy_transform = legacy_transform
+        self.style_getter = style_getter or (lambda: "live")
+        self.slang_enabled_getter = slang_enabled_getter or (lambda: True)
+        self.smart_enabled_getter = smart_enabled_getter or (lambda: True)
         self._owns_root = root is None
         self.root = root or tk.Tk()
         self.screenshot_callback = screenshot_callback
@@ -1885,6 +1936,10 @@ class OutgoingChatController:
                     source,
                     self.target_code,
                     self.source_code,
+                    style=self.style_getter(),
+                    slang_enabled=self.slang_enabled_getter(),
+                    legacy_transform=self.legacy_transform,
+                    smart_enabled=self.smart_enabled_getter(),
                 )
             )
 
