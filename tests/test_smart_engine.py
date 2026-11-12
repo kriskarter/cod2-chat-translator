@@ -61,6 +61,21 @@ class SmartEngineTests(unittest.TestCase):
         self.assertEqual(result.text, "принято")
         self.assertEqual(self.calls[0][0], "gg")
 
+    def test_russian_gg_to_english_remains_local(self):
+        result = self.translate("гг", target="en")
+        self.assertEqual(result.text, "good game")
+        self.assertEqual(self.calls, [])
+
+    def test_russian_thanks_to_english_remains_local(self):
+        result = self.translate("спс", target="en")
+        self.assertEqual(result.text, "thanks")
+        self.assertEqual(self.calls, [])
+
+    def test_rush_b_keeps_legacy_tactical_shortcut(self):
+        result = self.translate("rush B", target="ru")
+        self.assertEqual(result.text, "быстрая атака на B")
+        self.assertEqual(self.calls, [])
+
     def test_translit_fully_recognized_fast(self):
         result = self.translate("privet", target="ru")
         self.assertEqual(result.text, "привет")
@@ -84,12 +99,14 @@ class SmartEngineTests(unittest.TestCase):
         self.assertIn("numbers", result.uncertainty_reasons)
 
     def test_objective_must_survive(self):
-        result = self.translate("rush B", provider=lambda *_: "быстро на A")
+        result = self.translate("rush B", provider=lambda *_: "быстро на A",
+                                use_slang=False)
         self.assertFalse(result.safe)
         self.assertIn("objectives", result.uncertainty_reasons)
 
     def test_objective_correct_is_accepted(self):
-        result = self.translate("rush B", provider=lambda *_: "быстро на B")
+        result = self.translate("rush B", provider=lambda *_: "быстро на B",
+                                use_slang=False)
         self.assertTrue(result.safe)
 
     def test_question_punctuation_not_dropped(self):

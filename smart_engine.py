@@ -45,6 +45,14 @@ _SAFE_LEGACY_DIRECT = frozenset(_DIRECT) | {
     "cu", "tyvm", "tnx", "nvm", "mb", "imo", "imho", "wdym",
     "omw", "rn", "rdy", "bro", "dude", "mate", "ez", "noob",
     "n00b", "ff", "hp", "nade", "smoke", "arty", "ks",
+    "rush a", "rush b", "go a", "go b", "go mid", "cover me", "low hp",
+    # Keep established Russian gamer shortcuts in F8 and F9.
+    "гг", "вп", "нс", "нт", "спс", "сяб", "пж", "плз", "сорян",
+    "сори", "прив", "афк", "брб", "хз", "имхо", "норм", "изи",
+    "нуб", "тк", "тимкилл", "френдлифаер", "хед", "хедшот",
+    "хп", "грен", "смок", "флеш", "раш", "рашить", "пуш",
+    "фланг", "мид", "кемпер", "респ", "респавн", "спек",
+    "лаги", "арта", "авиа", "серия", "база", "флаг",
 }
 # Only transparent abbreviation expansion is safe inside arbitrary sentences.
 _INLINE = {
