@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +22,7 @@ class AudioJob:
     seq: int
     raw_pcm: bytes
     origin: str
+    queued_at: float = field(default_factory=time.monotonic)
 
 
 class FileTail:

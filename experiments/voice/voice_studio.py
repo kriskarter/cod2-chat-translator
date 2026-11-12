@@ -20,6 +20,7 @@ import numpy as np
 
 from voice_native_overlay import VoiceNativeOverlay
 from voice_quality import evaluate_transcription
+from voice_performance import asr_profile, capture_idle_seconds, discard_pending
 from voice_game_window import (
     configure_overlay,
     find_cod2_window,
@@ -37,7 +38,7 @@ from voice_engine import (
 )
 
 APP_NAME = "CoD2 Voice Prototype"
-LIVE_POLL_SECONDS = 0.12
+LIVE_POLL_SECONDS = 0.08
 SUPPORTED_MODELS = ("tiny", "base")
 SUPPORTED_TARGETS = {"Русский": "ru", "Українська": "uk", "English": "en"}
 
@@ -125,7 +126,9 @@ class VoiceStudio:
         self.root.minsize(620, 480)
 
         self.events: queue.Queue = queue.Queue()
-        self.jobs: queue.Queue[tuple[int, AudioJob, str, str, bool]] = queue.Queue(maxsize=96)
+        self.jobs: queue.Queue[tuple[int, AudioJob, str, str, bool, bool]] = queue.Queue(maxsize=96)
+        self.translations: queue.Queue = queue.Queue(maxsize=6)
+        self.latest_displayed_seq = -1
         self.stop_flag = threading.Event()
         self.generation = 0
         self.seq = 0
@@ -136,6 +139,7 @@ class VoiceStudio:
         self.model_var = tk.StringVar(value="tiny")
         self.target_var = tk.StringVar(value="Русский")
         self.translate_var = tk.BooleanVar(value=True)
+        self.fast_mode_var = tk.BooleanVar(value=True)
         self.overlay_var = tk.BooleanVar(value=True)
         # In-game subtitles must never intercept mouse clicks.
         self.move_overlay_var = tk.BooleanVar(value=False)
@@ -156,6 +160,10 @@ class VoiceStudio:
         self.root.after(1200, self._keep_overlay_topmost)
         self.worker = threading.Thread(target=self._worker_loop, daemon=True, name="VoiceWhisperWorker")
         self.worker.start()
+        self.translation_worker = threading.Thread(
+            target=self._translate_loop, daemon=True, name="VoiceTranslationWorker"
+        )
+        self.translation_worker.start()
         self.root.after(100, self._pump_ui)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
@@ -195,6 +203,9 @@ class VoiceStudio:
             settings, state="readonly", width=13, textvariable=self.target_var,
             values=list(SUPPORTED_TARGETS),
         ).pack(side="left", padx=(6, 0))
+        ttk.Checkbutton(
+            settings, text="Быстрый режим", variable=self.fast_mode_var
+        ).pack(side="left", padx=(16, 0))
 
         opts = ttk.Frame(outer)
         opts.pack(fill="x")
@@ -420,11 +431,12 @@ class VoiceStudio:
         if not str(path):
             return
         gen, flag = self._start_session()
+        self._preload_model(gen, self.model_var.get(), self.fast_mode_var.get())
         self.mode_var.set("Режим: живая CoD2")
         self.status_var.set("Ожидаю новые байты в voice.wav (старые пропускаются).")
         threading.Thread(
             target=self._live_loop,
-            args=(gen, flag, path, self.model_var.get(), SUPPORTED_TARGETS[self.target_var.get()], self.translate_var.get()),
+            args=(gen, flag, path, self.model_var.get(), SUPPORTED_TARGETS[self.target_var.get()], self.translate_var.get(), self.fast_mode_var.get()),
             daemon=True,
             name="VoiceFileTail",
         ).start()
@@ -439,7 +451,7 @@ class VoiceStudio:
         self.status_var.set("Разбиваю запись на голосовые фрагменты…")
         threading.Thread(
             target=self._replay_loop,
-            args=(gen, flag, path, self.model_var.get(), SUPPORTED_TARGETS[self.target_var.get()], self.translate_var.get()),
+            args=(gen, flag, path, self.model_var.get(), SUPPORTED_TARGETS[self.target_var.get()], self.translate_var.get(), self.fast_mode_var.get()),
             daemon=True,
             name="VoiceFileReplay",
         ).start()
@@ -448,31 +460,50 @@ class VoiceStudio:
         if hasattr(self, "stop_flag"):
             self.stop_flag.set()
         self.generation += 1
+        self.latest_displayed_seq = -1
         try:
             while True:
                 self.jobs.get_nowait()
                 self.jobs.task_done()
         except queue.Empty:
             pass
+        try:
+            while True:
+                self.translations.get_nowait()
+                self.translations.task_done()
+        except queue.Empty:
+            pass
         if hasattr(self, "mode_var"):
             self.mode_var.set("Остановлено")
 
-    def _enqueue(self, gen: int, raw: bytes, origin: str, model: str, target: str, translate: bool):
+    def _preload_model(self, gen: int, model: str, fast: bool):
+        """Start model loading before the first incoming voice packet arrives."""
+        self.jobs.put_nowait((gen, AudioJob(0, b"", "preload"), model, "", False, fast))
+
+    def _enqueue(self, gen: int, raw: bytes, origin: str, model: str, target: str, translate: bool, fast: bool):
         if gen != self.generation:
             return
         # Tiny packets usually represent mic-clicks, not a spoken phrase.
         for piece in split_utterances(raw):
             self.seq += 1
-            item = (gen, AudioJob(self.seq, piece, origin), model, target, translate)
+            item = (gen, AudioJob(self.seq, piece, origin), model, target, translate, fast)
+            if origin == "live":
+                # Keep one *pending* live phrase, not a long backlog of stale
+                # commands. The running STT cannot be preempted.
+                dropped = discard_pending(self.jobs)
+                if dropped:
+                    self.events.put(("status", gen, (
+                        f"Свежая реплика: пропущено старых из очереди: {dropped}."
+                    )))
             try:
                 self.jobs.put_nowait(item)
             except queue.Full:
                 self.events.put(("status", gen, "Очередь заполнена — пропущена часть речи."))
                 break
 
-    def _live_loop(self, gen, stop_flag, path, model, target, translate):
+    def _live_loop(self, gen, stop_flag, path, model, target, translate, fast):
         tail = FileTail(path)
-        collector = LiveCollector()
+        collector = LiveCollector(idle_seconds=capture_idle_seconds(fast))
         previous_offset = None
         last_notice = 0.0
         while not stop_flag.is_set():
@@ -485,15 +516,15 @@ class VoiceStudio:
             previous_offset = tail.offset
             if data:
                 for complete in collector.feed(data):
-                    self._enqueue(gen, complete, "live", model, target, translate)
+                    self._enqueue(gen, complete, "live", model, target, translate, fast)
             else:
                 complete = collector.flush_if_idle()
                 if complete is not None:
-                    self._enqueue(gen, complete, "live", model, target, translate)
+                    self._enqueue(gen, complete, "live", model, target, translate, fast)
             stop_flag.wait(LIVE_POLL_SECONDS)
         # Do not enqueue partial stale speech after Stop.
 
-    def _replay_loop(self, gen, stop_flag, path, model, target, translate):
+    def _replay_loop(self, gen, stop_flag, path, model, target, translate, fast):
         try:
             raw = read_recording(path)
             clips = split_utterances(raw)
@@ -507,49 +538,61 @@ class VoiceStudio:
                 if stop_flag.is_set():
                     break
                 self.seq += 1
-                self.jobs.put((gen, AudioJob(self.seq, clip, f"recording {i}/{len(clips)}"), model, target, translate))
+                self.jobs.put((gen, AudioJob(self.seq, clip, f"recording {i}/{len(clips)}"), model, target, translate, fast))
         except Exception as exc:
             self.events.put(("status", gen, f"Ошибка чтения записи: {type(exc).__name__}: {exc}"))
 
     def _worker_loop(self):
         while True:
-            gen, job, model_name, target, do_translate = self.jobs.get()
+            gen, job, model_name, target, do_translate, fast = self.jobs.get()
             try:
                 if gen != self.generation:
                     continue
+                queue_seconds = max(0.0, time.monotonic() - job.queued_at)
+                model_seconds = 0.0
                 if self.model is None or self.current_model_name != model_name:
                     self.events.put(("status", gen, f"Загружаю Whisper {model_name} (при первом запуске скачивается модель)…"))
                     from faster_whisper import WhisperModel
+                    loading = time.perf_counter()
                     self.model = WhisperModel(
                         model_name, device="cpu", compute_type="int8",
                         cpu_threads=max(1, min(4, os.cpu_count() or 2)),
                         download_root=str(app_data_folder() / "models"),
                     )
                     self.current_model_name = model_name
+                    model_seconds = time.perf_counter() - loading
+                if job.origin == "preload":
+                    self.events.put(("status", gen, (
+                        f"Whisper {model_name} готов ({model_seconds:.1f} с). "
+                        "Ожидаю новых голосовых сообщений."
+                    )))
+                    continue
                 self.events.put(("status", gen, f"Распознаю фрагмент {job.seq}…"))
+                inference_start = time.perf_counter()
                 samples = to_whisper_audio(job.raw_pcm)
                 pieces, info = self.model.transcribe(
                     samples,
                     language=None,
-                    beam_size=2,
-                    best_of=2,
-                    condition_on_previous_text=False,
-                    vad_filter=False,
-                    temperature=0.0,
+                    **asr_profile(fast),
                 )
-                pieces = list(pieces)  # actual inference happens while iterating
+                pieces = list(pieces)  # inference occurs during iteration
+                asr_seconds = time.perf_counter() - inference_start
                 recognized = " ".join(
                     segment.text.strip() for segment in pieces if segment.text.strip()
                 ).strip()
                 language = str(info.language or "auto")
                 probability = float(getattr(info, "language_probability", 0.0) or 0.0)
                 seconds = len(job.raw_pcm) / BYTE_RATE
+                timings = {
+                    "queue_seconds": queue_seconds,
+                    "model_seconds": model_seconds,
+                    "asr_seconds": asr_seconds,
+                    "total_seconds": max(0.0, time.monotonic() - job.queued_at),
+                }
                 verdict = evaluate_transcription(
                     recognized, language, probability, pieces, seconds
                 )
                 if not verdict.trustworthy:
-                    # Do not send uncertain Japanese/other guesses to Google:
-                    # an apparently fluent translation can mask bad STT.
                     if gen == self.generation:
                         self.events.put(("uncertain", gen, {
                             "language": language,
@@ -557,25 +600,59 @@ class VoiceStudio:
                             "text": recognized,
                             "reason": verdict.reason,
                             "seconds": seconds,
+                            **timings,
                         }))
                     continue
-                translation, provider = "", "off"
-                if do_translate and language != target:
-                    translation, provider = translate_text(recognized, language, target)
+                waiting_translation = bool(do_translate and language != target)
+                # Show the recognized original immediately: network translation
+                # must not block the only CPU Whisper worker.
                 if gen == self.generation:
                     self.events.put(("result", gen, {
+                        "seq": job.seq,
                         "language": language,
                         "probability": probability,
                         "text": recognized,
-                        "translation": translation,
-                        "provider": provider,
+                        "translation": "",
+                        "provider": "pending" if waiting_translation else "off",
                         "origin": job.origin,
-                        "seconds": len(job.raw_pcm) / BYTE_RATE,
+                        "seconds": seconds,
+                        **timings,
                     }))
+                if waiting_translation and gen == self.generation:
+                    discard_pending(self.translations, max_pending=1)
+                    try:
+                        self.translations.put_nowait(
+                            (gen, job.seq, recognized, language, target, job.queued_at)
+                        )
+                    except queue.Full:
+                        self.events.put(("status", gen, "Очередь онлайн-перевода заполнена."))
             except Exception as exc:
                 self.events.put(("status", gen, f"Ошибка Whisper: {type(exc).__name__}: {exc}"))
             finally:
                 self.jobs.task_done()
+
+    def _translate_loop(self):
+        """Network calls run independently of CPU speech recognition."""
+        while True:
+            gen, seq, original, language, target, queued_at = self.translations.get()
+            try:
+                if gen != self.generation:
+                    continue
+                start = time.perf_counter()
+                translated, provider = translate_text(original, language, target)
+                self.events.put(("translation", gen, {
+                    "seq": seq,
+                    "original": original,
+                    "language": language,
+                    "translation": translated,
+                    "provider": provider,
+                    "network_seconds": time.perf_counter() - start,
+                    "total_seconds": max(0.0, time.monotonic() - queued_at),
+                }))
+            except Exception as exc:
+                self.events.put(("status", gen, f"Ошибка онлайн-перевода: {type(exc).__name__}: {exc}"))
+            finally:
+                self.translations.task_done()
 
     def _pump_ui(self):
         try:
@@ -591,19 +668,60 @@ class VoiceStudio:
                     )
                     self._write_log(
                         f"⚠ Пропущено: {payload['reason']}. "
-                        f"Черновик: {payload['text'] or 'нет текста'}"
+                        f"Черновик: {payload['text'] or 'нет текста'} "
+                        f"[очередь {payload['queue_seconds']:.1f}с; "
+                        f"Whisper {payload['asr_seconds']:.1f}с]"
                     )
+                elif event_type == "translation":
+                    if payload["translation"]:
+                        self._write_log(
+                            f"    → {payload['translation']} [{payload['provider']}] "
+                            f"[сеть {payload['network_seconds']:.1f}с; "
+                            f"всего {payload['total_seconds']:.1f}с]"
+                        )
+                    else:
+                        self._write_log(
+                            f"    ↳ Перевод недоступен ({payload['provider']}) "
+                            f"[сеть {payload['network_seconds']:.1f}с]"
+                        )
+                    # A delayed HTTP response must never overwrite subtitles
+                    # from a more recent player utterance.
+                    if payload["seq"] == self.latest_displayed_seq:
+                        if payload["translation"]:
+                            if self.overlay is not None:
+                                self.overlay_text.configure(
+                                    text=f"🎙 {payload['language'].upper()}: "
+                                         f"{payload['original']}\n→ {payload['translation']}"
+                                )
+                            if self.native_overlay is not None:
+                                self.native_overlay.update(
+                                    language=payload["language"].upper(),
+                                    original=payload["original"],
+                                    translated=payload["translation"],
+                                )
+                        self.status_var.set(
+                            f"Перевод: сеть {payload['network_seconds']:.1f} с; "
+                            f"от захвата до перевода {payload['total_seconds']:.1f} с"
+                        )
                 elif event_type == "result":
                     self.count += 1
                     self.count_var.set(f"Распознано: {self.count}")
                     lang = f"{payload['language'].upper()} ({payload['probability']:.0%})"
                     msg = f"🎙 [{lang}] {payload['text']}"
-                    if payload["translation"]:
-                        msg += f"\n    → {payload['translation']} [{payload['provider']}]"
-                    elif self.translate_var.get() and payload["provider"] not in ("off", "local"):
-                        msg += "\n    ↳ Перевод недоступен (сеть/DNS); оригинал сохранён."
+                    if payload["provider"] == "pending":
+                        msg += "\n    ↳ Перевод запрошен (без блокировки Whisper)."
+                    msg += (
+                        f" [очередь {payload['queue_seconds']:.1f}с; "
+                        f"Whisper {payload['asr_seconds']:.1f}с; "
+                        f"модель {payload['model_seconds']:.1f}с]"
+                    )
                     self._write_log(msg)
-                    self.status_var.set(f"Получен голосовой фрагмент: {payload['seconds']:.1f} с")
+                    self.status_var.set(
+                        f"Распознано: Whisper {payload['asr_seconds']:.1f} с; "
+                        f"очередь {payload['queue_seconds']:.1f} с; "
+                        f"загрузка модели {payload['model_seconds']:.1f} с"
+                    )
+                    self.latest_displayed_seq = payload["seq"]
                     if self.overlay is not None:
                         display = f"🎙 {payload['language'].upper()}: {payload['text']}"
                         if payload["translation"]:
