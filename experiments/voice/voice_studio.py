@@ -18,6 +18,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 import numpy as np
 
+from voice_native_overlay import VoiceNativeOverlay
 from voice_game_window import (
     configure_overlay,
     find_cod2_window,
@@ -162,9 +163,11 @@ class VoiceStudio:
 
         self._build_ui()
         self.overlay = None
+        self.native_overlay = None
         self._make_overlay()
+        self._init_native_overlay()
         self._set_overlay_visibility()
-        # HWND wrapper may be created after the first Tk update cycle.
+        # Tk is only the editing/fallback surface; gameplay uses native Win32.
         self.root.after(200, self._apply_overlay_window_style)
         self.root.after(1200, self._keep_overlay_topmost)
         self.worker = threading.Thread(target=self._worker_loop, daemon=True, name="VoiceWhisperWorker")
@@ -219,7 +222,7 @@ class VoiceStudio:
         ttk.Checkbutton(opts, text="Сохранять текстовый журнал", variable=self.save_var).pack(side="left", padx=(14, 0))
         ttk.Checkbutton(
             opts, text="Перемещать субтитры", variable=self.move_overlay_var,
-            command=self._apply_overlay_window_style,
+            command=self._overlay_edit_changed,
         ).pack(side="left", padx=(14, 0))
 
         btns = ttk.Frame(outer)
@@ -231,7 +234,7 @@ class VoiceStudio:
         self.stop_btn = ttk.Button(btns, text="■ Стоп", command=self.stop)
         self.stop_btn.pack(side="left")
         ttk.Button(
-            btns, text="CoD2 → поверх",
+            btns, text="Оконный резерв",
             command=self.enable_cod2_borderless,
         ).pack(side="left", padx=(10, 0))
         ttk.Button(btns, text="Очистить вывод", command=self._clear_log).pack(side="right")
@@ -249,10 +252,10 @@ class VoiceStudio:
         self.output.pack(fill="both", expand=True)
 
         ttk.Label(
-            outer, text="Субтитры поверх игры требуют оконный/borderless CoD2. "
-                  "Если в игре они не видны: открой консоль (~), введи /r_fullscreen 0, "
-                  "затем /vid_restart, после чего нажми «CoD2 → поверх». "
-                  "Сними «Перемещать субтитры» для кликов сквозь оверлей.",
+            outer, text="В Windows используется нативный Win32-оверлей из основного переводчика. "
+                  "Если конкретный полноэкранный режим/драйвер скрывает его, "
+                  "доступен «Оконный резерв» после /r_fullscreen 0 и /vid_restart. "
+                  "Для переноса субтитров включи «Перемещать субтитры», затем выключи.",
             foreground="#777", wraplength=700,
         ).pack(anchor="w", pady=(8, 0))
 
@@ -281,6 +284,32 @@ class VoiceStudio:
         win.bind("<B1-Motion>", lambda e: self._drag(e))
         self.overlay = win
 
+    def _init_native_overlay(self):
+        if os.name != "nt":
+            return
+        try:
+            # Identical native per-pixel-alpha drawing path to stable app.
+            self.native_overlay = VoiceNativeOverlay(x=90, y=75)
+            self.status_var.set(
+                "Нативный Win32-оверлей включён. Проверяем поверх CoD2."
+            )
+        except Exception as exc:
+            # Never prevent transcription when overlay initialization fails.
+            self.native_overlay = None
+            self.status_var.set(
+                f"Нативный оверлей недоступен: {type(exc).__name__}: {exc}. "
+                "Используется резервное Tk-окно."
+            )
+
+    def _overlay_edit_changed(self):
+        # Native surface is click-through and cannot be dragged directly.
+        # The Tk preview is only visible while repositioning the subtitles.
+        if self.native_overlay is not None and not self.move_overlay_var.get():
+            self.native_overlay.move(
+                self.overlay.winfo_x(), self.overlay.winfo_y()
+            )
+        self._set_overlay_visibility()
+
     def _start_drag(self, event):
         if not self.move_overlay_var.get():
             return
@@ -298,6 +327,8 @@ class VoiceStudio:
     def _apply_overlay_window_style(self):
         if self.overlay is None or not self.overlay.winfo_exists():
             return
+        if self.native_overlay is not None and not self.move_overlay_var.get():
+            return
         if os.name == "nt":
             try:
                 configure_overlay(
@@ -314,7 +345,10 @@ class VoiceStudio:
         # Does not circumvent exclusive fullscreen; borderless is required.
         if self.overlay is not None and self.overlay_var.get() and os.name == "nt":
             try:
-                raise_overlay(self.overlay)
+                if self.native_overlay is not None and not self.move_overlay_var.get():
+                    self.native_overlay.force_topmost()
+                else:
+                    raise_overlay(self.overlay)
             except Exception:
                 pass
         if self.root.winfo_exists():
@@ -350,12 +384,27 @@ class VoiceStudio:
     def _set_overlay_visibility(self):
         if self.overlay is None:
             return
-        if self.overlay_var.get():
-            self.overlay.deiconify()
-            self.overlay.attributes("-topmost", True)
-            self.root.after(60, self._apply_overlay_window_style)
-        else:
+        if not self.overlay_var.get():
             self.overlay.withdraw()
+            if self.native_overlay is not None:
+                self.native_overlay.hide()
+            return
+
+        if self.native_overlay is not None:
+            if self.move_overlay_var.get():
+                self.native_overlay.hide()
+                self.overlay.deiconify()
+                self.overlay.attributes("-topmost", True)
+                self.root.after(60, self._apply_overlay_window_style)
+            else:
+                self.overlay.withdraw()
+                self.native_overlay.show()
+            return
+
+        # Last-resort Tk fallback when native Win32 initialization fails.
+        self.overlay.deiconify()
+        self.overlay.attributes("-topmost", True)
+        self.root.after(60, self._apply_overlay_window_style)
 
     def browse(self):
         filename = filedialog.askopenfilename(
@@ -554,6 +603,17 @@ class VoiceStudio:
                         if payload["translation"]:
                             display += "\n→ " + payload["translation"]
                         self.overlay_text.configure(text=display)
+                    if self.native_overlay is not None:
+                        try:
+                            self.native_overlay.update(
+                                language=payload["language"].upper(),
+                                original=payload["text"],
+                                translated=payload["translation"],
+                            )
+                        except Exception as exc:
+                            self.status_var.set(
+                                f"Ошибка нативных субтитров: {type(exc).__name__}: {exc}"
+                            )
                     if self.save_var.get():
                         with (app_data_folder() / "transcripts.jsonl").open("a", encoding="utf-8") as f:
                             f.write(json.dumps(
@@ -569,6 +629,12 @@ class VoiceStudio:
 
     def close(self):
         self.stop()
+        if self.native_overlay is not None:
+            try:
+                self.native_overlay.destroy()
+            except Exception:
+                pass
+            self.native_overlay = None
         self.root.destroy()
 
 
