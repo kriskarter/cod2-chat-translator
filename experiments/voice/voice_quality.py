@@ -49,6 +49,12 @@ def evaluate_transcription(
     if all(float(getattr(s, "compression_ratio", 0) or 0) > 2.4 for s in segments):
         return RecognitionQuality(False, "Повторяющийся или испорченный текст")
 
+    if normalized.casefold().rstrip(".!?") in {
+        "thank you for watching", "thanks for watching",
+        "подписывайтесь на канал", "субтитры сделал dimatorzok",
+    }:
+        return RecognitionQuality(False, "Похоже на типичную галлюцинацию Whisper")
+
     # Language probability is a language-ranking score, not word accuracy.
     # In short CoD2 callouts a correctly recognized word may land just below
     # the language cutoff. Keep it tentative only with good speech metrics.
@@ -76,11 +82,5 @@ def evaluate_transcription(
             f"Язык {code.upper()} определён неуверенно "
             f"({confidence:.1%}; нужно хотя бы {threshold:.0%})",
         )
-
-    if normalized.casefold().rstrip(".!?") in {
-        "thank you for watching", "thanks for watching",
-        "подписывайтесь на канал", "субтитры сделал dimatorzok",
-    }:
-        return RecognitionQuality(False, "Похоже на типичную галлюцинацию Whisper")
 
     return RecognitionQuality(True)
