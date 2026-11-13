@@ -1293,13 +1293,24 @@ class VoiceStudio:
                         f"{payload['engine']} {payload['asr_seconds']:.1f}с; "
                         f"модель {payload['model_seconds']:.1f}с]"
                     )
+                    if payload.get("vps_server_seconds") is not None:
+                        msg += (
+                            f" [VPS сервер {payload['vps_server_seconds']:.2f}с; "
+                            f"сеть/накладные {payload['vps_network_overhead_seconds']:.2f}с]"
+                        )
+                        self.status_var.set(
+                            f"VPS: сервер {payload['vps_server_seconds']:.2f} с; "
+                            f"сеть/накладные {payload['vps_network_overhead_seconds']:.2f} с; "
+                            f"весь запрос {payload['asr_seconds']:.2f} с"
+                        )
+                    else:
+                        self.status_var.set(
+                            f"{'Предварительно' if payload.get('tentative') else 'Распознано'}: "
+                            f"{payload['engine']} {payload['asr_seconds']:.1f} с; "
+                            f"очередь {payload['queue_seconds']:.1f} с; "
+                            f"загрузка модели {payload['model_seconds']:.1f} с"
+                        )
                     self._write_log(msg)
-                    self.status_var.set(
-                        f"{'Предварительно' if payload.get('tentative') else 'Распознано'}: "
-                        f"{payload['engine']} {payload['asr_seconds']:.1f} с; "
-                        f"очередь {payload['queue_seconds']:.1f} с; "
-                        f"загрузка модели {payload['model_seconds']:.1f} с"
-                    )
                     self.latest_displayed_seq = payload["seq"]
                     if self.overlay is not None:
                         display = (
