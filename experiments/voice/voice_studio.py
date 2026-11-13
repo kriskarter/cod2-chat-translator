@@ -15,7 +15,7 @@ import time
 import tkinter as tk
 from datetime import datetime
 from pathlib import Path
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+from tkinter import filedialog, messagebox, scrolledtext, simpledialog, ttk
 
 import numpy as np
 
@@ -35,6 +35,10 @@ from voice_screen_probe import (
 )
 from voice_performance import asr_profile, capture_idle_seconds, discard_pending
 from voice_vps_client import VPSVoiceClient, VPSVoiceError
+from voice_vps_tunnel import (
+    VoiceSSHTunnel, TunnelError, KeyUnlockRequired,
+    read_ssh_target_settings, save_ssh_target_settings,
+)
 from types import SimpleNamespace
 from voice_game_window import (
     configure_overlay,
@@ -154,10 +158,21 @@ class VoiceStudio:
 
         self.path_var = tk.StringVar(value=str(guess_voice_path()))
         self.model_var = tk.StringVar(value="tiny")
-        self.asr_location_var = tk.StringVar(value="Локально")
+        saved_ssh_target = read_ssh_target_settings(
+            app_data_folder() / "vps_ssh_connection.json"
+        )
+        self.asr_location_var = tk.StringVar(
+            value="VPS Fast Voice" if saved_ssh_target else "Локально"
+        )
+        self.ssh_target_var = tk.StringVar(value=saved_ssh_target)
+        self.manual_vps_var = tk.BooleanVar(value=False)
         self.vps_url_var = tk.StringVar(value="http://127.0.0.1:8765")
         self.vps_token_var = tk.StringVar(value="")
-        self.remote_client = None  # credential kept only in process RAM
+        self.ssh_tunnel = None
+        self._ssh_connecting = False
+        self._ssh_start_after = None
+        self._closing = False
+        self.remote_client = None  # key passphrase and token only in process RAM
         self.target_var = tk.StringVar(value="Русский")
         self.translate_var = tk.BooleanVar(value=True)
         self.fast_mode_var = tk.BooleanVar(value=True)
@@ -268,19 +283,32 @@ class VoiceStudio:
             remote_mode, text="VPS — эксперимент; при сбое локальный резерв.",
             foreground="#666",
         ).pack(side="left")
-        remote_connection = ttk.Frame(remote)
-        remote_connection.pack(fill="x", pady=(3, 0))
-        ttk.Label(remote_connection, text="VPS / SSH-туннель:").pack(side="left")
-        ttk.Entry(remote_connection, textvariable=self.vps_url_var, width=28).pack(
+        quick_ssh = ttk.Frame(remote)
+        quick_ssh.pack(fill="x", pady=(3, 0))
+        ttk.Label(quick_ssh, text="SSH-сервер:").pack(side="left")
+        ttk.Entry(quick_ssh, textvariable=self.ssh_target_var, width=29).pack(
             side="left", fill="x", expand=True, padx=(5, 7)
         )
-        ttk.Label(remote_connection, text="Токен:").pack(side="left")
-        ttk.Entry(remote_connection, textvariable=self.vps_token_var, width=20, show="*").pack(
-            side="left", padx=(5, 7)
-        )
         ttk.Button(
-            remote_connection, text="Проверить", command=self.check_vps,
+            quick_ssh, text="Подключить без консоли", command=self.auto_connect_vps,
         ).pack(side="left")
+        ttk.Button(
+            quick_ssh, text="Проверить", command=self.check_vps,
+        ).pack(side="left", padx=(6, 0))
+        ttk.Checkbutton(
+            remote_mode, text="Ручные настройки",
+            variable=self.manual_vps_var, command=self._show_manual_vps_settings,
+        ).pack(side="right")
+        self.manual_vps_connection = ttk.Frame(remote)
+        ttk.Label(self.manual_vps_connection, text="VPS URL:").pack(side="left")
+        ttk.Entry(
+            self.manual_vps_connection, textvariable=self.vps_url_var, width=29,
+        ).pack(side="left", fill="x", expand=True, padx=(5, 7))
+        ttk.Label(self.manual_vps_connection, text="Токен:").pack(side="left")
+        ttk.Entry(
+            self.manual_vps_connection, textvariable=self.vps_token_var,
+            width=20, show="*",
+        ).pack(side="left", padx=(5, 7))
 
         opts = ttk.Frame(outer)
         opts.pack(fill="x")
@@ -786,8 +814,74 @@ class VoiceStudio:
         self.output.see("end")
         self.output.configure(state="disabled")
 
+    def _show_manual_vps_settings(self):
+        if self.manual_vps_var.get():
+            self.manual_vps_connection.pack(fill="x", pady=(3, 0))
+        else:
+            self.manual_vps_connection.pack_forget()
+
+    def auto_connect_vps(self):
+        """No PowerShell: use existing SSH known_hosts, key and agent."""
+        target = self.ssh_target_var.get().strip()
+        if not target:
+            self.status_var.set("Введи user@адрес_VPS один раз, затем нажми подключение.")
+            return
+        if self._ssh_connecting:
+            return
+        if self.ssh_tunnel is not None and self.ssh_tunnel.is_connected():
+            self.vps_url_var.set(self.ssh_tunnel.url)
+            self.vps_token_var.set(self.ssh_tunnel.token)
+            self.asr_location_var.set("VPS Fast Voice")
+            self.check_vps()
+            return
+        self._connect_ssh_async(target, None)
+
+    def _connect_ssh_async(self, target: str, passphrase: str | None):
+        self._ssh_connecting = True
+        self.status_var.set("Создаю защищённый канал к VPS без PowerShell…")
+        gen = self.generation
+
+        def worker():
+            tunnel = None
+            try:
+                tunnel = VoiceSSHTunnel.connect(target, passphrase=passphrase)
+                client = VPSVoiceClient(tunnel.url, tunnel.token, timeout=5.0)
+                if not client.health():
+                    raise TunnelError("Голосовой сервис на VPS пока не готов.")
+                self.events.put(("ssh_connected", gen, (target, tunnel)))
+            except KeyUnlockRequired:
+                if tunnel is not None:
+                    tunnel.close()
+                self.events.put(("ssh_unlock", gen, target))
+            except (TunnelError, VPSVoiceError, ValueError) as exc:
+                if tunnel is not None:
+                    tunnel.close()
+                self.events.put(("ssh_failed", gen, str(exc)))
+
+        threading.Thread(
+            target=worker, daemon=True, name="VoicePrivateSSHConnect",
+        ).start()
+
+    def _needs_vps_connection(self, action: str) -> bool:
+        if self.asr_location_var.get() != "VPS Fast Voice":
+            return False
+        if self.ssh_tunnel is not None and self.ssh_tunnel.is_connected():
+            return False
+        if self.vps_token_var.get().strip():
+            # Advanced manual endpoint, supplied explicitly by the user.
+            return False
+        self._ssh_start_after = action
+        self.auto_connect_vps()
+        return True
+
     def check_vps(self):
-        """Test authenticated VPS health without uploading any voice data."""
+        """Test ASR health or automatically open its private SSH tunnel."""
+        if (
+            self.asr_location_var.get() == "VPS Fast Voice"
+            and not self.vps_token_var.get().strip()
+        ):
+            self.auto_connect_vps()
+            return
         url, token = self.vps_url_var.get(), self.vps_token_var.get()
         try:
             client = VPSVoiceClient(url, token, timeout=3.0)
@@ -819,6 +913,8 @@ class VoiceStudio:
         return self.generation, self.stop_flag
 
     def start_live(self):
+        if self._needs_vps_connection("live"):
+            return
         path = Path(self.path_var.get().strip())
         if not str(path):
             return
@@ -841,6 +937,8 @@ class VoiceStudio:
         ).start()
 
     def start_replay(self):
+        if self._needs_vps_connection("replay"):
+            return
         self.nick_research = None
         path = Path(self.path_var.get().strip())
         if not path.is_file():
@@ -1222,6 +1320,47 @@ class VoiceStudio:
                 elif event_type == "vps_status":
                     self.status_var.set(payload)
                     self._write_log(payload)
+                elif event_type == "ssh_unlock":
+                    self._ssh_connecting = False
+                    phrase = simpledialog.askstring(
+                        "Подключение CoD2 к VPS",
+                        "Введи парольную фразу своего SSH-ключа id_ed25519.\n"
+                        "Она не сохраняется и никому не отправляется.",
+                        show="*", parent=self.root,
+                    )
+                    if phrase is None:
+                        self._ssh_start_after = None
+                        self.status_var.set("Подключение отменено; можно выбрать локальный режим.")
+                    else:
+                        self._connect_ssh_async(payload, phrase)
+                elif event_type == "ssh_failed":
+                    self._ssh_connecting = False
+                    self._ssh_start_after = None
+                    self.status_var.set("VPS: " + payload)
+                    self._write_log("VPS: " + payload)
+                elif event_type == "ssh_connected":
+                    self._ssh_connecting = False
+                    target, tunnel = payload
+                    if self.ssh_tunnel is not None:
+                        self.ssh_tunnel.close()
+                    self.ssh_tunnel = tunnel
+                    self.vps_url_var.set(tunnel.url)
+                    self.vps_token_var.set(tunnel.token)
+                    self.asr_location_var.set("VPS Fast Voice")
+                    try:
+                        save_ssh_target_settings(
+                            app_data_folder() / "vps_ssh_connection.json", target
+                        )
+                    except OSError:
+                        pass
+                    self.status_var.set("VPS Fast Voice подключён! Без консоли.")
+                    self._write_log("VPS Fast Voice подключён по SSH.")
+                    action = self._ssh_start_after
+                    self._ssh_start_after = None
+                    if action == "live":
+                        self.root.after(50, self.start_live)
+                    elif action == "replay":
+                        self.root.after(50, self.start_replay)
                 elif event_type == "packet_status":
                     self.packet_status_var.set(str(payload))
                     self._write_log(str(payload))
@@ -1348,6 +1487,14 @@ class VoiceStudio:
             self.root.after(100, self._pump_ui)
 
     def close(self):
+        self._closing = True
+        if self.ssh_tunnel is not None:
+            try:
+                self.ssh_tunnel.close()
+            except OSError:
+                pass
+            self.ssh_tunnel = None
+        self.vps_token_var.set("")
         if self.packet_stop_file is not None:
             try:
                 disable_probe(self.packet_stop_file)
