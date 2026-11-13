@@ -4,12 +4,16 @@ import ctypes
 import json
 import os
 import queue
+import requests
+import time
+from collections import OrderedDict
 import re
 import threading
 from ctypes import wintypes
 from pathlib import Path
 
 from outgoing_send import send_cod2_chat_message
+from smart_engine import DEFAULT_ENGINE, TranslationRequest, semantic_violations
 from translation_fallback import (
     looks_like_service_error,
     translate_with_mymemory,
@@ -350,10 +354,133 @@ def save_outgoing_preferences(
     os.replace(temp, path)
 
 
-def translate_outgoing_text(
+class OutgoingHttpTransport:
+    """Per-worker persistent HTTP connections, never shared across threads."""
+
+    def __init__(self):
+        self._local = threading.local()
+
+    def _get(self, service: str):
+        session = getattr(self._local, service, None)
+        if session is None:
+            session = requests.Session()
+            setattr(self._local, service, session)
+        return session.get
+
+    def google_get(self):
+        return self._get("google")
+
+    def mymemory_get(self):
+        return self._get("mymemory")
+
+    def close_current_thread(self):
+        for service in ("google", "mymemory"):
+            session = getattr(self._local, service, None)
+            if session is not None:
+                session.close()
+                delattr(self._local, service)
+
+
+class OutgoingTranslationDispatcher:
+    """Two fixed threads with exactly one replaceable pending message.
+
+    F9 may translate several partial drafts while typing. Never create an
+    unbounded number of background threads or retain a backlog of outdated
+    drafts. A final Enter request replaces the pending preview request.
+    """
+
+    def __init__(self, translate_fn, workers=2, on_worker_exit=None,
+                 on_unhandled_error=None):
+        self._jobs = queue.Queue(maxsize=1)
+        self._lock = threading.Lock()
+        self._closed = threading.Event()
+        self._translate_fn = translate_fn
+        self._on_worker_exit = on_worker_exit
+        self._on_unhandled_error = on_unhandled_error
+        self._workers = [
+            threading.Thread(target=self._run, name=f"F9Translate-{index}",
+                             daemon=True)
+            for index in range(workers)
+        ]
+        for worker in self._workers:
+            worker.start()
+
+    def submit(self, *args):
+        with self._lock:
+            if self._closed.is_set():
+                return False
+            # An older draft that has not started must never delay Enter.
+            while True:
+                try:
+                    self._jobs.get_nowait()
+                    self._jobs.task_done()
+                except queue.Empty:
+                    break
+            self._jobs.put_nowait(args)
+            return True
+
+    def _run(self):
+        try:
+            while not self._closed.is_set():
+                try:
+                    job = self._jobs.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                try:
+                    self._translate_fn(*job)
+                except Exception:
+                    # A programming error must not permanently kill one of
+                    # the two F9 threads, leaving the UI spinning forever.
+                    if self._on_unhandled_error:
+                        self._on_unhandled_error(job)
+                finally:
+                    self._jobs.task_done()
+        finally:
+            if self._on_worker_exit:
+                self._on_worker_exit()
+
+    def close(self):
+        with self._lock:
+            self._closed.set()
+            while True:
+                try:
+                    self._jobs.get_nowait()
+                    self._jobs.task_done()
+                except queue.Empty:
+                    break
+
+
+class OutgoingTranslationCache:
+    """Small in-memory success-only LRU cache, no chat telemetry on disk."""
+
+    def __init__(self, max_entries=128):
+        self._data = OrderedDict()
+        self._limit = max_entries
+        self._lock = threading.Lock()
+
+    def get(self, key):
+        with self._lock:
+            if key not in self._data:
+                return None
+            self._data.move_to_end(key)
+            return self._data[key]
+
+    def save(self, key, translated):
+        with self._lock:
+            self._data[key] = translated
+            self._data.move_to_end(key)
+            while len(self._data) > self._limit:
+                self._data.popitem(last=False)
+
+
+def _online_translate_outgoing(
     text: str,
     target: str = TARGET_CODE,
     source_language: str = "auto",
+    *,
+    transport=None,
+    diagnostics=None,
+    semantic_source=None,
 ) -> str:
     source = normalize_outgoing_text(text)
 
@@ -366,11 +493,14 @@ def translate_outgoing_text(
     ):
         return source
 
+    google_started = time.monotonic()
     try:
+        options = {"request_get": transport.google_get()} if transport else {}
         translated = translate_with_google_fast(
             source,
             source=source_language,
             target=target,
+            **options,
         )
 
         translated = normalize_outgoing_text(
@@ -394,38 +524,126 @@ def translate_outgoing_text(
                 "returned no translation"
             )
 
+        if semantic_source:
+            problems = semantic_violations(semantic_source, translated, target)
+            if problems:
+                # A valid Google response can still change e.g. 2 HP -> 1 HP.
+                # Let MyMemory try before giving up on this outgoing message.
+                if diagnostics is not None:
+                    diagnostics["google_semantic_rejected"] = problems
+                raise RuntimeError("Google changed tactical meaning")
+
+        if diagnostics is not None:
+            diagnostics["provider"] = "Google"
+            diagnostics["google_ms"] = round((time.monotonic()-google_started)*1000)
         return translated
 
-    except Exception:
-        pass
+    except Exception as exc:
+        if diagnostics is not None:
+            diagnostics["google_failed"] = type(exc).__name__
+            diagnostics["google_ms"] = round((time.monotonic()-google_started)*1000)
 
     # Google occasionally changes/blocks the mobile
     # endpoint used by deep-translator. Do not fail F9:
     # transparently switch to an independent backend.
+    fallback_started = time.monotonic()
     try:
+        options = {"request_get": transport.mymemory_get()} if transport else {}
         translated = translate_with_mymemory(
             source,
             source=source_language,
             target=target,
+            **options,
         )
 
         translated = normalize_outgoing_text(
             str(translated or "")
         )
 
-        if not translated:
-            raise RuntimeError(
-                "Fallback returned "
-                "an empty translation"
+        if (
+            not translated
+            or looks_like_service_error(translated)
+            or unchanged_translation_needs_fallback(
+                source, translated,
+                source_language=source_language,
+                target_language=target,
             )
+        ):
+            raise RuntimeError("Fallback returned invalid or unchanged text")
 
+        if semantic_source:
+            problems = semantic_violations(semantic_source, translated, target)
+            if problems:
+                if diagnostics is not None:
+                    diagnostics["semantic_block"] = problems
+                raise RuntimeError("MyMemory changed tactical meaning")
+
+        if diagnostics is not None:
+            diagnostics["provider"] = "MyMemory"
+            diagnostics["fallback_ms"] = round((time.monotonic()-fallback_started)*1000)
         return translated
 
     except Exception as fallback_error:
+        if diagnostics is not None:
+            diagnostics["fallback_failed"] = type(fallback_error).__name__
+            diagnostics["fallback_ms"] = round((time.monotonic()-fallback_started)*1000)
         raise RuntimeError(
-            "Сервисы перевода временно "
-            "недоступны"
+            "Сервисы перевода не ответили. Проверь интернет или "
+            "попробуй ещё раз. Текст не отправлен."
         ) from fallback_error
+
+
+
+def translate_outgoing_text(
+    text: str,
+    target: str = TARGET_CODE,
+    source_language: str = "auto",
+    *,
+    style: str = "live",
+    slang_enabled: bool = True,
+    legacy_transform=None,
+    smart_enabled: bool = True,
+    transport=None,
+    diagnostics=None,
+) -> str:
+    """F9 uses the same semantic engine as the incoming F8 overlay."""
+    source = normalize_outgoing_text(text)
+    if not source:
+        raise ValueError("Пустое сообщение")
+    if not smart_enabled:
+        return _online_translate_outgoing(
+            source, target, source_language,
+            transport=transport, diagnostics=diagnostics,
+        )
+
+    result = DEFAULT_ENGINE.translate(
+        TranslationRequest(
+            text=source,
+            target_lang=target,
+            source_lang=source_language,
+            style=style,
+            direction="outgoing",
+            use_slang=slang_enabled,
+        ),
+        provider=lambda prepared, destination, language: _online_translate_outgoing(
+            prepared, target=destination, source_language=language,
+            transport=transport, diagnostics=diagnostics,
+            semantic_source=source,
+        ),
+        legacy_transform=legacy_transform,
+    )
+    if diagnostics is not None and result.provider != "online":
+        diagnostics["provider"] = result.provider
+    if not result.safe:
+        if diagnostics is not None:
+            diagnostics["semantic_block"] = result.uncertainty_reasons
+        # F9 can automatically send on Enter; never send an unchecked or
+        # corrupted tactical translation merely because a provider responded.
+        raise RuntimeError(
+            "Не удалось безопасно перевести сообщение. "
+            "Проверьте оригинал и попробуйте ещё раз."
+        )
+    return normalize_outgoing_text(result.text)
 
 
 def is_running_as_admin() -> bool:
@@ -914,7 +1132,15 @@ class OutgoingChatController:
         status_var=None,
         last_var=None,
         screenshot_callback=None,
+        legacy_transform=None,
+        style_getter=None,
+        slang_enabled_getter=None,
+        smart_enabled_getter=None,
     ) -> None:
+        self.legacy_transform = legacy_transform
+        self.style_getter = style_getter or (lambda: "live")
+        self.slang_enabled_getter = slang_enabled_getter or (lambda: True)
+        self.smart_enabled_getter = smart_enabled_getter or (lambda: True)
         self._owns_root = root is None
         self.root = root or tk.Tk()
         self.screenshot_callback = screenshot_callback
@@ -936,6 +1162,11 @@ class OutgoingChatController:
         self.translation_after_id = None
         self.translation_source = ""
         self.send_after_translation = False
+        self.translation_started_at = 0.0
+        self._f9_last_progress_bucket = -1
+        self._f9_dispatcher = None  # Start on first request, not during app init
+        self._f9_transport = OutgoingHttpTransport()
+        self._f9_cache = OutgoingTranslationCache()
 
         self.status_var = status_var or tk.StringVar(
             master=self.root,
@@ -988,7 +1219,17 @@ class OutgoingChatController:
         self.root.after(30, self._poll_events)
 
         if self._owns_root:
-            self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
+            self.root.protocol("WM_DELETE_WINDOW", self.close)
+
+    def close(self):
+        # Graceful termination: existing bounded network calls may finish,
+        # but queued drafts are discarded and cannot be sent after shutdown.
+        dispatcher = self._f9_dispatcher
+        if dispatcher is not None:
+            dispatcher.close()
+        self.keyboard.set_active(False)
+        if self._owns_root:
+            self.root.destroy()
 
     def _route_text(self) -> str:
         return (
@@ -1023,6 +1264,25 @@ class OutgoingChatController:
             "Языки сохранены: "
             + self._route_text()
         )
+        # A translation made for the previous language pair must never
+        # be used if the user switches targets while the F9 popup is open.
+        if self.popup_visible and not self.sending_in_progress:
+            was_waiting_to_send = self.send_after_translation
+            self.send_after_translation = False
+            self.translation_request_id += 1
+            self.translation_in_progress = False
+            self.pending_translation = ""
+            self.translation_source = ""
+            if was_waiting_to_send:
+                # Enter was already pressed: retry immediately for the newly
+                # selected language pair, rather than hanging with no worker.
+                current = normalize_outgoing_text(self.buffer)
+                self.send_after_translation = bool(current)
+                if current:
+                    self._cancel_live_translation()
+                    self._start_translation(current)
+            else:
+                self._schedule_live_translation()
 
     def set_enabled(self, value: bool) -> None:
         self.enabled = bool(value)
@@ -1353,26 +1613,30 @@ class OutgoingChatController:
             pady=(7, 0),
         )
 
+        # The F9 popup is the only UI normally visible while playing.
+        # Show actual translation diagnostics here, not just in the main app.
+        footer = tk.Frame(frame, bg="#101419")
+        footer.pack(fill="x", padx=16, pady=(6, 9))
+
         self.hint = tk.Label(
-            frame,
-            text=(
-                "Печатай прямо в игре · "
-                "перевод появляется сам · Enter — отправить · "
-                "Esc/F9 — закрыть"
-            ),
+            footer,
+            text="Enter — отправить · Esc/F9 — закрыть",
             bg="#101419",
             fg="#8f98a5",
-            font=(
-                "Segoe UI",
-                9,
-            ),
-        )
-
-        self.hint.pack(
+            font=("Segoe UI", 9),
             anchor="w",
-            padx=16,
-            pady=(6, 9),
         )
+        self.hint.pack(side="left")
+
+        self.translation_meta = tk.Label(
+            footer,
+            text="",
+            bg="#101419",
+            fg="#8f98a5",
+            font=("Segoe UI", 9, "bold"),
+            anchor="e",
+        )
+        self.translation_meta.pack(side="right")
 
         # Создаём HWND заранее.
         popup.update_idletasks()
@@ -1488,6 +1752,38 @@ class OutgoingChatController:
             0.0,
         )
 
+    @staticmethod
+    def _format_f9_elapsed(elapsed_ms: int) -> str:
+        value = max(0, int(elapsed_ms))
+        if value < 1000:
+            return f"{value} мс"
+        return f"{value / 1000:.1f}".replace(".", ",") + " с"
+
+    def _set_f9_meta(self, text: str = "", fg: str = "#8f98a5") -> None:
+        # SimpleNamespace test controllers and older standalone UI clients
+        # may not have the new widget. They retain the original preview.
+        label = getattr(self, "translation_meta", None)
+        if label is not None:
+            label.configure(text=text, fg=fg)
+
+    def _refresh_f9_pending_meta(self) -> None:
+        if (
+            not getattr(self, "popup_visible", False)
+            or not getattr(self, "translation_in_progress", False)
+            or getattr(self, "sending_in_progress", False)
+            or not getattr(self, "translation_started_at", 0.0)
+        ):
+            return
+        elapsed_ms = round((time.monotonic() - self.translation_started_at) * 1000)
+        bucket = elapsed_ms // 200
+        if bucket == self._f9_last_progress_bucket:
+            return
+        self._f9_last_progress_bucket = bucket
+        self._set_f9_meta(
+            f"⏳ Перевод · {self._format_f9_elapsed(elapsed_ms)}",
+            "#67d4ff",
+        )
+
     def _render_buffer(self) -> None:
         if self.buffer:
             self.input_label.configure(
@@ -1521,13 +1817,11 @@ class OutgoingChatController:
         self.preview.configure(
             text=""
         )
+        self._set_f9_meta("Готов к переводу")
+        self.translation_started_at = 0.0
 
         self.hint.configure(
-            text=(
-                "Печатай — перевод появится сам · "
-                "Enter — отправить · "
-                "Esc/F9 — закрыть"
-            )
+            text="Enter — отправить · Esc/F9 — закрыть"
         )
 
         self._render_buffer()
@@ -1566,6 +1860,7 @@ class OutgoingChatController:
         self.send_after_translation = False
         self.pending_translation = ""
         self.translation_source = ""
+        self.translation_started_at = 0.0
         self.mode = "input"
 
         self._hide_overlay()
@@ -1699,6 +1994,8 @@ class OutgoingChatController:
                 text="",
                 fg="#9de5a7",
             )
+            self._set_f9_meta("")
+            self.translation_started_at = 0.0
             return
 
         if (
@@ -1721,6 +2018,8 @@ class OutgoingChatController:
             text="",
             fg="#9de5a7",
         )
+        self._set_f9_meta("Ожидание ввода")
+        self.translation_started_at = 0.0
 
         self.translation_after_id = (
             self.root.after(
@@ -1758,6 +2057,9 @@ class OutgoingChatController:
         self.translation_source = source
         self.pending_translation = ""
         self.translation_in_progress = True
+        self.translation_started_at = time.monotonic()
+        self._f9_last_progress_bucket = -1
+        self._set_f9_meta("⏳ Перевожу…", "#67d4ff")
 
         if self.send_after_translation:
             preview_text = "Перевожу и отправляю…"
@@ -1769,12 +2071,31 @@ class OutgoingChatController:
             fg="#67d4ff",
         )
 
-        threading.Thread(
-            target=self._translate_worker,
-            args=(source, request_id),
-            daemon=True,
-            name="OutgoingTranslation",
-        ).start()
+        # Capture UI/Tk variables on the main thread! Reading Tkinter
+        # StringVars/BooleanVars in a network thread intermittently blocks
+        # or raises on Windows, especially with the game focused.
+        settings = (
+            self.target_code,
+            self.source_code,
+            self.style_getter(),
+            bool(self.slang_enabled_getter()),
+            bool(self.smart_enabled_getter()),
+        )
+        if self._f9_dispatcher is None:
+            self._f9_dispatcher = OutgoingTranslationDispatcher(
+                self._translate_worker,
+                workers=2,
+                on_worker_exit=self._f9_transport.close_current_thread,
+                on_unhandled_error=lambda job: self.events.put((
+                    "translation_error",
+                    (job[1], job[0], "Внутренняя ошибка F9.", 0, "F9"),
+                )),
+            )
+        if not self._f9_dispatcher.submit(source, request_id, *settings):
+            self.events.put((
+                "translation_error",
+                (request_id, source, "Переводчик закрывается.", 0, "offline"),
+            ))
 
     def _begin_send(
         self,
@@ -1856,6 +2177,7 @@ class OutgoingChatController:
             text="Перевожу и отправляю…",
             fg="#67d4ff",
         )
+        self._set_f9_meta("⏳ Ожидаю перевод…", "#67d4ff")
 
         self.hint.configure(
             text=(
@@ -1878,38 +2200,55 @@ class OutgoingChatController:
         self,
         source: str,
         request_id: int,
+        target_code: str,
+        source_code: str,
+        style: str,
+        slang_enabled: bool,
+        smart_enabled: bool,
     ) -> None:
+        started = time.monotonic()
+        cache_key = (
+            source, target_code, source_code, style,
+            slang_enabled, smart_enabled,
+        )
+        diagnostics = {}
         try:
-            translated = (
-                translate_outgoing_text(
+            translated = self._f9_cache.get(cache_key)
+            if translated is None:
+                translated = translate_outgoing_text(
                     source,
-                    self.target_code,
-                    self.source_code,
+                    target_code,
+                    source_code,
+                    style=style,
+                    slang_enabled=slang_enabled,
+                    legacy_transform=self.legacy_transform,
+                    smart_enabled=smart_enabled,
+                    transport=self._f9_transport,
+                    diagnostics=diagnostics,
                 )
-            )
+                # Store only successful, semantically safe translations.
+                self._f9_cache.save(cache_key, translated)
+            else:
+                diagnostics["provider"] = "кэш"
 
-            self.events.put(
+            self.events.put((
+                "translation_ok",
                 (
-                    "translation_ok",
-                    (
-                        request_id,
-                        source,
-                        translated,
-                    ),
-                )
-            )
-
+                    request_id, source, translated,
+                    round((time.monotonic() - started) * 1000),
+                    diagnostics.get("provider", "локально"),
+                ),
+            ))
         except Exception as exc:
-            self.events.put(
+            self.events.put((
+                "translation_error",
                 (
-                    "translation_error",
-                    (
-                        request_id,
-                        source,
-                        str(exc),
-                    ),
-                )
-            )
+                    request_id, source, str(exc),
+                    round((time.monotonic() - started) * 1000),
+                    "проверка смысла" if diagnostics.get("semantic_block")
+                    else "онлайн-сервисы",
+                ),
+            ))
 
     def _send_worker(
         self,
@@ -1997,11 +2336,9 @@ class OutgoingChatController:
                     )
 
                 elif event == "translation_ok":
-                    (
-                        request_id,
-                        source,
-                        translated,
-                    ) = payload
+                    request_id, source, translated, *details = payload
+                    latency_ms = details[0] if details else 0
+                    service = details[1] if len(details) > 1 else "онлайн"
 
                     # Старые ответы от сервиса игнорируем.
                     if (
@@ -2033,6 +2370,17 @@ class OutgoingChatController:
                             f"{translated}"
                         )
                     )
+                    if latency_ms:
+                        self.status_var.set(
+                            f"F9: перевод {latency_ms} мс · {service}"
+                        )
+                    # Main window is hidden during CoD2 play: mirror status
+                    # inside the small F9 translation popup.
+                    self._set_f9_meta(
+                        f"✓ {service} · {self._format_f9_elapsed(latency_ms)}",
+                        "#9de5a7",
+                    )
+                    self.translation_started_at = 0.0
 
                     # Enter мог быть нажат ещё до того,
                     # как live-перевод успел завершиться.
@@ -2082,11 +2430,9 @@ class OutgoingChatController:
                     )
 
                 elif event == "translation_error":
-                    (
-                        request_id,
-                        source,
-                        error,
-                    ) = payload
+                    request_id, source, error, *details = payload
+                    latency_ms = details[0] if details else 0
+                    failure_route = details[1] if len(details) > 1 else "F9"
 
                     if (
                         request_id
@@ -2106,6 +2452,15 @@ class OutgoingChatController:
                     self.translation_in_progress = False
                     self.send_after_translation = False
                     self.pending_translation = ""
+                    self.translation_started_at = 0.0
+                    self._set_f9_meta(
+                        f"⚠ Нет перевода · {self._format_f9_elapsed(latency_ms)}",
+                        "#ff7676",
+                    )
+                    self.status_var.set(
+                        f"F9: нет перевода ({failure_route}, {latency_ms} мс). "
+                        "Ничего не отправлено."
+                    )
 
                     self.preview.configure(
                         text=(
@@ -2125,6 +2480,7 @@ class OutgoingChatController:
         except queue.Empty:
             pass
 
+        self._refresh_f9_pending_meta()
         try:
             self.root.after(
                 30,

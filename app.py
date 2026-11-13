@@ -5,6 +5,7 @@ import ctypes
 import json
 import os
 import queue
+import requests
 import re
 import shutil
 import subprocess
@@ -14,7 +15,7 @@ import threading
 import time
 import webbrowser
 from collections import OrderedDict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -27,6 +28,7 @@ from server_catalog import (
 )
 
 from outgoing_chat import LANGUAGES, OutgoingChatController
+from smart_engine import DEFAULT_ENGINE, ContextMessage, TranslationRequest
 from translation_fallback import (
     looks_like_service_error as
     looks_like_fallback_service_error,
@@ -55,7 +57,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.17.4"
+APP_VERSION = "1.18.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -140,6 +142,7 @@ DEFAULT_CONFIG = {
     "show_original": False,
     "hide_same_language": True,
     "gaming_slang": True,
+    "smart_engine_enabled": True,
     "slang_style": "live",
     "deduplicate_messages": True,
     "duplicate_window_seconds": 4,
@@ -192,7 +195,7 @@ UI_STRINGS = {
         "profile_rename_title": "Имя профиля", "profile_rename_prompt": "Название профиля:",
         "translate_to": "Переводить на:", "other": "Другой…",
         "show_original": "показывать оригинал", "hide_same": "не дублировать выбранный язык", "smart_chat": "Умный чат:",
-        "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
+        "smart_engine": "Smart V1", "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
         "hotkey": "F8 — скрыть/показать", "overlay_hotkey_on": "F8 — входящий оверлей: ВКЛЮЧЕН", "overlay_hotkey_hidden": "F8 — входящий оверлей: СКРЫТ", "overlay_hotkey_off": "F8 — входящий оверлей: ВЫКЛЮЧЕН", "enabled": "Переводчик включён", "test": "Тест оверлея", "clear": "Очистить",
         "configure_overlay": "Настроить оверлей", "lock_overlay": "Зафиксировать оверлей", "cod2_top": "CoD2 → поверх",
         "overlay_view": "Вид оверлея", "font_size": "Размер текста", "background": "Фон",
@@ -267,7 +270,7 @@ UI_STRINGS = {
         "profile_rename_title": "Profile name", "profile_rename_prompt": "Profile name:",
         "translate_to": "Translate to:", "other": "Other…",
         "show_original": "show original", "hide_same": "hide messages already in target language", "smart_chat": "Smart chat:",
-        "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
+        "smart_engine": "Smart V1", "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
         "hotkey": "F8 — hide/show", "overlay_hotkey_on": "F8 — incoming overlay: ON", "overlay_hotkey_hidden": "F8 — incoming overlay: HIDDEN", "overlay_hotkey_off": "F8 — incoming overlay: OFF", "enabled": "Translator enabled", "test": "Test overlay", "clear": "Clear",
         "configure_overlay": "Configure overlay", "lock_overlay": "Lock overlay", "cod2_top": "CoD2 → overlay",
         "overlay_view": "Overlay appearance", "font_size": "Text size", "background": "Background",
@@ -346,7 +349,7 @@ UI_STRINGS["uk"] = {
     "profile_rename_title": "Назва профілю", "profile_rename_prompt": "Назва профілю:",
     "translate_to": "Перекладати на:", "other": "Інший…",
     "show_original": "показувати оригінал", "hide_same": "не дублювати вибрану мову", "smart_chat": "Розумний чат:",
-    "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
+    "smart_engine": "Smart V1", "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
     "hotkey": "F8 — сховати/показати", "overlay_hotkey_on": "F8 — вхідний оверлей: УВІМКНЕНО", "overlay_hotkey_hidden": "F8 — вхідний оверлей: ПРИХОВАНО", "overlay_hotkey_off": "F8 — вхідний оверлей: ВИМКНЕНО", "enabled": "Перекладач увімкнено", "test": "Тест оверлею", "clear": "Очистити",
     "configure_overlay": "Налаштувати оверлей", "lock_overlay": "Зафіксувати оверлей", "cod2_top": "CoD2 → поверх",
     "overlay_view": "Вигляд оверлею", "font_size": "Розмір тексту", "background": "Фон",
@@ -1373,6 +1376,7 @@ class ChatMessage:
     nickname: str
     text: str
     raw: str = ""
+    enqueued_at: float = 0.0
 
 
 def parse_chat_line(line: str) -> Optional[ChatMessage]:
@@ -2368,6 +2372,45 @@ def looks_like_translation_service_error(result: str) -> bool:
 
 
 
+class TranslationWorkerSharedState:
+    """Small shared state for two bounded F8 workers.
+
+    The two workers retain independent HTTP connections, while successful
+    translations and same-speaker context remain coherent across them.
+    """
+
+    def __init__(self):
+        self.cache: OrderedDict[tuple[str, str], str] = OrderedDict()
+        self.cache_lock = threading.Lock()
+        self.context_history: deque[ContextMessage] = deque(maxlen=8)
+        self.context_lock = threading.Lock()
+        self.queue_wait_ms: deque[float] = deque(maxlen=64)
+        self.provider_ms: deque[float] = deque(maxlen=64)
+        self.metrics_lock = threading.Lock()
+
+    def record(self, queue_wait_ms: float, provider_ms: float) -> None:
+        # Only timing values are retained: never raw gamer chat or nicknames.
+        with self.metrics_lock:
+            self.queue_wait_ms.append(queue_wait_ms)
+            self.provider_ms.append(provider_ms)
+
+    def snapshot(self) -> dict[str, float]:
+        def percentile(data, fraction):
+            if not data:
+                return 0.0
+            values = sorted(data)
+            position = min(len(values)-1, max(0, int((len(values)-1)*fraction + 0.5)))
+            return round(values[position], 1)
+        with self.metrics_lock:
+            return {
+                "queue_p50_ms": percentile(self.queue_wait_ms, 0.5),
+                "queue_p95_ms": percentile(self.queue_wait_ms, 0.95),
+                "provider_p50_ms": percentile(self.provider_ms, 0.5),
+                "provider_p95_ms": percentile(self.provider_ms, 0.95),
+                "samples": len(self.queue_wait_ms),
+            }
+
+
 class TranslatorWorker(threading.Thread):
     def __init__(
         self,
@@ -2378,6 +2421,8 @@ class TranslatorWorker(threading.Thread):
         slang_enabled_getter: Callable[[], bool],
         slang_style_getter: Callable[[], str],
         stop_event: threading.Event,
+        smart_enabled_getter: Optional[Callable[[], bool]] = None,
+        shared_state: Optional[TranslationWorkerSharedState] = None,
     ):
         super().__init__(daemon=True, name="translator-worker")
         self.jobs = jobs
@@ -2387,10 +2432,17 @@ class TranslatorWorker(threading.Thread):
         self.slang_enabled_getter = slang_enabled_getter
         self.slang_style_getter = slang_style_getter
         self.stop_event = stop_event
-        self.cache: OrderedDict[tuple[str, str], str] = OrderedDict()
+        self.smart_enabled_getter = smart_enabled_getter or (lambda: True)
+        self.shared_state = shared_state or TranslationWorkerSharedState()
+        self.cache = self.shared_state.cache
+        self.cache_lock = self.shared_state.cache_lock
         self.cache_limit = 400
         self._translator = None
         self._translator_target = None
+        self._google_session: Optional[requests.Session] = None
+        self._mymemory_session: Optional[requests.Session] = None
+        self.context_history = self.shared_state.context_history
+        self.context_lock = self.shared_state.context_lock
 
     @staticmethod
     def _skip_translation(text: str) -> bool:
@@ -2402,6 +2454,10 @@ class TranslatorWorker(threading.Thread):
         return False
 
     def _new_translator(self, target: str):
+        if self._google_session is None:
+            self._google_session = requests.Session()
+        session = self._google_session
+
         class FastGoogleTranslator:
             def translate(
                 _self,
@@ -2411,6 +2467,7 @@ class TranslatorWorker(threading.Thread):
                     text,
                     source="auto",
                     target=target,
+                    request_get=session.get,
                 )
 
         return FastGoogleTranslator()
@@ -2420,19 +2477,23 @@ class TranslatorWorker(threading.Thread):
         text: str,
         target: str,
     ) -> str:
+        if self._mymemory_session is None:
+            self._mymemory_session = requests.Session()
         return translate_with_mymemory(
             text,
             source="auto",
             target=target,
+            request_get=self._mymemory_session.get,
         )
 
     def _translate(self, text: str, target: str) -> str:
         if self._skip_translation(text):
             return text
         key = (target, text)
-        if key in self.cache:
-            self.cache.move_to_end(key)
-            return self.cache[key]
+        with self.cache_lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                return self.cache[key]
 
         last_error: Optional[Exception] = None
         # One short Google attempt only. A game chat must
@@ -2462,10 +2523,11 @@ class TranslatorWorker(threading.Thread):
                         "primary translator returned source text"
                     )
 
-                self.cache[key] = result
-                self.cache.move_to_end(key)
-                while len(self.cache) > self.cache_limit:
-                    self.cache.popitem(last=False)
+                with self.cache_lock:
+                    self.cache[key] = result
+                    self.cache.move_to_end(key)
+                    while len(self.cache) > self.cache_limit:
+                        self.cache.popitem(last=False)
                 return result
             except Exception as exc:
                 last_error = exc
@@ -2496,17 +2558,11 @@ class TranslatorWorker(threading.Thread):
                     )
                 )
 
-            self.cache[key] = result
-            self.cache.move_to_end(key)
-
-            while (
-                len(self.cache)
-                > self.cache_limit
-            ):
-                self.cache.popitem(
-                    last=False
-                )
-
+            with self.cache_lock:
+                self.cache[key] = result
+                self.cache.move_to_end(key)
+                while len(self.cache) > self.cache_limit:
+                    self.cache.popitem(last=False)
             return result
 
         except Exception as fallback_error:
@@ -2523,18 +2579,64 @@ class TranslatorWorker(threading.Thread):
                 continue
             target = self.target_getter()
             started = time.monotonic()
+            queue_wait_ms = max(0.0, (started - msg.enqueued_at) * 1000) if msg.enqueued_at else 0.0
+            provider_ms = 0.0
+
+            def timed_provider(text: str, destination: str) -> str:
+                nonlocal provider_ms
+                call_start = time.monotonic()
+                try:
+                    return self._translate(text, destination)
+                finally:
+                    provider_ms += (time.monotonic() - call_start) * 1000
+
             try:
                 if self.hide_same_getter() and looks_like_target_language(msg.text, target):
                     self.ui_queue.put(("same_language", msg, 0))
                     continue
 
-                source_text = msg.text
-                direct_result = None
-                if self.slang_enabled_getter():
-                    source_text, direct_result = gaming_slang_transform(msg.text, target, self.slang_style_getter())
-                translated = direct_result if direct_result is not None else self._translate(source_text, target)
-                elapsed_ms = int((time.monotonic() - started) * 1000)
-                if self.hide_same_getter() and normalize_for_compare(translated) == normalize_for_compare(msg.text):
+                if self.smart_enabled_getter():
+                    # Preserve original chat. Legacy dictionaries only provide
+                    # optional hints rather than destructive pre-processing.
+                    now = time.monotonic()
+                    with self.context_lock:
+                        recent_context = tuple(
+                            entry for entry in self.context_history
+                            if entry.nickname == msg.nickname
+                            and now - entry.timestamp <= 8
+                        )
+                    request = TranslationRequest(
+                        text=msg.text,
+                        target_lang=target,
+                        style=self.slang_style_getter(),
+                        nickname=msg.nickname,
+                        direction="incoming",
+                        context=recent_context,
+                        use_slang=self.slang_enabled_getter(),
+                    )
+                    result = DEFAULT_ENGINE.translate(
+                        request,
+                        provider=lambda text, destination, _source:
+                            timed_provider(text, destination),
+                        legacy_transform=gaming_slang_transform,
+                    )
+                    translated = result.text
+                    uncertain = not result.safe
+                else:
+                    # Instant rollback switch: retain the previous behaviour.
+                    source_text, direct = msg.text, None
+                    if self.slang_enabled_getter():
+                        source_text, direct = gaming_slang_transform(
+                            msg.text, target, self.slang_style_getter()
+                        )
+                    translated = direct if direct is not None else timed_provider(source_text, target)
+                    uncertain = False
+
+                elapsed_ms = int((time.monotonic() - started) * 1000 + queue_wait_ms)
+                if uncertain:
+                    # Never hide an uncertain tactical message as a duplicate.
+                    self.ui_queue.put(("translation", msg, "⚠ " + msg.text, elapsed_ms))
+                elif self.hide_same_getter() and normalize_for_compare(translated) == normalize_for_compare(msg.text):
                     self.ui_queue.put(("same_language", msg, elapsed_ms))
                 else:
                     self.ui_queue.put(("translation", msg, translated, elapsed_ms))
@@ -2543,7 +2645,16 @@ class TranslatorWorker(threading.Thread):
             except Exception as exc:
                 self.ui_queue.put(("translation_error", msg, str(exc)))
             finally:
+                with self.context_lock:
+                    self.context_history.append(
+                        ContextMessage(msg.text, msg.nickname, time.monotonic())
+                    )
+                self.shared_state.record(queue_wait_ms, provider_ms)
                 self.jobs.task_done()
+        if self._google_session is not None:
+            self._google_session.close()
+        if self._mymemory_session is not None:
+            self._mymemory_session.close()
 
 
 @dataclass
@@ -2955,7 +3066,10 @@ class OverlayWindow:
             # only then started fading from 5%, which looked like a flash.
             self._set_text_alpha(0.05)
 
+        # Parallel MT may finish newer messages first. Display in original
+        # game chat order, not network completion order, without blocking.
         self.items.append(item)
+        self.items = deque(sorted(self.items, key=lambda entry: entry.created_at))
         max_messages = max(
             MIN_OVERLAY_MESSAGES,
             min(
@@ -3455,6 +3569,7 @@ class ControlApp:
         self.show_original_var = tk.BooleanVar(value=bool(self.config.get("show_original", False)))
         self.hide_same_var = tk.BooleanVar(value=bool(self.config.get("hide_same_language", True)))
         self.slang_var = tk.BooleanVar(value=bool(self.config.get("gaming_slang", True)))
+        self.smart_engine_var = tk.BooleanVar(value=bool(self.config.get("smart_engine_enabled", True)))
         self.slang_style_var = tk.StringVar(value=self._slang_style_name_for_code(self.config.get("slang_style", "live")))
         self.dedupe_var = tk.BooleanVar(value=bool(self.config.get("deduplicate_messages", True)))
         self.ui_language_var = tk.StringVar(value={"ru": "Русский", "uk": "Українська", "en": "English"}.get(self.ui_language, "Русский"))
@@ -3488,6 +3603,10 @@ class ControlApp:
             status_var=self.status_var,
             last_var=self.last_var,
             screenshot_callback=self.capture_game_screenshot,
+            legacy_transform=gaming_slang_transform,
+            style_getter=lambda: self.slang_style_code(),
+            slang_enabled_getter=lambda: bool(self.slang_var.get()),
+            smart_enabled_getter=lambda: bool(self.smart_engine_var.get()),
         )
 
         self._build_ui()
@@ -3505,17 +3624,27 @@ class ControlApp:
             status_text=self.t,
             switch_position_getter=self._consume_log_switch_position,
         )
-        self.translator = TranslatorWorker(
-            jobs=self.translation_jobs,
-            ui_queue=self.ui_queue,
-            target_getter=self.target_code,
-            hide_same_getter=lambda: bool(self.hide_same_var.get()),
-            slang_enabled_getter=lambda: bool(self.slang_var.get()),
-            slang_style_getter=self.slang_style_code,
-            stop_event=self.stop_event,
-        )
+        # Two workers prevent one slow online request from blocking every
+        # subsequent player message. Fixed pool: bounded CPU/network usage.
+        self.translation_shared_state = TranslationWorkerSharedState()
+        self.translators = [
+            TranslatorWorker(
+                jobs=self.translation_jobs,
+                ui_queue=self.ui_queue,
+                target_getter=self.target_code,
+                hide_same_getter=lambda: bool(self.hide_same_var.get()),
+                slang_enabled_getter=lambda: bool(self.slang_var.get()),
+                slang_style_getter=self.slang_style_code,
+                stop_event=self.stop_event,
+                smart_enabled_getter=lambda: bool(self.smart_engine_var.get()),
+                shared_state=self.translation_shared_state,
+            )
+            for _ in range(2)
+        ]
+        self.translator = self.translators[0]
         self.tailer.start()
-        self.translator.start()
+        for translator in self.translators:
+            translator.start()
         self.root.after(80, self.process_ui_queue)
         self.root.after(500, self.expire_overlay)
         self.root.after(80, self.poll_global_hotkeys)
@@ -3587,6 +3716,7 @@ class ControlApp:
         smart = ttk.Frame(outer)
         smart.pack(fill="x", pady=(8, 0))
         ttk.Label(smart, text=self.t("smart_chat"), width=15).pack(side="left")
+        ttk.Checkbutton(smart, text=self.t("smart_engine"), variable=self.smart_engine_var, command=self._persist_settings).pack(side="left", padx=(0, 8))
         ttk.Checkbutton(smart, text=self.t("gaming_slang"), variable=self.slang_var, command=self._persist_settings).pack(side="left")
         ttk.Label(smart, text=self.t("style")).pack(side="left", padx=(10, 4))
         style_values = [self._style_label(code) for code in ("clear", "live", "raw")]
@@ -4667,6 +4797,7 @@ class ControlApp:
         self.config["show_original"] = bool(self.show_original_var.get())
         self.config["hide_same_language"] = bool(self.hide_same_var.get())
         self.config["gaming_slang"] = bool(self.slang_var.get())
+        self.config["smart_engine_enabled"] = bool(self.smart_engine_var.get())
         self.config["slang_style"] = self.slang_style_code()
         self.config["deduplicate_messages"] = bool(self.dedupe_var.get())
         overlay = self.config.setdefault("overlay", {})
@@ -5062,7 +5193,7 @@ class ControlApp:
             self.ui_queue.put(("status", self.t("duplicate_skipped").format(nickname=msg.nickname, text=msg.text)))
             return
         try:
-            self.translation_jobs.put_nowait(msg)
+            self.translation_jobs.put_nowait(replace(msg, enqueued_at=time.monotonic()))
             self.ui_queue.put(("status", self.t("translating_status").format(nickname=msg.nickname, text=msg.text)))
         except queue.Full:
             self.ui_queue.put(("status", self.t("translation_queue_full")))
@@ -5075,6 +5206,9 @@ class ControlApp:
                 if event == "status":
                     self.status_var.set(item[1])
                 elif event == "map_change":
+                    # Previous map context must never influence a new match.
+                    with self.translator.context_lock:
+                        self.translator.context_history.clear()
                     self.overlay._cancel_fade()
                     self.overlay.items.clear()
                     self.overlay.render()
@@ -5084,7 +5218,7 @@ class ControlApp:
                     _, msg, translated, elapsed_ms = item
                     self.last_var.set(f"{msg.nickname}: {msg.text}  →  {translated}")
                     self.status_var.set(self.t("translation_done").format(elapsed_ms=elapsed_ms))
-                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=translated, created_at=time.monotonic()))
+                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=translated, created_at=msg.enqueued_at or time.monotonic()))
                 elif event == "same_language":
                     _, msg, elapsed_ms = item
                     self.last_var.set(self.t("last_same_language").format(nickname=msg.nickname, text=msg.text))
@@ -5096,7 +5230,7 @@ class ControlApp:
                 elif event == "translation_error":
                     _, msg, error = item
                     self.status_var.set(self.t("translation_unavailable").format(error=error))
-                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=msg.text, created_at=time.monotonic()))
+                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=msg.text, created_at=msg.enqueued_at or time.monotonic()))
                 elif event == "screenshot_saved":
                     _, path = item
                     self.status_var.set(
@@ -5148,6 +5282,7 @@ class ControlApp:
     def close(self) -> None:
         self._persist_settings()
         self.stop_event.set()
+        self.outgoing_chat.close()
 
         try:
             native_surface = getattr(

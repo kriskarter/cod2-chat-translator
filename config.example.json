@@ -5,6 +5,7 @@
   "show_original": false,
   "hide_same_language": true,
   "gaming_slang": true,
+  "smart_engine_enabled": true,
   "slang_style": "live",
   "deduplicate_messages": true,
   "duplicate_window_seconds": 4,

@@ -33,6 +33,18 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## What's new in v1.18.0 — Smart Engine V1 (release candidate)
+
+The incoming F8 overlay and outgoing F9 chat now share a conservative semantic engine. Known gaming phrases can be handled locally without a network request. Critical tactical tokens (numbers/HP, A/B objectives, negation, mentions, URLs and recognized weapon names) are checked before showing or sending a translation.
+
+A questionable incoming translation shows the original with a warning; F9 does not automatically send a translation that failed the safety checks. The **Smart V1** checkbox can switch to the previous Classic translation logic without reinstalling.
+
+**Incoming F8 speed:** a bounded two-worker queue, a shared translation cache, and per-worker HTTPS connection reuse prevent one slow translation from blocking every subsequent message. No paid LLM is used.
+
+**Outgoing F9 stability:** UI/Tkinter options are captured before the network thread, stale pending preview requests are replaced with the latest text, and free Google/MyMemory HTTPS connections are reused. Successful translations use a small memory-only cache. F9 shows provider, progress and elapsed time directly in the game-facing popup footer (not just the main window), or explains why no message was sent. A semantically unsafe Google result may be retried through MyMemory.
+
+**Important:** this is a lightweight rules/knowledge + online MT release candidate, not a trained LLM. Most unknown texts still require internet. The safety validator is intentionally partial and cannot guarantee translation correctness. See [Smart Engine V1 technical notes](docs/SMART_ENGINE_V1.md) and the test plan.
+
 ## What's new in v1.17
 
 Outgoing chat is now faster during gameplay.
