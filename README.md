@@ -39,6 +39,8 @@ The incoming F8 overlay and outgoing F9 chat now share a conservative semantic e
 
 A questionable incoming translation shows the original with a warning; F9 does not automatically send a translation that failed the safety checks. The **Smart V1** checkbox can switch to the previous Classic translation logic without reinstalling.
 
+**Incoming F8 speed:** a bounded two-worker queue, a shared translation cache, and per-worker HTTPS connection reuse prevent one slow translation from blocking every subsequent message. No paid LLM is used.
+
 **Important:** this is a lightweight rules/knowledge + online MT release candidate, not a trained LLM. Most unknown texts still require internet. The safety validator is intentionally partial and cannot guarantee translation correctness. See [Smart Engine V1 technical notes](docs/SMART_ENGINE_V1.md) and the test plan.
 
 ## What's new in v1.17

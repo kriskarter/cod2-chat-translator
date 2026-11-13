@@ -38,6 +38,9 @@ jobs:
       - name: Smart Engine synthetic semantic safety gate
         run: python tools/smart_quality_check.py
 
+      - name: Synthetic incoming latency benchmark (no network)
+        run: python tools/latency_benchmark.py --count 16 --fake-network-ms 50
+
       - name: Configure release repository
         shell: pwsh
         run: |

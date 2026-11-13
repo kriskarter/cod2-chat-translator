@@ -4,7 +4,9 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from app import ChatMessage, TranslatorWorker, gaming_slang_transform
+from app import (
+    ChatMessage, TranslatorWorker, TranslationWorkerSharedState, gaming_slang_transform
+)
 from smart_engine import (
     KNOWLEDGE_VERSION,
     ContextMessage,
@@ -279,6 +281,140 @@ class F8WorkerIntegrationTests(unittest.TestCase):
         stop.set()
         worker.join(2)
         self.assertFalse(worker.is_alive())
+
+
+
+
+class FastIncomingTests(unittest.TestCase):
+    def test_shared_cache_between_workers(self):
+        shared = TranslationWorkerSharedState()
+        jobs, events, stop = queue.Queue(), queue.Queue(), threading.Event()
+        def create():
+            return TranslatorWorker(
+                jobs, events, lambda: "ru", lambda: False,
+                lambda: False, lambda: "live", stop,
+                shared_state=shared,
+            )
+        first, second = create(), create()
+        class FakeTranslator:
+            def __init__(self):
+                self.calls = 0
+
+            def translate(self, text):
+                self.calls += 1
+                return "переведено"
+
+        translator = FakeTranslator()
+        first._new_translator = lambda _target: translator
+        second._new_translator = lambda _target: translator
+        self.assertEqual(first._translate("hello", "ru"), "переведено")
+        self.assertEqual(second._translate("hello", "ru"), "переведено")
+        self.assertEqual(translator.calls, 1)
+
+    def test_shared_metrics_no_content_logged(self):
+        state = TranslationWorkerSharedState()
+        state.record(120, 150)
+        state.record(200, 200)
+        metrics = state.snapshot()
+        self.assertEqual(metrics["samples"], 2)
+        self.assertEqual(metrics["queue_p95_ms"], 200)
+        self.assertEqual(metrics["provider_p50_ms"], 200)
+        self.assertNotIn("text", str(metrics))
+        self.assertNotIn("nickname", str(metrics))
+
+    def test_worker_reuses_google_http_session(self):
+        shared = TranslationWorkerSharedState()
+        worker = TranslatorWorker(
+            queue.Queue(), queue.Queue(), lambda: "ru", lambda: False,
+            lambda: False, lambda: "live", threading.Event(),
+            shared_state=shared,
+        )
+        from unittest.mock import MagicMock
+        with patch("app.requests.Session") as session_class:
+            session = MagicMock()
+            session_class.return_value = session
+            with patch("app.translate_with_google_fast", side_effect=lambda text, **_: "переведено") as google:
+                self.assertEqual(worker._translate("hi there", "ru"), "переведено")
+                self.assertEqual(worker._translate("new phrase", "ru"), "переведено")
+                self.assertEqual(session_class.call_count, 1)
+                self.assertEqual(google.call_count, 2)
+                self.assertIs(google.call_args.kwargs["request_get"], session.get)
+
+    def test_overlay_preserves_chat_order_despite_parallel_completions(self):
+        from app import OverlayItem, OverlayWindow
+        from collections import deque
+        overlay = OverlayWindow.__new__(OverlayWindow)
+        overlay.items = deque()
+        overlay._fade_alpha = 1.0
+        overlay.edit_mode = True
+        overlay._cancel_fade = lambda: None
+        overlay._overlay_cfg = lambda: {"fade_enabled": False, "max_messages": 4}
+        overlay.render = lambda: None
+        overlay._set_text_alpha = lambda _value: None
+        def item(text, when):
+            return OverlayItem("Player", text, text, when)
+        overlay.add(item("newer", 20))
+        overlay.add(item("older", 10))
+        overlay.add(item("newest", 30))
+        self.assertEqual([x.original for x in overlay.items],
+                         ["older", "newer", "newest"])
+
+    def test_mymemory_connection_is_reused_per_worker(self):
+        worker = TranslatorWorker(
+            queue.Queue(), queue.Queue(), lambda: "ru", lambda: False,
+            lambda: False, lambda: "live", threading.Event(),
+        )
+        from unittest.mock import MagicMock
+        with patch("app.requests.Session") as session_class:
+            session = MagicMock()
+            session_class.return_value = session
+            with patch("app.translate_with_mymemory", return_value="другое") as fallback:
+                self.assertEqual(worker._translate_fallback("hello", "ru"), "другое")
+                self.assertEqual(worker._translate_fallback("bye", "ru"), "другое")
+                session_class.assert_called_once()
+                self.assertEqual(fallback.call_count, 2)
+                self.assertIs(fallback.call_args.kwargs["request_get"], session.get)
+
+    def test_second_worker_is_not_blocked_by_slow_first(self):
+        # Deterministic queue/head-of-line test: the first provider is stuck
+        # while the second message should reach the overlay immediately.
+        shared = TranslationWorkerSharedState()
+        tasks, events, stop = queue.Queue(), queue.Queue(), threading.Event()
+        started_slow = threading.Event()
+        release_slow = threading.Event()
+        def create():
+            return TranslatorWorker(
+                tasks, events, lambda: "ru", lambda: False,
+                lambda: False, lambda: "live", stop,
+                shared_state=shared,
+            )
+        first, second = create(), create()
+        def slow_provider(text, target):
+            started_slow.set()
+            release_slow.wait(timeout=2)
+            return "медленный"
+        def fast_provider(text, target):
+            return "быстрый"
+        first._translate = slow_provider
+        second._translate = fast_provider
+        first.start()
+        tasks.put(ChatMessage("A", "hello slow message"))
+        self.assertTrue(started_slow.wait(timeout=2))
+        second.start()
+        tasks.put(ChatMessage("B", "hello fast message"))
+        try:
+            received = events.get(timeout=2)
+            self.assertEqual(received[0], "translation")
+            self.assertEqual(received[1].nickname, "B")
+            self.assertEqual(received[2], "быстрый")
+        finally:
+            release_slow.set()
+            tasks.join()
+            stop.set()
+            first.join(timeout=3)
+            second.join(timeout=3)
+            self.assertFalse(first.is_alive())
+            self.assertFalse(second.is_alive())
 
 
 class LanguageDetectionSafetyTests(unittest.TestCase):
