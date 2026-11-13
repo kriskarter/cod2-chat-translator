@@ -28,6 +28,27 @@ class FakeSSH:
         self.closed = True
 
 
+class EchoChannel:
+    """Socket-backed stand-in for the Paramiko Channel API on Windows/Linux."""
+    def __init__(self, sock):
+        self.sock = sock
+
+    def settimeout(self, timeout):
+        self.sock.settimeout(timeout)
+
+    def sendall(self, data):
+        self.sock.sendall(data)
+
+    def recv(self, count):
+        return self.sock.recv(count)
+
+    def shutdown_write(self):
+        self.sock.shutdown(socket.SHUT_WR)
+
+    def close(self):
+        self.sock.close()
+
+
 class MockTransport:
     def __init__(self):
         self.opened = []
@@ -55,7 +76,7 @@ class MockTransport:
                 peer.close()
 
         threading.Thread(target=echo, daemon=True).start()
-        return channel
+        return EchoChannel(channel)
 
 
 class TunnelTests(unittest.TestCase):
