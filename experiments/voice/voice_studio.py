@@ -34,6 +34,8 @@ from voice_screen_probe import (
     FrameThrottle, capture_if_game_foreground,
 )
 from voice_performance import asr_profile, capture_idle_seconds, discard_pending
+from voice_vps_client import VPSVoiceClient, VPSVoiceError
+from types import SimpleNamespace
 from voice_game_window import (
     configure_overlay,
     find_cod2_window,
@@ -137,8 +139,8 @@ class VoiceStudio:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title(APP_NAME + " — эксперимент")
-        self.root.geometry("850x690")
-        self.root.minsize(720, 560)
+        self.root.geometry("860x750")
+        self.root.minsize(740, 610)
 
         self.events: queue.Queue = queue.Queue()
         self.jobs: queue.Queue[tuple[int, AudioJob, str, str, bool, bool]] = queue.Queue(maxsize=96)
@@ -152,6 +154,10 @@ class VoiceStudio:
 
         self.path_var = tk.StringVar(value=str(guess_voice_path()))
         self.model_var = tk.StringVar(value="tiny")
+        self.asr_location_var = tk.StringVar(value="Локально")
+        self.vps_url_var = tk.StringVar(value="http://127.0.0.1:8765")
+        self.vps_token_var = tk.StringVar(value="")
+        self.remote_client = None  # credential kept only in process RAM
         self.target_var = tk.StringVar(value="Русский")
         self.translate_var = tk.BooleanVar(value=True)
         self.fast_mode_var = tk.BooleanVar(value=True)
@@ -218,7 +224,7 @@ class VoiceStudio:
             font=("Segoe UI", 18, "bold"),
         ).pack(anchor="w")
         ttk.Label(
-            outer, text="Эксперимент: распознавание локально, перевод через интернет при включённой опции.",
+            outer, text="Эксперимент: локальное или VPS-распознавание; перевод через интернет — отдельно.",
         ).pack(anchor="w", pady=(2, 12))
 
         source = ttk.LabelFrame(outer, text="Файл входящего голоса CoD2", padding=8)
@@ -248,6 +254,23 @@ class VoiceStudio:
         ttk.Checkbutton(
             settings, text="Быстрый режим", variable=self.fast_mode_var
         ).pack(side="left", padx=(16, 0))
+
+        remote = ttk.Frame(outer)
+        remote.pack(fill="x", pady=(0, 5))
+        ttk.Label(remote, text="Где распознавать:").pack(side="left")
+        ttk.Combobox(
+            remote, textvariable=self.asr_location_var, width=16, state="readonly",
+            values=("Локально", "VPS Fast Voice"),
+        ).pack(side="left", padx=(5, 8))
+        ttk.Label(remote, text="VPS / SSH-туннель:").pack(side="left")
+        ttk.Entry(remote, textvariable=self.vps_url_var, width=28).pack(
+            side="left", fill="x", expand=True, padx=(5, 5)
+        )
+        ttk.Label(remote, text="Токен:").pack(side="left")
+        ttk.Entry(remote, textvariable=self.vps_token_var, width=16, show="*").pack(
+            side="left", padx=(5, 5)
+        )
+        ttk.Button(remote, text="Проверить", command=self.check_vps).pack(side="left")
 
         opts = ttk.Frame(outer)
         opts.pack(fill="x")
@@ -753,9 +776,36 @@ class VoiceStudio:
         self.output.see("end")
         self.output.configure(state="disabled")
 
+    def check_vps(self):
+        """Test authenticated VPS health without uploading any voice data."""
+        url, token = self.vps_url_var.get(), self.vps_token_var.get()
+        try:
+            client = VPSVoiceClient(url, token, timeout=3.0)
+        except ValueError as exc:
+            self.status_var.set(str(exc))
+            return
+        self.status_var.set("Проверяю VPS Fast Voice…")
+        gen = self.generation
+        def probe():
+            try:
+                ready = client.health()
+                message = "VPS Fast Voice доступен." if ready else "VPS не готов."
+            except VPSVoiceError as exc:
+                message = f"VPS недоступен ({exc}). Проверь туннель/сервер/токен."
+            self.events.put(("vps_status", gen, message))
+        threading.Thread(target=probe, daemon=True, name="VoiceVPSHealth").start()
+
     def _start_session(self):
         self.stop()
         self.stop_flag = threading.Event()
+        self.remote_client = None
+        if self.asr_location_var.get() == "VPS Fast Voice":
+            try:
+                self.remote_client = VPSVoiceClient(
+                    self.vps_url_var.get(), self.vps_token_var.get(), timeout=7.5,
+                )
+            except ValueError as exc:
+                self.status_var.set(f"{exc} Используется локальное распознавание.")
         return self.generation, self.stop_flag
 
     def start_live(self):
@@ -817,8 +867,11 @@ class VoiceStudio:
             self.mode_var.set("Остановлено")
 
     def _preload_model(self, gen: int, model: str, fast: bool):
-        """Warm selected speech-recognition model before voice arrives."""
-        self.jobs.put_nowait((gen, AudioJob(0, b"", "preload"), model, "", False, fast))
+        """VPS is preloaded server-side; load local model only when needed."""
+        if self.remote_client is not None:
+            self.events.put(("vps_status", gen, "VPS Fast Voice выбран; локальная модель — резерв."))
+        else:
+            self.jobs.put_nowait((gen, AudioJob(0, b"", "preload"), model, "", False, fast))
 
     def _enqueue(
         self, gen: int, raw: bytes, origin: str, model: str,
@@ -1116,6 +1169,9 @@ class VoiceStudio:
                     continue
                 if event_type == "status":
                     self.status_var.set(payload)
+                elif event_type == "vps_status":
+                    self.status_var.set(payload)
+                    self._write_log(payload)
                 elif event_type == "packet_status":
                     self.packet_status_var.set(str(payload))
                     self._write_log(str(payload))
