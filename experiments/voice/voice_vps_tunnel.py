@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import os
 import re
-import select
+import socket
 import socketserver
 import threading
 from pathlib import Path
@@ -189,23 +189,44 @@ class VoiceSSHTunnel:
                     )
                     if channel is None:
                         return
-                    try:
-                        while transport.is_active():
-                            readable, _, _ = select.select(
-                                [self.request, channel], [], [], 0.6
-                            )
-                            if self.request in readable:
+                    # On Windows select() cannot wait on Paramiko's channel
+                    # pipe FD, so use two bounded blocking pump threads.
+                    self.request.settimeout(20)
+                    channel.settimeout(20)
+
+                    def send_to_vps():
+                        try:
+                            while transport.is_active():
                                 data = self.request.recv(65536)
                                 if not data:
                                     break
                                 channel.sendall(data)
-                            if channel in readable:
-                                data = channel.recv(65536)
-                                if not data:
-                                    break
-                                self.request.sendall(data)
+                        except (OSError, EOFError, socket.timeout):
+                            pass
+                        finally:
+                            try:
+                                channel.shutdown_write()
+                            except (OSError, EOFError):
+                                pass
+
+                    upstream = threading.Thread(
+                        target=send_to_vps, daemon=True,
+                        name="CoD2VoiceSSHUpstream",
+                    )
+                    upstream.start()
+                    try:
+                        while transport.is_active():
+                            data = channel.recv(65536)
+                            if not data:
+                                break
+                            self.request.sendall(data)
                     finally:
+                        try:
+                            self.request.shutdown(socket.SHUT_RDWR)
+                        except OSError:
+                            pass
                         channel.close()
+                        upstream.join(timeout=0.3)
                 except Exception:
                     # Transport exceptions should not expose voice payloads.
                     pass
