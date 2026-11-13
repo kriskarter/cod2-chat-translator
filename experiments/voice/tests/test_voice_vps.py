@@ -81,7 +81,7 @@ class FastVoiceProtocolTests(unittest.TestCase):
             VPSVoiceClient(self.url, "x" * 32).health()
 
     def test_roundtrip_easy_kept_at_rounded_55_percent(self):
-        data = self.client.transcribe(b"\\0\\0" * 8000, fast=True)
+        data = self.client.transcribe(bytes(16000), fast=True)
         self.assertEqual(data["text"], "Easy!")
         self.assertAlmostEqual(data["language_probability"], .546)
         self.assertEqual(self.engine.last_fast, True)
@@ -90,7 +90,7 @@ class FastVoiceProtocolTests(unittest.TestCase):
     def test_bad_auth_does_not_invoke_engine(self):
         before = self.engine.invocations
         self.assertEqual(
-            self._send({"audio_b64": base64.b64encode(b"\\0" * 3200).decode()}, "x" * 32),
+            self._send({"audio_b64": base64.b64encode(bytes(3200)).decode()}, "x" * 32),
             401,
         )
         self.assertEqual(self.engine.invocations, before)
@@ -100,7 +100,7 @@ class FastVoiceProtocolTests(unittest.TestCase):
 
     def test_oversized_audio_rejected(self):
         self.assertEqual(
-            self._send({"audio_b64": base64.b64encode(b"\\0" * 192002).decode()}),
+            self._send({"audio_b64": base64.b64encode(bytes(192002)).decode()}),
             400,
         )
 
@@ -108,7 +108,7 @@ class FastVoiceProtocolTests(unittest.TestCase):
         self.engine.limit.acquire()
         try:
             self.assertEqual(
-                self._send({"audio_b64": base64.b64encode(b"\\0" * 3200).decode()}),
+                self._send({"audio_b64": base64.b64encode(bytes(3200)).decode()}),
                 503,
             )
         finally:
@@ -131,9 +131,9 @@ class FastVoiceProtocolTests(unittest.TestCase):
     def test_local_fallback_after_connection_error_can_be_selected(self):
         c = VPSVoiceClient("http://127.0.0.1:1", TOKEN, timeout=1)
         with self.assertRaises(VPSVoiceError):
-            c.transcribe(b"\\0\\0" * 1600, fast=True)
+            c.transcribe(bytes(3200), fast=True)
         with self.assertRaisesRegex(VPSVoiceError, "temporary_backoff"):
-            c.transcribe(b"\\0\\0" * 1600, fast=True)
+            c.transcribe(bytes(3200), fast=True)
 
 
 if __name__ == "__main__":
