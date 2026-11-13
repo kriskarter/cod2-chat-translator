@@ -1162,6 +1162,8 @@ class OutgoingChatController:
         self.translation_after_id = None
         self.translation_source = ""
         self.send_after_translation = False
+        self.translation_started_at = 0.0
+        self._f9_last_progress_bucket = -1
         self._f9_dispatcher = None  # Start on first request, not during app init
         self._f9_transport = OutgoingHttpTransport()
         self._f9_cache = OutgoingTranslationCache()
@@ -1611,26 +1613,30 @@ class OutgoingChatController:
             pady=(7, 0),
         )
 
+        # The F9 popup is the only UI normally visible while playing.
+        # Show actual translation diagnostics here, not just in the main app.
+        footer = tk.Frame(frame, bg="#101419")
+        footer.pack(fill="x", padx=16, pady=(6, 9))
+
         self.hint = tk.Label(
-            frame,
-            text=(
-                "Печатай прямо в игре · "
-                "перевод появляется сам · Enter — отправить · "
-                "Esc/F9 — закрыть"
-            ),
+            footer,
+            text="Enter — отправить · Esc/F9 — закрыть",
             bg="#101419",
             fg="#8f98a5",
-            font=(
-                "Segoe UI",
-                9,
-            ),
-        )
-
-        self.hint.pack(
+            font=("Segoe UI", 9),
             anchor="w",
-            padx=16,
-            pady=(6, 9),
         )
+        self.hint.pack(side="left")
+
+        self.translation_meta = tk.Label(
+            footer,
+            text="",
+            bg="#101419",
+            fg="#8f98a5",
+            font=("Segoe UI", 9, "bold"),
+            anchor="e",
+        )
+        self.translation_meta.pack(side="right")
 
         # Создаём HWND заранее.
         popup.update_idletasks()
@@ -1746,6 +1752,38 @@ class OutgoingChatController:
             0.0,
         )
 
+    @staticmethod
+    def _format_f9_elapsed(elapsed_ms: int) -> str:
+        value = max(0, int(elapsed_ms))
+        if value < 1000:
+            return f"{value} мс"
+        return f"{value / 1000:.1f}".replace(".", ",") + " с"
+
+    def _set_f9_meta(self, text: str = "", fg: str = "#8f98a5") -> None:
+        # SimpleNamespace test controllers and older standalone UI clients
+        # may not have the new widget. They retain the original preview.
+        label = getattr(self, "translation_meta", None)
+        if label is not None:
+            label.configure(text=text, fg=fg)
+
+    def _refresh_f9_pending_meta(self) -> None:
+        if (
+            not getattr(self, "popup_visible", False)
+            or not getattr(self, "translation_in_progress", False)
+            or getattr(self, "sending_in_progress", False)
+            or not getattr(self, "translation_started_at", 0.0)
+        ):
+            return
+        elapsed_ms = round((time.monotonic() - self.translation_started_at) * 1000)
+        bucket = elapsed_ms // 200
+        if bucket == self._f9_last_progress_bucket:
+            return
+        self._f9_last_progress_bucket = bucket
+        self._set_f9_meta(
+            f"⏳ Перевод · {self._format_f9_elapsed(elapsed_ms)}",
+            "#67d4ff",
+        )
+
     def _render_buffer(self) -> None:
         if self.buffer:
             self.input_label.configure(
@@ -1779,13 +1817,11 @@ class OutgoingChatController:
         self.preview.configure(
             text=""
         )
+        self._set_f9_meta("Готов к переводу")
+        self.translation_started_at = 0.0
 
         self.hint.configure(
-            text=(
-                "Печатай — перевод появится сам · "
-                "Enter — отправить · "
-                "Esc/F9 — закрыть"
-            )
+            text="Enter — отправить · Esc/F9 — закрыть"
         )
 
         self._render_buffer()
@@ -1824,6 +1860,7 @@ class OutgoingChatController:
         self.send_after_translation = False
         self.pending_translation = ""
         self.translation_source = ""
+        self.translation_started_at = 0.0
         self.mode = "input"
 
         self._hide_overlay()
@@ -1957,6 +1994,8 @@ class OutgoingChatController:
                 text="",
                 fg="#9de5a7",
             )
+            self._set_f9_meta("")
+            self.translation_started_at = 0.0
             return
 
         if (
@@ -1979,6 +2018,8 @@ class OutgoingChatController:
             text="",
             fg="#9de5a7",
         )
+        self._set_f9_meta("Ожидание ввода")
+        self.translation_started_at = 0.0
 
         self.translation_after_id = (
             self.root.after(
@@ -2016,6 +2057,9 @@ class OutgoingChatController:
         self.translation_source = source
         self.pending_translation = ""
         self.translation_in_progress = True
+        self.translation_started_at = time.monotonic()
+        self._f9_last_progress_bucket = -1
+        self._set_f9_meta("⏳ Перевожу…", "#67d4ff")
 
         if self.send_after_translation:
             preview_text = "Перевожу и отправляю…"
@@ -2133,6 +2177,7 @@ class OutgoingChatController:
             text="Перевожу и отправляю…",
             fg="#67d4ff",
         )
+        self._set_f9_meta("⏳ Ожидаю перевод…", "#67d4ff")
 
         self.hint.configure(
             text=(
@@ -2329,6 +2374,13 @@ class OutgoingChatController:
                         self.status_var.set(
                             f"F9: перевод {latency_ms} мс · {service}"
                         )
+                    # Main window is hidden during CoD2 play: mirror status
+                    # inside the small F9 translation popup.
+                    self._set_f9_meta(
+                        f"✓ {service} · {self._format_f9_elapsed(latency_ms)}",
+                        "#9de5a7",
+                    )
+                    self.translation_started_at = 0.0
 
                     # Enter мог быть нажат ещё до того,
                     # как live-перевод успел завершиться.
@@ -2400,6 +2452,11 @@ class OutgoingChatController:
                     self.translation_in_progress = False
                     self.send_after_translation = False
                     self.pending_translation = ""
+                    self.translation_started_at = 0.0
+                    self._set_f9_meta(
+                        f"⚠ Нет перевода · {self._format_f9_elapsed(latency_ms)}",
+                        "#ff7676",
+                    )
                     self.status_var.set(
                         f"F9: нет перевода ({failure_route}, {latency_ms} мс). "
                         "Ничего не отправлено."
@@ -2423,6 +2480,7 @@ class OutgoingChatController:
         except queue.Empty:
             pass
 
+        self._refresh_f9_pending_meta()
         try:
             self.root.after(
                 30,

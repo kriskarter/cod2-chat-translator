@@ -710,6 +710,9 @@ class F9SpeedAndReliabilityTests(unittest.TestCase):
         controller.status_var = SimpleNamespace(set=lambda value: captured.__setitem__("status", value))
         controller.preview = SimpleNamespace(configure=lambda **kw: captured.__setitem__("preview", kw))
         controller.hint = SimpleNamespace(configure=lambda **kw: captured.__setitem__("hint", kw))
+        controller.translation_meta = SimpleNamespace(
+            configure=lambda **kw: captured.__setitem__("meta", kw)
+        )
         controller.events.put((
             "translation_error",
             (42, "привет всем", "Не отвечает Google/MyMemory", 2150, "онлайн-сервисы"),
@@ -723,6 +726,8 @@ class F9SpeedAndReliabilityTests(unittest.TestCase):
         self.assertIn("Ничего не отправлено", captured["status"])
         self.assertIn("Не отвечает", captured["preview"]["text"])
         self.assertIn("повторить", captured["hint"]["text"])
+        self.assertEqual(captured["meta"]["text"], "⚠ Нет перевода · 2,1 с")
+        self.assertEqual(captured["meta"]["fg"], "#ff7676")
 
     def test_outdated_f9_completion_not_sent_after_user_changed_text(self):
         controller = OutgoingChatController.__new__(OutgoingChatController)
@@ -741,6 +746,88 @@ class F9SpeedAndReliabilityTests(unittest.TestCase):
             controller._poll_events()
         send.assert_not_called()
         self.assertFalse(controller.pending_translation)
+
+    def test_f9_popup_meta_displays_actual_service_and_latency(self):
+        controller = OutgoingChatController.__new__(OutgoingChatController)
+        controller.events = queue.Queue()
+        controller.root = SimpleNamespace(after=lambda *_: None)
+        controller.translation_request_id = 42
+        controller.popup_visible = True
+        controller.buffer = "привет всем"
+        controller.translation_in_progress = True
+        controller.translation_started_at = 10.0
+        controller.pending_translation = ""
+        controller.send_after_translation = False
+        controller.sending_in_progress = False
+        captured = {}
+        controller.translation_meta = SimpleNamespace(
+            configure=lambda **kw: captured.__setitem__("meta", kw)
+        )
+        controller.status_var = SimpleNamespace(
+            set=lambda value: captured.__setitem__("status", value)
+        )
+        controller.last_var = SimpleNamespace(set=lambda *_: None)
+        controller.preview = SimpleNamespace(
+            configure=lambda **kw: captured.__setitem__("preview", kw)
+        )
+        controller.hint = SimpleNamespace(configure=lambda **_: None)
+        controller.events.put(
+            ("translation_ok", (42, "привет всем", "hello everyone", 540, "Google"))
+        )
+        controller._poll_events()
+        self.assertEqual(captured["meta"]["text"], "✓ Google · 540 мс")
+        self.assertEqual(captured["meta"]["fg"], "#9de5a7")
+        self.assertEqual(captured["preview"]["text"], "Перевод: hello everyone")
+        self.assertEqual(controller.pending_translation, "hello everyone")
+
+    def test_f9_popup_meta_displays_cached_and_backup_timings(self):
+        controller = OutgoingChatController.__new__(OutgoingChatController)
+        captured = []
+        controller.translation_meta = SimpleNamespace(
+            configure=lambda **kw: captured.append(kw)
+        )
+        controller._set_f9_meta("✓ MyMemory · 1,6 с", "#9de5a7")
+        controller._set_f9_meta("✓ кэш · 2 мс", "#9de5a7")
+        self.assertEqual([value["text"] for value in captured], [
+            "✓ MyMemory · 1,6 с", "✓ кэш · 2 мс"
+        ])
+        self.assertEqual(controller._format_f9_elapsed(1600), "1,6 с")
+        self.assertEqual(controller._format_f9_elapsed(999), "999 мс")
+
+    def test_f9_popup_wait_meta_updates_during_network_request(self):
+        controller = OutgoingChatController.__new__(OutgoingChatController)
+        controller.events = queue.Queue()
+        controller.root = SimpleNamespace(after=lambda *_: None)
+        controller.popup_visible = True
+        controller.translation_in_progress = True
+        controller.sending_in_progress = False
+        controller.translation_started_at = 100.0
+        controller._f9_last_progress_bucket = -1
+        captured = {}
+        controller.translation_meta = SimpleNamespace(
+            configure=lambda **kw: captured.__setitem__("meta", kw)
+        )
+        with patch("outgoing_chat.time.monotonic", return_value=101.4):
+            controller._poll_events()
+        self.assertIn("Перевод", captured["meta"]["text"])
+        self.assertIn("1,4 с", captured["meta"]["text"])
+        self.assertEqual(captured["meta"]["fg"], "#67d4ff")
+
+    def test_outdated_f9_reply_does_not_override_visible_meta(self):
+        controller = OutgoingChatController.__new__(OutgoingChatController)
+        controller.events = queue.Queue()
+        controller.root = SimpleNamespace(after=lambda *_: None)
+        controller.translation_request_id = 44
+        controller.popup_visible = True
+        controller.buffer = "новое сообщение"
+        controller.translation_in_progress = False
+        controller.translation_meta = SimpleNamespace(
+            configure=lambda **_: self.fail("old result must not touch F9 meta")
+        )
+        controller.events.put((
+            "translation_ok", (43, "привет", "hello", 500, "Google")
+        ))
+        controller._poll_events()
 
     def test_switching_f9_languages_invalidates_preview(self):
         controller = OutgoingChatController.__new__(OutgoingChatController)
