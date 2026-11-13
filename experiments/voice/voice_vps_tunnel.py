@@ -134,6 +134,8 @@ class VoiceSSHTunnel:
             else:
                 try:
                     ssh.connect(**options, allow_agent=True)
+                except paramiko.BadHostKeyException:
+                    raise  # Key mismatch must never become a passphrase prompt.
                 except (paramiko.AuthenticationException, paramiko.SSHException):
                     # OpenSSH agent without an unlocked key can raise either
                     # AuthenticationException or SSHException (no methods).
