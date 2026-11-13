@@ -74,6 +74,7 @@ jobs:
         run: |
           Copy-Item experiments/voice/README_RU.md dist/CoD2VoicePrototype/README_RU.txt
           Copy-Item experiments/voice/SPEAKER_PROTOCOL_RU.md dist/CoD2VoicePrototype/SPEAKER_PROTOCOL_RU.txt
+          Copy-Item experiments/voice/VPS_FAST_VOICE_RU.md dist/CoD2VoicePrototype/VPS_FAST_VOICE_RU.txt
 
       - uses: actions/upload-artifact@v4
         with:
