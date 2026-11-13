@@ -14,6 +14,7 @@ from dataclasses import dataclass
 class RecognitionQuality:
     trustworthy: bool
     reason: str = ""
+    tentative: bool = False
 
 
 def evaluate_transcription(
@@ -48,14 +49,32 @@ def evaluate_transcription(
     if all(float(getattr(s, "compression_ratio", 0) or 0) > 2.4 for s in segments):
         return RecognitionQuality(False, "Повторяющийся или испорченный текст")
 
-    # Short CoD2 bursts are intrinsically ambiguous: do not translate weak
-    # guesses into confidently presented nonsense.
+    # Language probability is a language-ranking score, not word accuracy.
+    # In short CoD2 callouts a correctly recognized word may land just below
+    # the language cutoff. Keep it tentative only with good speech metrics.
     threshold = 0.55 if seconds < 2.0 else 0.45 if seconds < 4.0 else 0.38
     if confidence < threshold:
+        acoustic_support = (
+            seconds >= 0.4
+            and all(
+                float(getattr(s, "no_speech_prob", 1.0) or 0) <= 0.35
+                and float(getattr(s, "avg_logprob", -2.0) or 0) >= -0.65
+                and float(getattr(s, "compression_ratio", 3.0) or 0) <= 2.0
+                for s in segments
+            )
+        )
+        # A narrow six-percentage-point band, independent of vocabulary.
+        if confidence >= threshold - 0.06 and acoustic_support:
+            return RecognitionQuality(
+                True,
+                f"Предварительно: язык {code.upper()} ({confidence:.1%}; "
+                f"обычный порог {threshold:.0%})",
+                tentative=True,
+            )
         return RecognitionQuality(
             False,
             f"Язык {code.upper()} определён неуверенно "
-            f"({confidence:.0%}; нужно хотя бы {threshold:.0%})",
+            f"({confidence:.1%}; нужно хотя бы {threshold:.0%})",
         )
 
     if normalized.casefold().rstrip(".!?") in {
