@@ -1003,6 +1003,31 @@ class VoiceStudio:
         except Exception as exc:
             self.events.put(("status", gen, f"Ошибка чтения записи: {type(exc).__name__}: {exc}"))
 
+    def _ensure_local_asr(self, gen: int, model_name: str) -> float:
+        """Warm local fallback only when necessary; keep VPS truly lightweight."""
+        if self.model is not None and self.current_model_name == model_name:
+            return 0.0
+        loading = time.perf_counter()
+        if is_vosk_model(model_name):
+            self.events.put(("status", gen, "Загружаю локальный Vosk RU…"))
+            path = ensure_vosk_model(
+                app_data_folder() / "vosk_models",
+                status=lambda message: self.events.put(("status", gen, message)),
+            )
+            from vosk import Model, SetLogLevel
+            SetLogLevel(-1)
+            self.model = Model(str(path))
+        else:
+            self.events.put(("status", gen, f"Загружаю локальный Whisper {model_name}…"))
+            from faster_whisper import WhisperModel
+            self.model = WhisperModel(
+                model_name, device="cpu", compute_type="int8",
+                cpu_threads=max(1, min(4, os.cpu_count() or 2)),
+                download_root=str(app_data_folder() / "models"),
+            )
+        self.current_model_name = model_name
+        return time.perf_counter() - loading
+
     def _worker_loop(self):
         while True:
             gen, job, model_name, target, do_translate, fast = self.jobs.get()
@@ -1011,72 +1036,81 @@ class VoiceStudio:
                     continue
                 queue_seconds = max(0.0, time.monotonic() - job.queued_at)
                 model_seconds = 0.0
-                if self.model is None or self.current_model_name != model_name:
-                    loading = time.perf_counter()
-                    if is_vosk_model(model_name):
-                        self.events.put(("status", gen, (
-                            "Загружаю Vosk RU (русский язык; тест скорости)…"
-                        )))
-                        path = ensure_vosk_model(
-                            app_data_folder() / "vosk_models",
-                            status=lambda message: self.events.put(
-                                ("status", gen, message)
-                            ),
-                        )
-                        from vosk import Model, SetLogLevel
-                        SetLogLevel(-1)
-                        self.model = Model(str(path))
-                    else:
-                        self.events.put(("status", gen, (
-                            f"Загружаю Whisper {model_name} "
-                            "(при первом запуске скачивается модель)…"
-                        )))
-                        from faster_whisper import WhisperModel
-                        self.model = WhisperModel(
-                            model_name, device="cpu", compute_type="int8",
-                            cpu_threads=max(1, min(4, os.cpu_count() or 2)),
-                            download_root=str(app_data_folder() / "models"),
-                        )
-                    self.current_model_name = model_name
-                    model_seconds = time.perf_counter() - loading
                 if job.origin == "preload":
+                    model_seconds = self._ensure_local_asr(gen, model_name)
                     self.events.put(("status", gen, (
                         f"{model_name} готов ({model_seconds:.1f} с). "
                         "Ожидаю новых голосовых сообщений."
                     )))
                     continue
-                mode_label = "Vosk RU" if is_vosk_model(model_name) else "Whisper"
-                self.events.put((
-                    "status", gen, f"{mode_label}: распознаю фрагмент {job.seq}…"
-                ))
-                inference_start = time.perf_counter()
+
                 seconds = len(job.raw_pcm) / BYTE_RATE
-                if is_vosk_model(model_name):
-                    recognized = recognize_vosk(self.model, job.raw_pcm)
-                    # Russian is selected by user, NOT automatically detected.
-                    language = "ru"
-                    probability = None  # Vosk does not provide Whisper language score.
-                    reason = vosk_quality_reason(recognized)
-                    verdict = RecognitionQuality(
-                        trustworthy=reason is None, reason=reason or ""
-                    )
-                else:
-                    samples = to_whisper_audio(job.raw_pcm)
-                    pieces, info = self.model.transcribe(
-                        samples, language=None, **asr_profile(fast),
-                    )
-                    pieces = list(pieces)  # inference occurs during iteration
-                    recognized = " ".join(
-                        segment.text.strip() for segment in pieces if segment.text.strip()
-                    ).strip()
-                    language = str(info.language or "auto")
-                    probability = float(
-                        getattr(info, "language_probability", 0.0) or 0.0
-                    )
+                remote_data = None
+                remote_elapsed = None
+                remote_server_seconds = None
+                remote_client = self.remote_client
+                if remote_client is not None:
+                    try:
+                        remote_data = remote_client.transcribe(job.raw_pcm, fast=fast)
+                        remote_elapsed = float(remote_data["client_elapsed_seconds"])
+                        remote_server_seconds = float(remote_data.get("asr_seconds", 0))
+                    except (VPSVoiceError, ValueError, TypeError) as exc:
+                        self.events.put((
+                            "status", gen,
+                            f"VPS недоступен ({type(exc).__name__}); локальный резерв.",
+                        ))
+
+                if remote_data is not None:
+                    mode_label = "VPS Fast Voice"
+                    recognized = remote_data["text"].strip()
+                    language = remote_data["language"]
+                    probability = float(remote_data["language_probability"])
+                    pieces = [
+                        SimpleNamespace(**{
+                            key: float(segment.get(key, 0))
+                            for key in ("no_speech_prob", "avg_logprob", "compression_ratio")
+                        })
+                        for segment in remote_data["segments"][:40]
+                        if isinstance(segment, dict)
+                    ]
                     verdict = evaluate_transcription(
                         recognized, language, probability, pieces, seconds
                     )
-                asr_seconds = time.perf_counter() - inference_start
+                    asr_seconds = remote_elapsed
+                else:
+                    # Includes automatic offline fallback for tunnel/VPS failure.
+                    model_seconds = self._ensure_local_asr(gen, model_name)
+                    mode_label = "Vosk RU" if is_vosk_model(model_name) else "Whisper"
+                    self.events.put((
+                        "status", gen,
+                        f"{mode_label}: распознаю фрагмент {job.seq}…"
+                    ))
+                    inference_start = time.perf_counter()
+                    if is_vosk_model(model_name):
+                        recognized = recognize_vosk(self.model, job.raw_pcm)
+                        language = "ru"
+                        probability = None
+                        reason = vosk_quality_reason(recognized)
+                        verdict = RecognitionQuality(
+                            trustworthy=reason is None, reason=reason or ""
+                        )
+                    else:
+                        samples = to_whisper_audio(job.raw_pcm)
+                        pieces, info = self.model.transcribe(
+                            samples, language=None, **asr_profile(fast),
+                        )
+                        pieces = list(pieces)
+                        recognized = " ".join(
+                            segment.text.strip() for segment in pieces if segment.text.strip()
+                        ).strip()
+                        language = str(info.language or "auto")
+                        probability = float(
+                            getattr(info, "language_probability", 0.0) or 0.0
+                        )
+                        verdict = evaluate_transcription(
+                            recognized, language, probability, pieces, seconds
+                        )
+                    asr_seconds = time.perf_counter() - inference_start
                 timings = {
                     "queue_seconds": queue_seconds,
                     "model_seconds": model_seconds,
@@ -1085,6 +1119,12 @@ class VoiceStudio:
                         0.0, time.monotonic() - job.queued_at
                     ),
                     "engine": mode_label,
+                    "vps_server_seconds": remote_server_seconds,
+                    "vps_network_overhead_seconds": (
+                        max(0.0, remote_elapsed - remote_server_seconds)
+                        if remote_elapsed is not None and remote_server_seconds is not None
+                        else None
+                    ),
                 }
                 if not verdict.trustworthy:
                     if gen == self.generation:
