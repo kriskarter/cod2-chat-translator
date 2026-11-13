@@ -104,7 +104,17 @@ class VoiceSSHTunnel:
             raise TunnelError("SSH-ключ id_ed25519 не найден у пользователя Windows.")
         ssh = paramiko.SSHClient()
         try:
-            ssh.load_system_host_keys()
+            # The Windows OpenSSH client already verified this host once.
+            # Reject unknown hosts; never click-through or auto-add a new key.
+            known_hosts = key_file.parent / "known_hosts"
+            trusted_keys = paramiko.HostKeys()
+            try:
+                trusted_keys.load(str(known_hosts))
+            except (OSError, paramiko.SSHException):
+                raise TunnelError("Не найден проверенный known_hosts. Сначала проверь SSH-сервер.") from None
+            if trusted_keys.lookup(hostname) is None:
+                raise TunnelError("Этот VPS ещё не подтверждён в Windows known_hosts.")
+            ssh.load_system_host_keys(str(known_hosts))
             ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
             options = dict(
                 hostname=hostname, port=22, username=username,
@@ -124,7 +134,9 @@ class VoiceSSHTunnel:
             else:
                 try:
                     ssh.connect(**options, allow_agent=True)
-                except paramiko.AuthenticationException:
+                except (paramiko.AuthenticationException, paramiko.SSHException):
+                    # OpenSSH agent without an unlocked key can raise either
+                    # AuthenticationException or SSHException (no methods).
                     try:
                         paramiko.Ed25519Key.from_private_key_file(str(key_file))
                     except paramiko.PasswordRequiredException:
@@ -192,7 +204,8 @@ class VoiceSSHTunnel:
                                 self.request.sendall(data)
                     finally:
                         channel.close()
-                except (OSError, EOFError, Exception):
+                except Exception:
+                    # Transport exceptions should not expose voice payloads.
                     pass
 
         try:
