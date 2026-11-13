@@ -55,32 +55,17 @@ def evaluate_transcription(
     }:
         return RecognitionQuality(False, "Похоже на типичную галлюцинацию Whisper")
 
-    # Language probability is a language-ranking score, not word accuracy.
-    # In short CoD2 callouts a correctly recognized word may land just below
-    # the language cutoff. Keep it tentative only with good speech metrics.
-    threshold = 0.55 if seconds < 2.0 else 0.45 if seconds < 4.0 else 0.38
-    if confidence < threshold:
-        acoustic_support = (
-            seconds >= 0.4
-            and all(
-                float(getattr(s, "no_speech_prob", 1.0) or 0) <= 0.35
-                and float(getattr(s, "avg_logprob", -2.0) or 0) >= -0.65
-                and float(getattr(s, "compression_ratio", 3.0) or 0) <= 2.0
-                for s in segments
-            )
-        )
-        # A narrow six-percentage-point band, independent of vocabulary.
-        if confidence >= threshold - 0.06 and acoustic_support:
-            return RecognitionQuality(
-                True,
-                f"Предварительно: язык {code.upper()} ({confidence:.1%}; "
-                f"обычный порог {threshold:.0%})",
-                tentative=True,
-            )
+    # A language ranking score is NOT speech transcription accuracy.
+    # For short/noisy gaming calls do not discard intelligible text just
+    # because the inferred language is uncertain. Retain the transcript
+    # with a clearly indicated preliminary label instead.
+    tentative = confidence < 0.70
+    if tentative:
         return RecognitionQuality(
-            False,
-            f"Язык {code.upper()} определён неуверенно "
-            f"({confidence:.1%}; нужно хотя бы {threshold:.0%})",
+            True,
+            f"Язык {code.upper()} определён неуверенно ({confidence:.1%}); "
+            "показываем предварительное распознавание",
+            tentative=True,
         )
 
     return RecognitionQuality(True)
