@@ -18,20 +18,38 @@ def segment(no_speech_prob=0.05, avg_logprob=-0.2, compression_ratio=1.1):
 
 
 class QualityTests(unittest.TestCase):
-    def test_29_percent_japanese_on_short_noisy_audio_is_not_translated(self):
+    def test_29_percent_japanese_on_short_noisy_audio_is_tentative(self):
         verdict = evaluate_transcription("俺がピンか!", "ja", .29, [segment()], 1.3)
-        self.assertFalse(verdict.trustworthy)
-        self.assertIn("29%", verdict.reason)
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
+        self.assertIn("29.0%", verdict.reason)
+
 
     def test_confident_short_russian_game_callout_passes(self):
         self.assertTrue(
             evaluate_transcription("на B", "ru", .84, [segment()], 1.1).trustworthy
         )
 
-    def test_short_uncertain_real_word_is_preserved_as_diagnostic(self):
-        self.assertFalse(
-            evaluate_transcription("yes", "en", .41, [segment()], 0.55).trustworthy
-        )
+    def test_short_uncertain_real_word_is_not_dropped(self):
+        verdict = evaluate_transcription("yes", "en", .41, [segment()], 0.55)
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
+
+    def test_easy_spoken_short_word_with_55_percent_language_is_kept(self):
+        verdict = evaluate_transcription("Easy!", "en", .546, [segment()], 1.2)
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
+
+    def test_confident_message_is_not_tentative(self):
+        verdict = evaluate_transcription("Push B now", "en", .92, [segment()], 1.5)
+        self.assertTrue(verdict.trustworthy)
+        self.assertFalse(verdict.tentative)
+
+    def test_low_language_score_is_not_reason_to_drop_recognized_speech(self):
+        verdict = evaluate_transcription("go A", "en", .14, [segment()], 1.2)
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
+
 
     def test_long_utterance_accepts_moderate_language_confidence(self):
         self.assertTrue(
