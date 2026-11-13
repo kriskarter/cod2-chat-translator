@@ -1,8 +1,8 @@
 """Quality gate for very short noisy incoming CoD2 voice messages.
 
 Whisper language_probability is a comparative language-detection score, NOT a
-calibrated guarantee of ASR accuracy. We therefore label weak results as
-uncertain instead of treating them as facts or automatically translating them.
+calibrated guarantee of ASR accuracy. We therefore display recognized speech
+even when the language ranking is weak, clearly marking it as preliminary.
 The testable decision logic uses no Windows/audio dependencies.
 """
 from __future__ import annotations
