@@ -60,18 +60,20 @@ class QualityTests(unittest.TestCase):
         verdict = evaluate_transcription("Easy!", "en", .545, [segment()], 1.2)
         self.assertTrue(verdict.trustworthy)
         self.assertTrue(verdict.tentative)
-        self.assertIn("Предварительно", verdict.reason)
+        self.assertIn("предварительное", verdict.reason)
 
-    def test_borderline_easy_with_weak_acoustics_is_rejected(self):
+    def test_borderline_easy_weak_language_not_discarded(self):
         verdict = evaluate_transcription(
             "Easy!", "en", .545,
             [segment(no_speech_prob=.65)], 1.2,
         )
-        self.assertFalse(verdict.trustworthy)
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
 
-    def test_short_guess_far_below_threshold_is_rejected(self):
+    def test_short_guess_low_language_score_remains_tentative(self):
         verdict = evaluate_transcription("Easy!", "en", .40, [segment()], 1.2)
-        self.assertFalse(verdict.trustworthy)
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
 
     def test_high_confidence_callout_is_not_tentative(self):
         verdict = evaluate_transcription("Easy!", "en", .85, [segment()], 1.2)
