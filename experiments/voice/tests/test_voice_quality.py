@@ -38,6 +38,34 @@ class QualityTests(unittest.TestCase):
             evaluate_transcription("left behind the boxes", "en", .42, [segment()], 5.2).trustworthy
         )
 
+    def test_borderline_easy_is_tentative_when_speech_evidence_is_strong(self):
+        verdict = evaluate_transcription("Easy!", "en", .545, [segment()], 1.2)
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
+        self.assertIn("Предварительно", verdict.reason)
+
+    def test_borderline_easy_with_weak_acoustics_is_rejected(self):
+        verdict = evaluate_transcription(
+            "Easy!", "en", .545,
+            [segment(no_speech_prob=.65)], 1.2,
+        )
+        self.assertFalse(verdict.trustworthy)
+
+    def test_short_guess_far_below_threshold_is_rejected(self):
+        verdict = evaluate_transcription("Easy!", "en", .40, [segment()], 1.2)
+        self.assertFalse(verdict.trustworthy)
+
+    def test_high_confidence_callout_is_not_tentative(self):
+        verdict = evaluate_transcription("Easy!", "en", .85, [segment()], 1.2)
+        self.assertTrue(verdict.trustworthy)
+        self.assertFalse(verdict.tentative)
+
+    def test_hallucination_cannot_be_accepted_as_tentative(self):
+        verdict = evaluate_transcription(
+            "thank you for watching", "en", .545, [segment()], 1.2,
+        )
+        self.assertFalse(verdict.trustworthy)
+
     def test_no_speech_rejected_even_with_high_language_confidence(self):
         self.assertFalse(
             evaluate_transcription("Hello", "en", .99, [segment(no_speech_prob=.95)], 2.2).trustworthy
