@@ -35,7 +35,7 @@ jobs:
       - name: Compile and unit tests
         shell: pwsh
         run: |
-          python -m py_compile experiments/voice/voice_engine.py experiments/voice/voice_game_window.py experiments/voice/voice_native_overlay.py experiments/voice/voice_quality.py experiments/voice/voice_performance.py experiments/voice/voice_capture_setup.py experiments/voice/voice_nick_research.py experiments/voice/voice_screen_probe.py experiments/voice/voice_vosk_ru.py experiments/voice/voice_wire_cod2.py experiments/voice/voice_cod2_names.py experiments/voice/voice_packet_launcher.py experiments/voice/voice_vps_client.py experiments/voice/voice_vps_server.py experiments/voice/voice_studio.py win32_layered_overlay.py
+          python -m py_compile experiments/voice/voice_engine.py experiments/voice/voice_game_window.py experiments/voice/voice_native_overlay.py experiments/voice/voice_quality.py experiments/voice/voice_performance.py experiments/voice/voice_capture_setup.py experiments/voice/voice_nick_research.py experiments/voice/voice_screen_probe.py experiments/voice/voice_vosk_ru.py experiments/voice/voice_wire_cod2.py experiments/voice/voice_cod2_names.py experiments/voice/voice_packet_launcher.py experiments/voice/voice_vps_client.py experiments/voice/voice_vps_server.py experiments/voice/voice_vps_tunnel.py experiments/voice/voice_studio.py win32_layered_overlay.py
           python -m unittest discover -s experiments/voice/tests -v
 
       - name: Build isolated portable Windows app
@@ -57,6 +57,7 @@ jobs:
             --collect-all onnxruntime `
             --collect-all vosk `
             --collect-all psutil `
+            --collect-all paramiko `
             experiments/voice/voice_studio.py
 
       - name: Smoke-test packaged executable
