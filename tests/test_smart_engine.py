@@ -198,14 +198,22 @@ class F9SemanticSafetyTests(unittest.TestCase):
         google.assert_not_called()
 
     def test_outgoing_blocks_corrupt_tactical_number(self):
-        with patch("outgoing_chat.translate_with_google_fast", return_value="здоровья мало"):
-            with self.assertRaisesRegex(RuntimeError, "безопасно"):
+        with (patch("outgoing_chat.translate_with_google_fast", return_value="здоровья мало"),
+              patch("outgoing_chat.translate_with_mymemory", return_value="здоровья мало")):
+            with self.assertRaisesRegex(RuntimeError, "Текст не отправлен"):
                 translate_outgoing_text("1hp", target="ru", source_language="en")
 
     def test_outgoing_blocks_wrong_objective(self):
-        with patch("outgoing_chat.translate_with_google_fast", return_value="иди на A"):
-            with self.assertRaisesRegex(RuntimeError, "безопасно"):
+        with (patch("outgoing_chat.translate_with_google_fast", return_value="иди на A"),
+              patch("outgoing_chat.translate_with_mymemory", return_value="иди на A")):
+            with self.assertRaisesRegex(RuntimeError, "Текст не отправлен"):
                 translate_outgoing_text("rush B", target="ru", source_language="en")
+
+    def test_outgoing_recovers_via_mymemory_on_google_wrong_objective(self):
+        with (patch("outgoing_chat.translate_with_google_fast", return_value="иди на A"),
+              patch("outgoing_chat.translate_with_mymemory", return_value="иди на B")):
+            result = translate_outgoing_text("rush B", target="ru", source_language="en")
+        self.assertEqual(result, "иди на B")
 
     def test_outgoing_preserves_legacy_raw_style(self):
         with patch("outgoing_chat.translate_with_google_fast") as google:

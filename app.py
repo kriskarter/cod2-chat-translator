@@ -5282,6 +5282,7 @@ class ControlApp:
     def close(self) -> None:
         self._persist_settings()
         self.stop_event.set()
+        self.outgoing_chat.close()
 
         try:
             native_surface = getattr(

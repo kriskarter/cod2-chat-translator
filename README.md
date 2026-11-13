@@ -41,6 +41,8 @@ A questionable incoming translation shows the original with a warning; F9 does n
 
 **Incoming F8 speed:** a bounded two-worker queue, a shared translation cache, and per-worker HTTPS connection reuse prevent one slow translation from blocking every subsequent message. No paid LLM is used.
 
+**Outgoing F9 stability:** UI/Tkinter options are captured before the network thread, stale pending preview requests are replaced with the latest text, and free Google/MyMemory HTTPS connections are reused. Successful translations use a small memory-only cache. F9 reports provider and elapsed time, or explains why no message was sent. A semantically unsafe Google result may be retried through MyMemory.
+
 **Important:** this is a lightweight rules/knowledge + online MT release candidate, not a trained LLM. Most unknown texts still require internet. The safety validator is intentionally partial and cannot guarantee translation correctness. See [Smart Engine V1 technical notes](docs/SMART_ENGINE_V1.md) and the test plan.
 
 ## What's new in v1.17
