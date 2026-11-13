@@ -1,0 +1,30 @@
+name: Voice VPS Fast Voice protocol gate
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/voice/**'
+      - '.github/workflows/test-voice-vps.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protocol-security-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile VPS modules and GUI
+        run: |
+          python -m py_compile experiments/voice/voice_vps_client.py experiments/voice/voice_vps_server.py experiments/voice/voice_quality.py experiments/voice/voice_studio.py
+      - name: Offline security, protocol and quality tests
+        run: |
+          python -m unittest discover -s experiments/voice/tests -p 'test_voice_vps.py' -v
+          python -m unittest discover -s experiments/voice/tests -p 'test_voice_quality.py' -v
