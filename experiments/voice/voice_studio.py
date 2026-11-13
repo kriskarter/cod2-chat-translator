@@ -1055,6 +1055,7 @@ class VoiceStudio:
                         "seq": job.seq,
                         "language": language,
                         "probability": probability,
+                        "tentative": verdict.tentative,
                         "text": recognized,
                         "translation": "",
                         "provider": "pending" if waiting_translation else "off",
@@ -1072,6 +1073,7 @@ class VoiceStudio:
                             (
                                 gen, job.seq, recognized, language, target,
                                 job.queued_at, job.speaker_label,
+                                verdict.tentative,
                             )
                         )
                     except queue.Full:
@@ -1084,7 +1086,7 @@ class VoiceStudio:
     def _translate_loop(self):
         """Network calls run independently of CPU speech recognition."""
         while True:
-            gen, seq, original, language, target, queued_at, speaker_label = self.translations.get()
+            gen, seq, original, language, target, queued_at, speaker_label, tentative = self.translations.get()
             try:
                 if gen != self.generation:
                     continue
@@ -1094,6 +1096,7 @@ class VoiceStudio:
                     "seq": seq,
                     "original": original,
                     "language": language,
+                    "tentative": tentative,
                     "translation": translated,
                     "provider": provider,
                     "network_seconds": time.perf_counter() - start,
@@ -1148,12 +1151,13 @@ class VoiceStudio:
                                 self.overlay_text.configure(
                                     text=f"🎙 {payload['speaker_label']} · "
                                          f"{payload['language'].upper()}: "
+                                         f"{'⚠ Предварительно: ' if payload.get('tentative') else ''}"
                                          f"{payload['original']}\n→ {payload['translation']}"
                                 )
                             if self.native_overlay is not None:
                                 self.native_overlay.update(
                                     language=payload["language"].upper(),
-                                    original=payload["original"],
+                                    original=("⚠ " if payload.get("tentative") else "") + payload["original"],
                                     translated=payload["translation"],
                                     nickname=payload["speaker_label"],
                                 )
@@ -1170,6 +1174,8 @@ class VoiceStudio:
                         if payload['probability'] is not None
                         else "RU (Vosk · язык задан вручную)"
                     )
+                    if payload.get("tentative"):
+                        lang += " · предварительно"
                     msg = (
                         f"🎙 {payload['speaker_label']} "
                         f"[{lang}] {payload['text']}"
@@ -1183,7 +1189,8 @@ class VoiceStudio:
                     )
                     self._write_log(msg)
                     self.status_var.set(
-                        f"Распознано: {payload['engine']} {payload['asr_seconds']:.1f} с; "
+                        f"{'Предварительно' if payload.get('tentative') else 'Распознано'}: "
+                        f"{payload['engine']} {payload['asr_seconds']:.1f} с; "
                         f"очередь {payload['queue_seconds']:.1f} с; "
                         f"загрузка модели {payload['model_seconds']:.1f} с"
                     )
@@ -1191,7 +1198,9 @@ class VoiceStudio:
                     if self.overlay is not None:
                         display = (
                             f"🎙 {payload['speaker_label']} · "
-                            f"{payload['language'].upper()}: {payload['text']}"
+                            f"{payload['language'].upper()}: "
+                            f"{'⚠ Предварительно: ' if payload.get('tentative') else ''}"
+                            f"{payload['text']}"
                         )
                         if payload["translation"]:
                             display += "\n→ " + payload["translation"]
@@ -1200,7 +1209,7 @@ class VoiceStudio:
                         try:
                             self.native_overlay.update(
                                 language=payload["language"].upper(),
-                                original=payload["text"],
+                                original=("⚠ " if payload.get("tentative") else "") + payload["text"],
                                 translated=payload["translation"],
                                 nickname=payload["speaker_label"],
                             )
