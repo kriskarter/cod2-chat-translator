@@ -867,6 +867,13 @@ class VoiceStudio:
             return False
         if self.ssh_tunnel is not None and self.ssh_tunnel.is_connected():
             return False
+        if self.ssh_tunnel is not None:
+            # Force new SSH authentication if the previous private channel died.
+            # A stale random local port must not masquerade as a live VPS.
+            self.ssh_tunnel.close()
+            self.ssh_tunnel = None
+            self.vps_token_var.set("")
+            self.vps_url_var.set("http://127.0.0.1:8765")
         if self.vps_token_var.get().strip():
             # Advanced manual endpoint, supplied explicitly by the user.
             return False
