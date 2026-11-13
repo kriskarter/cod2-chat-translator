@@ -257,20 +257,30 @@ class VoiceStudio:
 
         remote = ttk.Frame(outer)
         remote.pack(fill="x", pady=(0, 5))
-        ttk.Label(remote, text="Где распознавать:").pack(side="left")
+        remote_mode = ttk.Frame(remote)
+        remote_mode.pack(fill="x")
+        ttk.Label(remote_mode, text="Где распознавать:").pack(side="left")
         ttk.Combobox(
-            remote, textvariable=self.asr_location_var, width=16, state="readonly",
+            remote_mode, textvariable=self.asr_location_var, width=16, state="readonly",
             values=("Локально", "VPS Fast Voice"),
         ).pack(side="left", padx=(5, 8))
-        ttk.Label(remote, text="VPS / SSH-туннель:").pack(side="left")
-        ttk.Entry(remote, textvariable=self.vps_url_var, width=28).pack(
-            side="left", fill="x", expand=True, padx=(5, 5)
+        ttk.Label(
+            remote_mode, text="VPS — эксперимент; при сбое локальный резерв.",
+            foreground="#666",
+        ).pack(side="left")
+        remote_connection = ttk.Frame(remote)
+        remote_connection.pack(fill="x", pady=(3, 0))
+        ttk.Label(remote_connection, text="VPS / SSH-туннель:").pack(side="left")
+        ttk.Entry(remote_connection, textvariable=self.vps_url_var, width=28).pack(
+            side="left", fill="x", expand=True, padx=(5, 7)
         )
-        ttk.Label(remote, text="Токен:").pack(side="left")
-        ttk.Entry(remote, textvariable=self.vps_token_var, width=16, show="*").pack(
-            side="left", padx=(5, 5)
+        ttk.Label(remote_connection, text="Токен:").pack(side="left")
+        ttk.Entry(remote_connection, textvariable=self.vps_token_var, width=20, show="*").pack(
+            side="left", padx=(5, 7)
         )
-        ttk.Button(remote, text="Проверить", command=self.check_vps).pack(side="left")
+        ttk.Button(
+            remote_connection, text="Проверить", command=self.check_vps,
+        ).pack(side="left")
 
         opts = ttk.Frame(outer)
         opts.pack(fill="x")
@@ -1140,7 +1150,7 @@ class VoiceStudio:
                             **timings,
                         }))
                     continue
-                waiting_translation = bool(do_translate and language != target)
+                # Uncertain language may equal target by mistake; let translation\n                # auto-detect rather than silently skip such a voice callout.\n                waiting_translation = bool(do_translate and (language != target or verdict.tentative))
                 # Show the recognized original immediately: network translation
                 # must not block the only CPU Whisper worker.
                 if gen == self.generation:
