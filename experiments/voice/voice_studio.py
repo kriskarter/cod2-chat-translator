@@ -1091,7 +1091,7 @@ class VoiceStudio:
                 if gen != self.generation:
                     continue
                 start = time.perf_counter()
-                translated, provider = translate_text(original, language, target)
+                # When Whisper is unsure of the language, let the online\n                # translator auto-detect rather than force an unreliable guess.\n                source_for_translation = "auto" if tentative else language\n                translated, provider = translate_text(original, source_for_translation, target)
                 self.events.put(("translation", gen, {
                     "seq": seq,
                     "original": original,
