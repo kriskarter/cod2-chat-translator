@@ -5,3 +5,6 @@ requests>=2.31,<3
 pillow==12.3.0
 vosk==0.3.45
 psutil>=6.0,<8
+
+# In-app encrypted SSH tunnel; key stays on Windows and server host key is verified.
+paramiko>=3.5,<5
