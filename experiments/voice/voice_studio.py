@@ -1125,7 +1125,8 @@ class VoiceStudio:
             for i, clip in enumerate(clips, 1):
                 if stop_flag.is_set() or gen != self.generation:
                     break
-                # At most one pending fragment: prevents multi-minute replay queue\n                # delay, without discarding any fragment from the recording.
+                # At most one pending fragment: avoids multi-minute replay
+                # delay, without discarding any audio from the recording.
                 while self.jobs.qsize() >= 1 and not stop_flag.wait(.15):
                     pass
                 if stop_flag.is_set():
