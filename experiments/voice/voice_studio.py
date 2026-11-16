@@ -162,7 +162,7 @@ class VoiceStudio:
             app_data_folder() / "vps_ssh_connection.json"
         )
         self.asr_location_var = tk.StringVar(
-            value="VPS Fast Voice" if saved_ssh_target else "Локально"
+            value="Локально"
         )
         self.ssh_target_var = tk.StringVar(value=saved_ssh_target)
         self.manual_vps_var = tk.BooleanVar(value=False)
@@ -206,6 +206,10 @@ class VoiceStudio:
         self.count = 0
 
         self._build_ui()
+        self.asr_location_var.trace_add(
+            "write", lambda *_: self._update_vps_visibility()
+        )
+        self._update_vps_visibility()
         self.overlay = None
         self.native_overlay = None
         self._make_overlay()
@@ -284,7 +288,7 @@ class VoiceStudio:
             foreground="#666",
         ).pack(side="left")
         quick_ssh = ttk.Frame(remote)
-        quick_ssh.pack(fill="x", pady=(3, 0))
+        self.quick_ssh = quick_ssh
         ttk.Label(quick_ssh, text="SSH-сервер:").pack(side="left")
         ttk.Entry(quick_ssh, textvariable=self.ssh_target_var, width=29).pack(
             side="left", fill="x", expand=True, padx=(5, 7)
@@ -295,10 +299,10 @@ class VoiceStudio:
         ttk.Button(
             quick_ssh, text="Проверить", command=self.check_vps,
         ).pack(side="left", padx=(6, 0))
-        ttk.Checkbutton(
+        self.manual_vps_check = ttk.Checkbutton(
             remote_mode, text="Ручные настройки",
             variable=self.manual_vps_var, command=self._show_manual_vps_settings,
-        ).pack(side="right")
+        )
         self.manual_vps_connection = ttk.Frame(remote)
         ttk.Label(self.manual_vps_connection, text="VPS URL:").pack(side="left")
         ttk.Entry(
@@ -814,8 +818,21 @@ class VoiceStudio:
         self.output.see("end")
         self.output.configure(state="disabled")
 
+    def _update_vps_visibility(self):
+        """Local mode should have no SSH/tokens/UI clutter."""
+        if self.asr_location_var.get() == "VPS Fast Voice":
+            self.quick_ssh.pack(fill="x", pady=(3, 0))
+            self.manual_vps_check.pack(side="right")
+        else:
+            self.quick_ssh.pack_forget()
+            self.manual_vps_check.pack_forget()
+        self._show_manual_vps_settings()
+
     def _show_manual_vps_settings(self):
-        if self.manual_vps_var.get():
+        if (
+            self.asr_location_var.get() == "VPS Fast Voice"
+            and self.manual_vps_var.get()
+        ):
             self.manual_vps_connection.pack(fill="x", pady=(3, 0))
         else:
             self.manual_vps_connection.pack_forget()
@@ -1108,8 +1125,8 @@ class VoiceStudio:
             for i, clip in enumerate(clips, 1):
                 if stop_flag.is_set() or gen != self.generation:
                     break
-                # A bounded queue prevents a long sample from exhausting RAM.
-                while self.jobs.qsize() >= 32 and not stop_flag.wait(.15):
+                # At most one pending fragment: prevents multi-minute replay queue\n                # delay, without discarding any fragment from the recording.
+                while self.jobs.qsize() >= 1 and not stop_flag.wait(.15):
                     pass
                 if stop_flag.is_set():
                     break
@@ -1255,7 +1272,11 @@ class VoiceStudio:
                             **timings,
                         }))
                     continue
-                # Uncertain language may equal target by mistake; let translation\n                # auto-detect rather than silently skip such a voice callout.\n                waiting_translation = bool(do_translate and (language != target or verdict.tentative))
+                # If language is uncertain, request translation even when
+                # it appears to match the target language: the guess may be wrong.
+                waiting_translation = bool(
+                    do_translate and (language != target or verdict.tentative)
+                )
                 # Show the recognized original immediately: network translation
                 # must not block the only CPU Whisper worker.
                 if gen == self.generation:
@@ -1299,7 +1320,11 @@ class VoiceStudio:
                 if gen != self.generation:
                     continue
                 start = time.perf_counter()
-                # When Whisper is unsure of the language, let the online\n                # translator auto-detect rather than force an unreliable guess.\n                source_for_translation = "auto" if tentative else language\n                translated, provider = translate_text(original, source_for_translation, target)
+                # Let the online translator detect uncertain source languages.
+                source_for_translation = "auto" if tentative else language
+                translated, provider = translate_text(
+                    original, source_for_translation, target
+                )
                 self.events.put(("translation", gen, {
                     "seq": seq,
                     "original": original,
