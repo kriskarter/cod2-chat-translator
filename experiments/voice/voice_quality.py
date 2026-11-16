@@ -44,8 +44,17 @@ def evaluate_transcription(
     # 8-kHz voice contains noise, packet loss and push-to-talk clicks.
     if all(float(getattr(s, "no_speech_prob", 0) or 0) > 0.72 for s in segments):
         return RecognitionQuality(False, "Вероятно, не речь")
-    if all(float(getattr(s, "avg_logprob", 0) or 0) < -1.2 for s in segments):
-        return RecognitionQuality(False, "Распознавание очень неуверенное")
+    # Weak acoustic confidence is not proof that a gaming callout is wrong.
+    # Show moderately weak speech as preliminary; reject only extreme noise.
+    acoustic_weak = all(
+        float(getattr(s, "avg_logprob", 0) or 0) < -1.2
+        for s in segments
+    )
+    if all(
+        float(getattr(s, "avg_logprob", 0) or 0) < -1.75
+        for s in segments
+    ):
+        return RecognitionQuality(False, "Распознавание крайне неуверенное")
     if all(float(getattr(s, "compression_ratio", 0) or 0) > 2.4 for s in segments):
         return RecognitionQuality(False, "Повторяющийся или испорченный текст")
 
@@ -59,12 +68,18 @@ def evaluate_transcription(
     # For short/noisy gaming calls do not discard intelligible text just
     # because the inferred language is uncertain. Retain the transcript
     # with a clearly indicated preliminary label instead.
-    tentative = confidence < 0.70
+    tentative = confidence < 0.70 or acoustic_weak
     if tentative:
+        reasons = []
+        if acoustic_weak:
+            reasons.append("Whisper не уверен в некоторых словах")
+        if confidence < 0.70:
+            reasons.append(
+                f"Язык {code.upper()} определён неуверенно ({confidence:.1%})"
+            )
         return RecognitionQuality(
             True,
-            f"Язык {code.upper()} определён неуверенно ({confidence:.1%}); "
-            "показываем предварительное распознавание",
+            "; ".join(reasons) + "; показываем предварительное распознавание",
             tentative=True,
         )
 
