@@ -91,6 +91,22 @@ class QualityTests(unittest.TestCase):
             evaluate_transcription("Hello", "en", .99, [segment(no_speech_prob=.95)], 2.2).trustworthy
         )
 
+    def test_moderately_low_acoustic_score_keeps_game_speech(self):
+        verdict = evaluate_transcription(
+            "Czad, właśnie.", "pl", .74,
+            [segment(avg_logprob=-1.44)], 2.4,
+        )
+        self.assertTrue(verdict.trustworthy)
+        self.assertTrue(verdict.tentative)
+        self.assertIn("некоторых словах", verdict.reason)
+
+    def test_extremely_low_acoustic_score_is_still_rejected(self):
+        verdict = evaluate_transcription(
+            "nonsense", "en", .93,
+            [segment(avg_logprob=-1.85)], 1.2,
+        )
+        self.assertFalse(verdict.trustworthy)
+
     def test_garbled_logprob_is_rejected(self):
         self.assertFalse(
             evaluate_transcription("monster kill", "en", .98, [segment(avg_logprob=-1.8)], 2.2).trustworthy
