@@ -1,0 +1,84 @@
+name: Build CoD2 Voice Prototype (experimental)
+
+on:
+  push:
+    branches:
+      - feature/voice-translation-prototype
+    paths:
+      - 'experiments/voice/**'
+      - '.github/workflows/build-voice-prototype.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  voice-prototype-windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install prototype dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r experiments/voice/requirements.txt
+          python -m pip install pyinstaller==6.21.0
+
+      - name: Compile and unit tests
+        shell: pwsh
+        run: |
+          python -m py_compile experiments/voice/voice_engine.py experiments/voice/voice_game_window.py experiments/voice/voice_native_overlay.py experiments/voice/voice_quality.py experiments/voice/voice_performance.py experiments/voice/voice_capture_setup.py experiments/voice/voice_nick_research.py experiments/voice/voice_screen_probe.py experiments/voice/voice_vosk_ru.py experiments/voice/voice_wire_cod2.py experiments/voice/voice_cod2_names.py experiments/voice/voice_packet_launcher.py experiments/voice/voice_vps_client.py experiments/voice/voice_vps_server.py experiments/voice/voice_vps_tunnel.py experiments/voice/voice_studio.py win32_layered_overlay.py
+          python -m unittest discover -s experiments/voice/tests -v
+
+      - name: Build isolated portable Windows app
+        shell: pwsh
+        run: |
+          pyinstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --windowed `
+            --name CoD2VoicePrototype `
+            --paths experiments/voice `
+            --paths . `
+            --hidden-import win32_layered_overlay `
+            --collect-all faster_whisper `
+            --collect-all ctranslate2 `
+            --collect-all tokenizers `
+            --collect-all av `
+            --collect-all onnxruntime `
+            --collect-all vosk `
+            --collect-all psutil `
+            --collect-all paramiko `
+            experiments/voice/voice_studio.py
+
+      - name: Smoke-test packaged executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist/CoD2VoicePrototype/CoD2VoicePrototype.exe")) {
+            throw "Windows portable executable not created"
+          }
+          Get-Item "dist/CoD2VoicePrototype/CoD2VoicePrototype.exe" |
+            Select-Object Name, Length | Format-Table
+
+      - name: Add test instructions
+        shell: pwsh
+        run: |
+          Copy-Item experiments/voice/README_RU.md dist/CoD2VoicePrototype/README_RU.txt
+          Copy-Item experiments/voice/SPEAKER_PROTOCOL_RU.md dist/CoD2VoicePrototype/SPEAKER_PROTOCOL_RU.txt
+          Copy-Item experiments/voice/VPS_FAST_VOICE_RU.md dist/CoD2VoicePrototype/VPS_FAST_VOICE_RU.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          retention-days: 14
+          name: CoD2-Voice-Prototype-Windows
+          path: dist/CoD2VoicePrototype/
+          if-no-files-found: error
