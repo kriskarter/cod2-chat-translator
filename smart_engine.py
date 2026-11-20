@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 import time
+import knowledge_v2
+import translation_memory
 from dataclasses import dataclass
 from typing import Callable
 
@@ -70,7 +72,7 @@ _CONTEXT_OBJECTIVE = re.compile(r"\b(?:rush|go|plant|defuse|site|hold|push|stack
 _NEGATIVE = {
     "en": re.compile(r"\b(?:not|no|never|without|dont|don't|doesn't|didn't|can't|cannot|won't)\b", re.I),
     "ru": re.compile(r"\b(?:не|нет|нельзя|никогда|без)\b", re.I),
-    "uk": re.compile(r"\b(?:не|ні|немає|ніколи|без)\b", re.I),
+    "uk": re.compile(r"\b(?:не|ні|немає|нема|ніколи|без)\b", re.I),
     "pl": re.compile(r"\b(?:nie|nigdy|bez)\b", re.I),
     "de": re.compile(r"\b(?:nicht|kein|keine|nie|ohne)\b", re.I),
     "es": re.compile(r"\b(?:no|nunca|sin)\b", re.I),
@@ -223,7 +225,42 @@ def _ns_context(request: TranslationRequest) -> tuple[str | None, bool]:
     return "nice shot", False
 
 
+class _NeedsOnline(Exception):
+    """Sentinel used solely to probe the complete local-only path."""
+
+
 class SmartTranslationEngine:
+    def try_local(self, request: TranslationRequest, legacy_transform=None):
+        if not knowledge_v2.version():return None
+        def offline(*args):raise _NeedsOnline()
+        try:
+            result=self.translate(request,offline,legacy_transform=legacy_transform)
+        except _NeedsOnline:
+            return None
+        if result.safe:return result.text,result.provider
+        return None
+
+    def fast_lookup(self, request: TranslationRequest):
+        if not request.use_slang or not knowledge_v2.version():
+            return None
+        original=request.text.strip()
+        # One context-driven sense only on an explicit preceding same-speaker
+        # topic. A bare "low" is otherwise left to the normal engine.
+        if _clean_key(original)=="low" and request.context and request.target_lang in ("ru","uk"):
+            recent=request.context[-1]
+            if request.nickname and recent.nickname==request.nickname and re.fullmatch(r"(?:my|his|her|their) (?:hp|health)[?!.]?",recent.text.strip(),re.I):
+                return ("мало ХП" if request.target_lang=="ru" else "мало ХП"),"context-v2"
+        advanced=knowledge_v2.lookup(original, request.target_lang, request.source_lang, request.style)
+        if advanced and not semantic_violations(original,advanced,request.target_lang):
+            return advanced, "knowledge-v2"
+        memory=translation_memory.RUNTIME
+        if memory and len(original.split())>=2 and _clean_key(original) not in _AMBIGUOUS:
+            k=translation_memory.cache_key(knowledge_v2.version(),request.direction,request.source_lang,request.target_lang,request.style,original)
+            cached=memory.get(k)
+            if cached and not semantic_violations(original,cached,request.target_lang):
+                return cached,"memory-v2"
+        return None
+
     def translate(
         self,
         request: TranslationRequest,
@@ -265,6 +302,9 @@ class SmartTranslationEngine:
                 if direct:
                     return finish(_terminal(original, direct), True, "knowledge",
                                   used_context=context_used)
+            advanced = self.fast_lookup(request)
+            if advanced:
+                return finish(advanced[0], True, advanced[1], used_context=advanced[1]=="context-v2")
             known = _DIRECT.get(key, {}).get(target)
             if known:
                 return finish(_terminal(original, known), True, "knowledge")
@@ -304,12 +344,23 @@ class SmartTranslationEngine:
         # "behind -> enemy", no "1hp -> almost no health".
         if request.use_slang and candidate == original:
             expanded = _inline_expansion(original)
+            if knowledge_v2.version() and request.source_lang in ("en","auto") and not _CYRILLIC.search(original) and len(original.split())>=3:
+                # Common chat typos only when unambiguous neighbouring English cues.
+                if re.search(r"\b(?:you|bro|mate|cover|go|wait|where|are|need|team|enemy|shoot|lagging|laggin|pls|plz)\b",original,re.I):
+                    expanded=re.sub(r"\b(?:pls|plz|ppl|laggin)\b",lambda m:{"pls":"please","plz":"please","ppl":"people","laggin":"lagging"}[m[0].lower()],expanded,flags=re.I)
             if expanded != original and not semantic_violations(original, expanded, target):
                 candidate = expanded
 
         # Avoid passing contextual history to arbitrary third-party endpoints.
         # Current online providers only receive this one cleaned chat message.
-        translated = str(provider(candidate, target, request.source_lang) or "").strip()
+        try:
+            translated = str(provider(candidate, target, request.source_lang) or "").strip()
+        except _NeedsOnline:
+            raise
+        except Exception:
+            if not knowledge_v2.version() or candidate==original:raise
+            candidate=original
+            translated=str(provider(original,target,request.source_lang) or "").strip()
         reasons = semantic_violations(original, translated, target)
         if reasons and candidate != original:
             # Retry with the intact original when normalization was unsafe.
@@ -319,6 +370,11 @@ class SmartTranslationEngine:
             # Incoming: caller can show original; outgoing: caller must block
             # automatic send rather than silently sending misleading tactics.
             return finish(original, False, "abstain", reasons or ("empty",))
+        memory=translation_memory.RUNTIME
+        if (memory and knowledge_v2.version() and request.use_slang
+                and len(original.split())>=2 and key not in _AMBIGUOUS and candidate == original):
+            k=translation_memory.cache_key(knowledge_v2.version(),request.direction,request.source_lang,target,style,original)
+            memory.save(k,translated,request.nickname)
         return finish(translated, True, "online")
 
 

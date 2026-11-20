@@ -35,5 +35,9 @@
   "cod2_roots": [
     "D:/SteamLibrary/steamapps/common/Call of Duty 2"
   ],
-  "primary_profile_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/main/console_mp.log"
+  "primary_profile_path": "D:/SteamLibrary/steamapps/common/Call of Duty 2/main/console_mp.log",
+  "knowledge_v2_enabled": true,
+  "knowledge_auto_update": true,
+  "experience_collect": false,
+  "experience_cache": false
 }

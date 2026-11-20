@@ -53,6 +53,9 @@ jobs:
       - name: Smart Engine synthetic semantic safety gate
         run: python tools/smart_quality_check.py
 
+      - name: Smart V2 offline reference benchmark
+        run: python tools/smart_v2_benchmark.py
+
       - name: Configure release repository
         shell: pwsh
         run: |

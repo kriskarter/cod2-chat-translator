@@ -33,6 +33,10 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## What's new in v1.19.0 — Smart Engine V2 (RC)
+
+195 authored phrase groups, roughly one thousand forms, guarded templates and conservative context. Local fast paths bypass online queues for F8/F9. **Knowledge** menu: opt-in local observations/cache, latency statistics, manual ZIP, independent data-pack updates; no automatic upload. Classic and Smart V1 remain available, no paid LLM. [Smart V2](docs/SMART_ENGINE_V2.md).
+
 ## What's new in v1.18.0 — Smart Engine V1 (release candidate)
 
 The incoming F8 overlay and outgoing F9 chat now share a conservative semantic engine. Known gaming phrases can be handled locally without a network request. Critical tactical tokens (numbers/HP, A/B objectives, negation, mentions, URLs and recognized weapon names) are checked before showing or sending a translation.

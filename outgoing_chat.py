@@ -6,6 +6,9 @@ import os
 import queue
 import requests
 import time
+import knowledge_v2
+import translation_memory
+from provider_health import HEALTH
 from collections import OrderedDict
 import re
 import threading
@@ -493,104 +496,50 @@ def _online_translate_outgoing(
     ):
         return source
 
-    google_started = time.monotonic()
-    try:
-        options = {"request_get": transport.google_get()} if transport else {}
-        translated = translate_with_google_fast(
-            source,
-            source=source_language,
-            target=target,
-            **options,
-        )
-
-        translated = normalize_outgoing_text(
-            str(translated or "")
-        )
-
-        if (
-            not translated
-            or looks_like_service_error(
-                translated
-            )
-            or unchanged_translation_needs_fallback(
-                source,
-                translated,
-                source_language=source_language,
-                target_language=target,
-            )
-        ):
-            raise RuntimeError(
-                "Primary translator "
-                "returned no translation"
-            )
-
-        if semantic_source:
-            problems = semantic_violations(semantic_source, translated, target)
-            if problems:
-                # A valid Google response can still change e.g. 2 HP -> 1 HP.
-                # Let MyMemory try before giving up on this outgoing message.
-                if diagnostics is not None:
-                    diagnostics["google_semantic_rejected"] = problems
-                raise RuntimeError("Google changed tactical meaning")
-
-        if diagnostics is not None:
-            diagnostics["provider"] = "Google"
-            diagnostics["google_ms"] = round((time.monotonic()-google_started)*1000)
-        return translated
-
-    except Exception as exc:
-        if diagnostics is not None:
-            diagnostics["google_failed"] = type(exc).__name__
-            diagnostics["google_ms"] = round((time.monotonic()-google_started)*1000)
-
-    # Google occasionally changes/blocks the mobile
-    # endpoint used by deep-translator. Do not fail F9:
-    # transparently switch to an independent backend.
-    fallback_started = time.monotonic()
-    try:
-        options = {"request_get": transport.mymemory_get()} if transport else {}
-        translated = translate_with_mymemory(
-            source,
-            source=source_language,
-            target=target,
-            **options,
-        )
-
-        translated = normalize_outgoing_text(
-            str(translated or "")
-        )
-
-        if (
-            not translated
-            or looks_like_service_error(translated)
-            or unchanged_translation_needs_fallback(
-                source, translated,
-                source_language=source_language,
-                target_language=target,
-            )
-        ):
-            raise RuntimeError("Fallback returned invalid or unchanged text")
-
-        if semantic_source:
-            problems = semantic_violations(semantic_source, translated, target)
-            if problems:
-                if diagnostics is not None:
-                    diagnostics["semantic_block"] = problems
-                raise RuntimeError("MyMemory changed tactical meaning")
-
-        if diagnostics is not None:
-            diagnostics["provider"] = "MyMemory"
-            diagnostics["fallback_ms"] = round((time.monotonic()-fallback_started)*1000)
-        return translated
-
-    except Exception as fallback_error:
-        if diagnostics is not None:
-            diagnostics["fallback_failed"] = type(fallback_error).__name__
-            diagnostics["fallback_ms"] = round((time.monotonic()-fallback_started)*1000)
-        raise RuntimeError(
-            "Сервисы перевода не ответили. Проверь интернет или "
-            "попробуй ещё раз. Текст не отправлен."
-        ) from fallback_error
+    adaptive=bool(knowledge_v2.version() and semantic_source)
+    services=("MyMemory","Google") if adaptive and HEALTH.prefer_backup() else ("Google","MyMemory")
+    last_error=None
+    for service in services:
+        started=time.monotonic()
+        primary=service=="Google"
+        timer="google_ms" if primary else "fallback_ms"
+        failure="google_failed" if primary else "fallback_failed"
+        try:
+            options={}
+            if transport:
+                options["request_get"]=transport.google_get() if primary else transport.mymemory_get()
+            fn=translate_with_google_fast if primary else translate_with_mymemory
+            translated=normalize_outgoing_text(str(fn(source,source=source_language,target=target,**options) or ""))
+        except Exception as exc:
+            if adaptive and primary: HEALTH.failure()
+            last_error=exc
+            if diagnostics is not None:
+                diagnostics[failure]=type(exc).__name__
+                diagnostics[timer]=round((time.monotonic()-started)*1000)
+            continue
+        try:
+            if (not translated or looks_like_service_error(translated)
+                    or unchanged_translation_needs_fallback(source,translated,source_language=source_language,target_language=target)):
+                raise RuntimeError("invalid or unchanged translation")
+            if semantic_source:
+                problems=semantic_violations(semantic_source,translated,target)
+                if problems:
+                    if diagnostics is not None:
+                        diagnostics["semantic_block"]=problems
+                        if primary: diagnostics["google_semantic_rejected"]=problems
+                    raise RuntimeError("semantic rejection")
+            if adaptive and primary: HEALTH.success()
+            if diagnostics is not None:
+                diagnostics.pop("semantic_block",None)
+                diagnostics["provider"]=service
+                diagnostics[timer]=round((time.monotonic()-started)*1000)
+            return translated
+        except Exception as exc:
+            last_error=exc
+            if diagnostics is not None:
+                diagnostics[failure]=type(exc).__name__
+                diagnostics[timer]=round((time.monotonic()-started)*1000)
+    raise RuntimeError("Не удалось перевести сообщение. Повтори попытку. Текст не отправлен.") from last_error
 
 
 
@@ -2021,9 +1970,17 @@ class OutgoingChatController:
         self._set_f9_meta("Ожидание ввода")
         self.translation_started_at = 0.0
 
+        if knowledge_v2.version() and self.smart_enabled_getter():
+            local=DEFAULT_ENGINE.try_local(TranslationRequest(
+                text=source,target_lang=self.target_code,source_lang=self.source_code,
+                style=self.style_getter(),direction="outgoing",use_slang=self.slang_enabled_getter()),
+                legacy_transform=self.legacy_transform)
+            if local:
+                self._start_translation(source)
+                return
         self.translation_after_id = (
             self.root.after(
-                LIVE_TRANSLATION_DELAY_MS,
+                180 if knowledge_v2.version() else LIVE_TRANSLATION_DELAY_MS,
                 self._start_live_translation,
             )
         )
@@ -2081,6 +2038,15 @@ class OutgoingChatController:
             bool(self.slang_enabled_getter()),
             bool(self.smart_enabled_getter()),
         )
+        if settings[4] and knowledge_v2.version():
+            local=DEFAULT_ENGINE.try_local(TranslationRequest(
+                text=source,target_lang=settings[0],source_lang=settings[1],
+                style=settings[2],direction="outgoing",use_slang=settings[3]),
+                legacy_transform=self.legacy_transform)
+            if local:
+                self.events.put(("translation_ok", (request_id,source,local[0],
+                    round((time.monotonic()-self.translation_started_at)*1000),local[1])))
+                return
         if self._f9_dispatcher is None:
             self._f9_dispatcher = OutgoingTranslationDispatcher(
                 self._translate_worker,
@@ -2209,7 +2175,7 @@ class OutgoingChatController:
         started = time.monotonic()
         cache_key = (
             source, target_code, source_code, style,
-            slang_enabled, smart_enabled,
+            slang_enabled, smart_enabled, knowledge_v2.version(),
         )
         diagnostics = {}
         try:
@@ -2359,6 +2325,13 @@ class OutgoingChatController:
                     if source != current_source:
                         continue
 
+                    elapsed_start=getattr(self,"translation_started_at",0)
+                    if knowledge_v2.version() and elapsed_start:
+                        latency_ms=max(latency_ms,round((time.monotonic()-elapsed_start)*1000))
+                    memory=translation_memory.RUNTIME
+                    if memory:
+                        memory.record("outgoing",self.source_code,self.target_code,
+                                      self.style_getter(),source,translated,"ok",service,latency_ms)
                     self.translation_in_progress = False
                     self.translation_source = source
                     self.pending_translation = translated
@@ -2370,7 +2343,10 @@ class OutgoingChatController:
                             f"{translated}"
                         )
                     )
-                    if latency_ms:
+                    if service in ("knowledge-v2","context-v2"): service="Локально V2"
+                    elif service=="memory-v2": service="Локальный кэш"
+                    elif service in ("knowledge","legacy-direct","legacy-translit","same-language"): service="Локально"
+                    if latency_ms or knowledge_v2.version():
                         self.status_var.set(
                             f"F9: перевод {latency_ms} мс · {service}"
                         )
@@ -2449,6 +2425,13 @@ class OutgoingChatController:
                     if source != current_source:
                         continue
 
+                    elapsed_start=getattr(self,"translation_started_at",0)
+                    if knowledge_v2.version() and elapsed_start:
+                        latency_ms=max(latency_ms,round((time.monotonic()-elapsed_start)*1000))
+                    memory=translation_memory.RUNTIME
+                    if memory:
+                        memory.record("outgoing",self.source_code,self.target_code,
+                                      self.style_getter(),source,"","failed",failure_route,latency_ms)
                     self.translation_in_progress = False
                     self.send_after_translation = False
                     self.pending_translation = ""
