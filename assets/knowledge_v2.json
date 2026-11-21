@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": 1,
+  "version": 2,
   "entries": [
     {
       "id": "game-001",
@@ -4338,6 +4338,313 @@
         "fr": "bonne nuit",
         "es": "buenas noches",
         "tr": "iyi geceler"
+      }
+    },
+    {
+      "id": "v2fix-hi",
+      "forms": {
+        "en": [
+          "hi",
+          "hello",
+          "hey",
+          "hey there"
+        ]
+      },
+      "translations": {
+        "en": "hi",
+        "ru": "привет",
+        "uk": "привіт"
+      }
+    },
+    {
+      "id": "v2fix-sup",
+      "forms": {
+        "en": [
+          "sup",
+          "whats up",
+          "what's up"
+        ]
+      },
+      "translations": {
+        "en": "sup",
+        "ru": "как дела?",
+        "uk": "як справи?"
+      }
+    },
+    {
+      "id": "v2fix-ouch",
+      "forms": {
+        "en": [
+          "ouch",
+          "ow",
+          "oww"
+        ]
+      },
+      "translations": {
+        "en": "ouch",
+        "ru": "ай!",
+        "uk": "ой!"
+      }
+    },
+    {
+      "id": "v2fix-laugh",
+      "forms": {
+        "en": [
+          "xd",
+          "xD",
+          "XDD",
+          "hahaha",
+          "haha",
+          "lol xd",
+          "xd lol"
+        ]
+      },
+      "translations": {
+        "en": "xd",
+        "ru": "ахаха",
+        "uk": "ахаха"
+      }
+    },
+    {
+      "id": "v2fix-n1",
+      "forms": {
+        "en": [
+          "n1",
+          "nice1",
+          "nice one bro"
+        ]
+      },
+      "translations": {
+        "en": "n1",
+        "ru": "красавчик!",
+        "uk": "красавчик!"
+      }
+    },
+    {
+      "id": "v2fix-nooo",
+      "forms": {
+        "en": [
+          "nooo",
+          "nooooo"
+        ]
+      },
+      "translations": {
+        "en": "nooo",
+        "ru": "неее!",
+        "uk": "нііі!"
+      }
+    },
+    {
+      "id": "v2fix-go-go",
+      "forms": {
+        "en": [
+          "go go",
+          "go go go",
+          "goooo"
+        ]
+      },
+      "translations": {
+        "en": "go go",
+        "ru": "вперёд!",
+        "uk": "уперед!"
+      }
+    },
+    {
+      "id": "v2fix-yoo",
+      "forms": {
+        "en": [
+          "yoo",
+          "yo",
+          "yoow"
+        ]
+      },
+      "translations": {
+        "en": "yoo",
+        "ru": "йо!",
+        "uk": "йо!"
+      }
+    },
+    {
+      "id": "v2fix-yeah",
+      "forms": {
+        "en": [
+          "yeah",
+          "yea",
+          "yeap"
+        ]
+      },
+      "translations": {
+        "en": "yeah",
+        "ru": "да",
+        "uk": "так"
+      }
+    },
+    {
+      "id": "v2fix-lag-q",
+      "forms": {
+        "en": [
+          "lag?",
+          "lagging?"
+        ]
+      },
+      "translations": {
+        "en": "lag?",
+        "ru": "лагает?",
+        "uk": "лагає?"
+      }
+    },
+    {
+      "id": "v2fix-what-the-hell",
+      "forms": {
+        "en": [
+          "what the hell",
+          "wth man"
+        ]
+      },
+      "translations": {
+        "en": "what the hell",
+        "ru": "какого чёрта?",
+        "uk": "якого біса?"
+      }
+    },
+    {
+      "id": "v2fix-huh",
+      "forms": {
+        "en": [
+          "huh?",
+          "huh"
+        ]
+      },
+      "translations": {
+        "en": "huh?",
+        "ru": "а?",
+        "uk": "га?"
+      }
+    },
+    {
+      "id": "v2fix-insane",
+      "forms": {
+        "en": [
+          "insane",
+          "that's insane",
+          "thats insane"
+        ]
+      },
+      "translations": {
+        "en": "insane",
+        "ru": "жесть!",
+        "uk": "це жесть!"
+      }
+    },
+    {
+      "id": "v2fix-gg-girls",
+      "forms": {
+        "en": [
+          "gg girls",
+          "good game girls"
+        ]
+      },
+      "translations": {
+        "en": "gg girls",
+        "ru": "хорошая игра, девчонки!",
+        "uk": "гарна гра, дівчата!"
+      }
+    },
+    {
+      "id": "v2fix-gg-wp-girls",
+      "forms": {
+        "en": [
+          "gg wp girls"
+        ]
+      },
+      "translations": {
+        "en": "gg wp girls",
+        "ru": "хорошо сыграли, девчонки!",
+        "uk": "добре зіграли, дівчата!"
+      }
+    },
+    {
+      "id": "v2fix-nice-reaction",
+      "forms": {
+        "en": [
+          "nice",
+          "niceee",
+          "niice"
+        ]
+      },
+      "translations": {
+        "en": "nice",
+        "ru": "красиво!",
+        "uk": "гарно!"
+      }
+    },
+    {
+      "id": "v2fix-all-right",
+      "forms": {
+        "en": [
+          "all right",
+          "alright"
+        ]
+      },
+      "translations": {
+        "en": "all right",
+        "ru": "ладно",
+        "uk": "гаразд"
+      }
+    },
+    {
+      "id": "v2fix-lets-go",
+      "forms": {
+        "en": [
+          "let's go",
+          "lets go"
+        ]
+      },
+      "translations": {
+        "en": "let's go",
+        "ru": "погнали!",
+        "uk": "погнали!"
+      }
+    },
+    {
+      "id": "v2fix-stop-camping",
+      "forms": {
+        "en": [
+          "stop camping"
+        ]
+      },
+      "translations": {
+        "en": "stop camping",
+        "ru": "хватит кемпить!",
+        "uk": "досить кемпити!"
+      }
+    },
+    {
+      "id": "v2fix-no-scope",
+      "forms": {
+        "en": [
+          "no scope",
+          "noscope"
+        ]
+      },
+      "translations": {
+        "en": "no scope",
+        "ru": "без прицела",
+        "uk": "без прицілу"
+      }
+    },
+    {
+      "id": "v2fix-gg-wp",
+      "forms": {
+        "en": [
+          "gg wp",
+          "ggwp"
+        ]
+      },
+      "translations": {
+        "en": "good game, well played",
+        "ru": "хорошая игра, хорошо сыграно",
+        "uk": "гарна гра, добре зіграно"
       }
     }
   ]
