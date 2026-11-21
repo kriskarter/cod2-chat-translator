@@ -53,6 +53,42 @@ class SmartV2Tests(unittest.TestCase):
                 result=self.translate(text,target,source)
                 self.assertTrue(result.safe)
                 self.assertEqual(result.text.casefold(),expected.casefold())
+    def test_omg_corrects_weak_old_literal_in_all_styles(self):
+        for style, expected in (
+            ("clear", "Боже мой"),
+            ("live", "Офигеть"),
+            ("raw", "Офигеть"),
+        ):
+            for original in ("omg", "OMG"):
+                with self.subTest(style=style, original=original):
+                    result = self.translate(original, "ru", source="en", style=style)
+                    self.assertEqual(result.text, expected)
+                    self.assertTrue(result.safe)
+                    self.assertEqual(result.provider, "slang-tone")
+                    self.assertEqual(self.engine.try_local(
+                        TranslationRequest(original, "ru", source_lang="en", style=style),
+                        legacy_transform=gaming_slang_transform
+                    )[0], expected)
+        for style, expected in (
+            ("clear", "Боже мой, здорово"),
+            ("live", "Офигеть, красиво"),
+            ("raw", "Офигеть, красиво"),
+        ):
+            with self.subTest(style=style, original="omg nice"):
+                self.assertEqual(
+                    self.translate("omg nice", "ru", source="auto", style=style).text,
+                    expected)
+
+    def test_shared_pack_repairs_omg_for_preexisting_v2_without_installer(self):
+        self.assertEqual(self.runtime.version, 3)
+        self.assertEqual(self.runtime.lookup("omg", "ru", "auto"), "Боже мой")
+        self.assertEqual(self.runtime.lookup("OMG!", "ru", "auto"), "Боже мой!")
+        self.assertEqual(self.runtime.lookup("omg", "uk", "en"), "Боже мій")
+        self.assertEqual(self.runtime.lookup("omg nice", "ru", "auto"), "Офигеть, красиво!")
+        self.assertIsNone(self.runtime.lookup("omg unknown", "ru", "auto"))
+        self.assertIsNone(self.runtime.lookup("OMG lol", "ru", "auto"))
+        self.assertIsNone(self.runtime.lookup("omg player", "ru", "auto"))
+
     def test_real_chat_style_short_reactions_stay_local(self):
         # Invented test nicknames; never commit player's exported names.
         examples=(

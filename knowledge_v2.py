@@ -128,6 +128,7 @@ _NOT_NAMES = frozenset({
     "when", "where", "we", "are", "was", "were", "can", "will",
     "all", "any", "our", "theyre", "enemy", "enemies", "team",
     "please", "im", "and", "but", "lol", "wtf", "gg", "go",
+    "omg", "omfg", "rofl", "lmao", "wth", "idk", "afk", "brb",
     "there", "world", "bro", "mate", "guys", "girls", "players",
     "dude", "everyone", "everybody", "friends", "friend",
 })

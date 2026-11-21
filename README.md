@@ -33,6 +33,10 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## v1.19.2 RC — OMG semantic correction
+
+The old RU mapping collapsed OMG into weak ого, and nickname-reaction detection confused omg nice with a player name. New code offers literal Clear and emotional Live/Raw (no added profanity); data-only knowledge pack v3 provides a neutral correction to already installed V2 clients through Knowledge → Update knowledge.
+
 ## v1.19.1 RC follow-up — real F8 feedback
 
 First opt-in F8 export: 58 samples, 10 failures, 36 MyMemory routes, p95 8.95 seconds (network processing, not game delivery). Added localized short reactions, conservative nickname-preserving phrases, plain text UI/overlay markers instead of unsupported glyphs, lower UI polling frequency, and sampled content-free Tk scheduling lag in ZIP. Internet translation can still be slow. Manual gameplay RC validation required.

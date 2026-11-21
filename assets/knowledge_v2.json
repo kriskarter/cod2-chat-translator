@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": 2,
+  "version": 3,
   "entries": [
     {
       "id": "game-001",
@@ -4645,6 +4645,44 @@
         "en": "good game, well played",
         "ru": "хорошая игра, хорошо сыграно",
         "uk": "гарна гра, добре зіграно"
+      }
+    },
+    {
+      "id": "v3-omg",
+      "forms": {
+        "en": [
+          "omg",
+          "omgg",
+          "omggg",
+          "oh my god",
+          "oh my gosh"
+        ],
+        "ru": [
+          "боже мой",
+          "о боже"
+        ],
+        "uk": [
+          "боже мій"
+        ]
+      },
+      "translations": {
+        "en": "Oh my God",
+        "ru": "Боже мой",
+        "uk": "Боже мій"
+      }
+    },
+    {
+      "id": "v3-omg-nice",
+      "forms": {
+        "en": [
+          "omg nice",
+          "omg nice shot"
+        ]
+      },
+      "translations": {
+        "en": "Oh my God, nice!",
+        "ru": "Офигеть, красиво!",
+        "uk": "Ого, красиво!"
       }
     }
   ]

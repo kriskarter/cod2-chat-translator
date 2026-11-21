@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.19.1"
+APP_VERSION = "1.19.2"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -1682,7 +1682,7 @@ RU_GAMING_SLANG_EXPANSIONS = {
 RU_GAMING_DIRECT = {
     "rip me": "мне конец",
     "relax": "расслабься",
-    "omg nice": "ого, здорово",
+    "omg nice": "Боже мой, здорово",
     "lol wtf": "ахаха, что за фигня",
     "what the hell": "что за фигня",
     "gg": "хорошая игра",
@@ -1724,7 +1724,7 @@ RU_GAMING_DIRECT = {
     "omw": "уже иду",
     "rn": "прямо сейчас",
     "rdy": "готов",
-    "omg": "ого",
+    "omg": "Боже мой",
     "lol": "смешно",
     "rofl": "очень смешно",
     "lmao": "очень смешно",
@@ -1854,7 +1854,8 @@ RU_GAMING_DIRECT = {
 # is only stronger when the source slang itself is profane.  "live" keeps the
 # short, joking style common on adult CoD2 servers.
 RU_GAMING_LIVE_DIRECT = {
-    "omg nice": "ого, классно",
+    "omg nice": "Офигеть, красиво",
+    "omg": "Офигеть",
     "lol wtf": "ахаха, какого хрена",
     "what the hell": "какого хрена",
     "rip me": "мне хана",

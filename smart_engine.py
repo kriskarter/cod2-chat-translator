@@ -289,6 +289,18 @@ class SmartTranslationEngine:
                 used_context,
             )
 
+        # OMG is a reaction, not a player name. Preserve the original
+        # exclamation with a literal Clear style and natural gaming Live/Raw
+        # style. The data pack supplies a neutral correction to older V2
+        # clients, while new clients retain their selected tone.
+        if (request.use_slang and target == "ru"
+                and request.source_lang in ("en", "auto")
+                and key in ("omg", "omg nice")
+                and legacy_transform is not None):
+            _prepared, direct = legacy_transform(original, target, style)
+            if direct and not semantic_violations(original, direct, target):
+                return finish(direct, True, "slang-tone")
+
         # Exact, curated non-tactical forms need no network and have no
         # irreversible normalization. Never use a general phrase as a proxy
         # for an unknown tactical instruction.

@@ -1,4 +1,4 @@
-# Smart Engine V2 — v1.19.1 hotfix release candidate
+# Smart Engine V2 — v1.19.2 focused slang correction RC
 
 ## Product contract
 
@@ -58,3 +58,26 @@ Fixes:
 Test Windows RC in the actual game before a stable release. Capture a new ZIP
 with both F8 and F9, observe p95 and UI scheduling lag, and compare known
 short phrases with difficult online phrases. Network delays can remain.
+
+
+## OMG correction — version 1.19.2, data pack 3
+
+User reported that OMG was rendered as the generic Russian exclamation
+ого. Found historical hardcoded entry OMG -> ого in RU_GAMING_DIRECT.
+Also found a second issue: V2 interpreted omg nice as nickname omg
+followed by nice, yielding omg: красиво! instead of a reaction.
+
+- New executable Clear = Боже мой; Live/Raw = Офигеть, no invented profanity.
+  Classic exact gaming slang updated. OMG nice preserves style.
+- New data-only pack version 3 (neutral OMG -> Боже мой, OMG nice ->
+  Офигеть, красиво!) updates already installed V2 RCs without changing
+  their executables. Older clients will not have style-specific rendering.
+- Nickname-reaction parser excludes OMG, OMFG, and related abbreviations
+  as plausible name prefixes. Unknown text still uses normal translation.
+- No attempt to infer arbitrary sarcasm from a bare abbreviation. Data
+  pack update requires enabled Knowledge V2. Older V1 still has old
+  built-in mapping until the executable is updated.
+- Unit tests cover three styles, uppercase/exclamation, compound reaction,
+  neutral pack compatibility, and rejection of false nickname prefix.
+
+Manual Windows RC gameplay test and approval still required.
