@@ -114,6 +114,62 @@ def template(text,target,source="auto"):
         return f"{n} {noun} на {m[3].upper()}"
     return None
 
+# Explicitly recognized small chat reactions only. Do not infer names from
+# arbitrary sentences, or publish players' names in a shared knowledge pack.
+_NICK_REACTIONS = frozenset({
+    "hi", "hello", "hey", "sup", "ouch", "ow", "xd", "xddd", "hahaha",
+    "haha", "lol", "lol xd", "xd lol", "gg", "gg wp", "ggwp",
+    "nooo", "nooooo", "what the hell", "lag?", "nice", "insane",
+    "n1", "go go", "huh?", "yoo",
+})
+_NOT_NAMES = frozenset({
+    "the", "who", "you", "your", "they", "them", "his", "her",
+    "she", "him", "yes", "no", "not", "hey", "hello", "what",
+    "when", "where", "we", "are", "was", "were", "can", "will",
+    "all", "any", "our", "theyre", "enemy", "enemies", "team",
+    "please", "im", "and", "but", "lol", "wtf", "gg", "go",
+    "there", "world", "bro", "mate", "guys", "girls", "players",
+    "dude", "everyone", "everybody", "friends", "friend",
+})
+_NAME_PREFIX = re.compile(
+    r"(?P<name>[A-Za-z][A-Za-z0-9_-]{2,23})[,: ]+"
+    r"(?P<reaction>[A-Za-z!? ]{2,32})$"
+)
+_HELLO_NAME = re.compile(
+    r"(?i)^(?:hi|hello|hey)[, ]+(?P<name>[A-Za-z][A-Za-z0-9_-]{2,23})[!.]?$"
+)
+
+
+def nickname_reaction(pack: KnowledgePack, text: str, target: str, source: str = "auto"):
+    """Translate a known reaction while leaving a possible player name intact.
+
+    This does NOT attempt to classify arbitrary unknown first words as names.
+    The suffix must be a specifically curated short chat reaction.
+    """
+    if target not in ("ru", "uk", "en") or source not in ("auto", "en"):
+        return None
+    message = text.strip()
+    greeting = _HELLO_NAME.fullmatch(message)
+    if greeting:
+        name = greeting["name"]
+        if name.casefold() not in _NOT_NAMES:
+            greet = pack.lookup("hi", target, "en")
+            if greet:
+                return f"{greet.rstrip('!')}, {name}"
+    matched = _NAME_PREFIX.fullmatch(message)
+    if not matched:
+        return None
+    name, reaction = matched["name"], matched["reaction"]
+    if name.casefold() in _NOT_NAMES or key(reaction) not in _NICK_REACTIONS:
+        return None
+    translated = pack.lookup(reaction, target, "en")
+    if not translated:
+        return None
+    # A prefixed nickname must never disappear or be transliterated by an
+    # online provider when the reaction is already an exact known expression.
+    return f"{name}: {translated}"
+
+
 class KnowledgeRuntime:
     def __init__(self,bundled:Path,installed:Path):
         self.bundled=bundled
@@ -131,7 +187,10 @@ class KnowledgeRuntime:
     def version(self): return self.pack.version
     def lookup(self,text,target,source="auto",style="live"):
         if not self.enabled: return None
-        result=self.pack.lookup(text,target,source) or template(text,target,source)
+        pack=self.pack
+        result=(pack.lookup(text,target,source)
+                or template(text,target,source)
+                or nickname_reaction(pack,text,target,source))
         if result and text.rstrip().endswith("!") and not result.endswith("!"): result+="!"
         return result
     def refresh(self, getter=None):

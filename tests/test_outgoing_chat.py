@@ -726,7 +726,7 @@ class F9SpeedAndReliabilityTests(unittest.TestCase):
         self.assertIn("Ничего не отправлено", captured["status"])
         self.assertIn("Не отвечает", captured["preview"]["text"])
         self.assertIn("повторить", captured["hint"]["text"])
-        self.assertEqual(captured["meta"]["text"], "⚠ Нет перевода · 2,1 с")
+        self.assertEqual(captured["meta"]["text"], "[!] Нет перевода · 2,1 с")
         self.assertEqual(captured["meta"]["fg"], "#ff7676")
 
     def test_outdated_f9_completion_not_sent_after_user_changed_text(self):
@@ -775,7 +775,7 @@ class F9SpeedAndReliabilityTests(unittest.TestCase):
             ("translation_ok", (42, "привет всем", "hello everyone", 540, "Google"))
         )
         controller._poll_events()
-        self.assertEqual(captured["meta"]["text"], "✓ Google · 540 мс")
+        self.assertEqual(captured["meta"]["text"], "OK: Google · 540 мс")
         self.assertEqual(captured["meta"]["fg"], "#9de5a7")
         self.assertEqual(captured["preview"]["text"], "Перевод: hello everyone")
         self.assertEqual(controller.pending_translation, "hello everyone")
@@ -786,10 +786,10 @@ class F9SpeedAndReliabilityTests(unittest.TestCase):
         controller.translation_meta = SimpleNamespace(
             configure=lambda **kw: captured.append(kw)
         )
-        controller._set_f9_meta("✓ MyMemory · 1,6 с", "#9de5a7")
-        controller._set_f9_meta("✓ кэш · 2 мс", "#9de5a7")
+        controller._set_f9_meta("OK: MyMemory · 1,6 с", "#9de5a7")
+        controller._set_f9_meta("OK: кэш · 2 мс", "#9de5a7")
         self.assertEqual([value["text"] for value in captured], [
-            "✓ MyMemory · 1,6 с", "✓ кэш · 2 мс"
+            "OK: MyMemory · 1,6 с", "OK: кэш · 2 мс"
         ])
         self.assertEqual(controller._format_f9_elapsed(1600), "1,6 с")
         self.assertEqual(controller._format_f9_elapsed(999), "999 мс")

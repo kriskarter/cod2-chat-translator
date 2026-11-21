@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.19.0"
+APP_VERSION = "1.19.1"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -2271,7 +2271,7 @@ class LogTailer(threading.Thread):
         on_control: Optional[Callable[[str, str], None]] = None,
         status_text: Optional[Callable[[str], str]] = None,
         switch_position_getter: Optional[Callable[[Path], Optional[int]]] = None,
-        poll_seconds: float = 0.08,
+        poll_seconds: float = 0.10,
     ):
         super().__init__(daemon=True, name="cod2-log-tailer")
         self.path_getter = path_getter
@@ -2701,7 +2701,7 @@ class TranslatorWorker(threading.Thread):
                 elapsed_ms = int((time.monotonic() - started) * 1000 + queue_wait_ms)
                 if uncertain:
                     # Never hide an uncertain tactical message as a duplicate.
-                    self.ui_queue.put(("translation", msg, "⚠ " + msg.text, elapsed_ms))
+                    self.ui_queue.put(("translation", msg, "[!] " + msg.text, elapsed_ms))
                 elif hide_same and normalize_for_compare(translated) == normalize_for_compare(msg.text):
                     self.ui_queue.put(("same_language", msg, elapsed_ms))
                 else:
@@ -3742,7 +3742,7 @@ class ControlApp:
         self.tailer.start()
         for translator in self.translators:
             translator.start()
-        self.root.after(40, self.process_ui_queue)
+        self.root.after(80, self.process_ui_queue)
         self.root.after(500, self.expire_overlay)
         self.root.after(80, self.poll_global_hotkeys)
         self.root.after(900, self._profile_poll_tick)
@@ -5428,6 +5428,16 @@ class ControlApp:
                 if memory:memory.record("incoming","auto",settings[0],settings[3],msg.text,"","queue_full","none",0,nick=msg.nickname)
 
     def process_ui_queue(self) -> None:
+        # A rare content-free UI scheduling sample can tell us whether a
+        # slower PC is freezing the Tk main loop. It is NOT a CPU/FPS reading.
+        now=time.monotonic()
+        expected=getattr(self,"_ui_expected_at",None)
+        last=getattr(self,"_ui_last_perf_at",0.0)
+        if expected is not None and now-last>=5.0:
+            self._ui_last_perf_at=now
+            memory=translation_memory.RUNTIME
+            if memory:
+                memory.record_ui_lag(max(0.0,(now-expected)*1000))
         try:
             while True:
                 item = self.ui_queue.get_nowait()
@@ -5461,7 +5471,7 @@ class ControlApp:
                     self.last_var.set(f"{msg.nickname}: {msg.text}")
                     self.status_var.set(self.t("translation_service_busy"))
                     if knowledge_v2.version():
-                        self.overlay.add(OverlayItem(nickname=msg.nickname,original=msg.text,translated="⚠ "+msg.text,created_at=msg.enqueued_at or time.monotonic()))
+                        self.overlay.add(OverlayItem(nickname=msg.nickname,original=msg.text,translated="[!] "+msg.text,created_at=msg.enqueued_at or time.monotonic()))
                 elif event == "translation_error":
                     _, msg, error = item
                     self.status_var.set(self.t("translation_unavailable").format(error=error))
@@ -5483,7 +5493,7 @@ class ControlApp:
                     if not ok:result=tr("Ошибка локальной базы: ","Помилка локальної бази: ","Local database error: ")+str(data)
                     elif action=="stats":
                         result=tr("Уникальных записей: ","Унікальних записів: ","Unique records: ")+str(data[0])+"; "+tr("наблюдений: ","спостережень: ","observations: ")+str(data[1])+"; "+tr("пропущено при нагрузке: ","пропущено під навантаженням: ","dropped under load: ")+str(self.experience.dropped)
-                        for direction,label in (("incoming","F8"),("outgoing","F9")):
+                        for direction,label in (("incoming","F8"),("outgoing","F9"),("ui","UI")):
                             stats=data[2].get(direction)
                             if stats:
                                 result+=f"\n{label}: n={stats['samples']}, p50={stats['p50_ms']} ms, p95={stats['p95_ms']} ms, "+tr("ошибок: ","помилок: ","failures: ")+str(stats["failed"])
@@ -5532,7 +5542,8 @@ class ControlApp:
         except queue.Empty:
             pass
         if not self.stop_event.is_set():
-            self.root.after(40, self.process_ui_queue)
+            self._ui_expected_at=time.monotonic()+0.080
+            self.root.after(80, self.process_ui_queue)
 
     def expire_overlay(self) -> None:
         self.overlay.expire()

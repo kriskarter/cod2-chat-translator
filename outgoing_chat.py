@@ -1729,7 +1729,7 @@ class OutgoingChatController:
             return
         self._f9_last_progress_bucket = bucket
         self._set_f9_meta(
-            f"⏳ Перевод · {self._format_f9_elapsed(elapsed_ms)}",
+            f"Перевод... {self._format_f9_elapsed(elapsed_ms)}",
             "#67d4ff",
         )
 
@@ -1737,7 +1737,7 @@ class OutgoingChatController:
         if self.buffer:
             self.input_label.configure(
                 text=(
-                    self.buffer + "▌"
+                    self.buffer + "|"
                 ),
                 fg="#ffffff",
             )
@@ -2016,7 +2016,7 @@ class OutgoingChatController:
         self.translation_in_progress = True
         self.translation_started_at = time.monotonic()
         self._f9_last_progress_bucket = -1
-        self._set_f9_meta("⏳ Перевожу…", "#67d4ff")
+        self._set_f9_meta("Перевожу...", "#67d4ff")
 
         if self.send_after_translation:
             preview_text = "Перевожу и отправляю…"
@@ -2143,7 +2143,7 @@ class OutgoingChatController:
             text="Перевожу и отправляю…",
             fg="#67d4ff",
         )
-        self._set_f9_meta("⏳ Ожидаю перевод…", "#67d4ff")
+        self._set_f9_meta("Ожидаю перевод...", "#67d4ff")
 
         self.hint.configure(
             text=(
@@ -2353,7 +2353,7 @@ class OutgoingChatController:
                     # Main window is hidden during CoD2 play: mirror status
                     # inside the small F9 translation popup.
                     self._set_f9_meta(
-                        f"✓ {service} · {self._format_f9_elapsed(latency_ms)}",
+                        f"OK: {service} · {self._format_f9_elapsed(latency_ms)}",
                         "#9de5a7",
                     )
                     self.translation_started_at = 0.0
@@ -2437,7 +2437,7 @@ class OutgoingChatController:
                     self.pending_translation = ""
                     self.translation_started_at = 0.0
                     self._set_f9_meta(
-                        f"⚠ Нет перевода · {self._format_f9_elapsed(latency_ms)}",
+                        f"[!] Нет перевода · {self._format_f9_elapsed(latency_ms)}",
                         "#ff7676",
                     )
                     self.status_var.set(

@@ -258,7 +258,7 @@ class F8WorkerIntegrationTests(unittest.TestCase):
         self.assertFalse(worker.is_alive())
         result = events.get_nowait()
         self.assertEqual(result[0], "translation")
-        self.assertEqual(result[2], "⚠ 2 hp")
+        self.assertEqual(result[2], "[!] 2 hp")
 
     def test_worker_uses_shared_engine(self):
         tasks, events, stop = queue.Queue(), queue.Queue(), threading.Event()

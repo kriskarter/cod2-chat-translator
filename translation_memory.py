@@ -86,6 +86,14 @@ class LocalExperience:
         row=(direction,source,target,style,original,value,outcome,str(provider)[:40],
              elapsed,json.dumps(previous,ensure_ascii=False),int(time.time()))
         self._submit(("record",generation,row,metric))
+    def record_ui_lag(self, elapsed_ms):
+        """One cheap, content-free timing sample per UI sampling interval."""
+        with self._lock:
+            if not self.collect:return
+            generation=self._generation
+        elapsed=max(0,min(120000,int(elapsed_ms)))
+        self._submit(("metric",generation,("ui","tk-main-loop","ok",elapsed,int(time.time()))))
+
     def export(self,path,callback):
         return self._submit(("export",Path(path),callback))
     def clear(self,callback):

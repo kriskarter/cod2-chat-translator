@@ -53,6 +53,49 @@ class SmartV2Tests(unittest.TestCase):
                 result=self.translate(text,target,source)
                 self.assertTrue(result.safe)
                 self.assertEqual(result.text.casefold(),expected.casefold())
+    def test_real_chat_style_short_reactions_stay_local(self):
+        # Invented test nicknames; never commit player's exported names.
+        examples=(
+            ("hi","привет"),
+            ("xd","ахаха"),
+            ("n1","красавчик!"),
+            ("sup","как дела?"),
+            ("ouch","ай!"),
+            ("nooo","неее!"),
+            ("go go","вперёд!"),
+            ("lol xd","ахаха"),
+            ("hey","привет"),
+            ("yoo","йо!"),
+            ("gg girls","хорошая игра, девчонки!"),
+            ("PlayerAlpha sup","PlayerAlpha: как дела?"),
+            ("PlayerAlpha ouch","PlayerAlpha: ай!"),
+            ("User123 xd","User123: ахаха"),
+            ("SomePlayer gg wp","SomePlayer: хорошая игра, хорошо сыграно"),
+            ("PlayerAlpha lag?","PlayerAlpha: лагает?"),
+            ("PlayerAlpha what the hell","PlayerAlpha: какого чёрта?"),
+            ("hi PlayerAlpha","привет, PlayerAlpha"),
+        )
+        for original,expected in examples:
+            with self.subTest(original=original):
+                result=self.translate(original,"ru",source="auto")
+                self.assertEqual(result.text,expected)
+                self.assertTrue(result.safe)
+                self.assertFalse(semantic_violations(original,result.text,"ru"))
+
+    def test_nickname_shortcuts_do_not_guess_arbitrary_speech(self):
+        for original in (
+            "the sup", "hello there", "you lag?", "his insane",
+            "PlayerAlpha low hp", "PlayerAlpha are you here?",
+            "PlayerAlpha can you help?", "PlayerAlpha n1 B",
+        ):
+            with self.subTest(original=original):
+                self.assertIsNone(self.engine.fast_lookup(
+                    TranslationRequest(original, "ru")))
+        self.assertIsNone(self.engine.fast_lookup(
+            TranslationRequest("hi PlayerAlpha","en",source_lang="en")))
+        # No Unicode symbols are inserted as a prefix in the game overlay.
+        self.assertTrue(self.translate("User123 xd","uk").text.isprintable())
+
     def test_templates_preserve_count_target_negation(self):
         for text,target,source,expected in (
             ("3 enemies at B","ru","en","3 врага на B"),
@@ -88,7 +131,7 @@ class SmartV2Tests(unittest.TestCase):
         self.assertNotEqual(a.text,b.text)
     def test_pack_update_atomically_and_reject_downgrade(self):
         raw=json.loads(PACK.read_text(encoding="utf-8"))
-        raw["version"]=2
+        raw["version"]=self.runtime.version+1
         def getter(content):
             class Response:
                 status_code=200
@@ -97,12 +140,12 @@ class SmartV2Tests(unittest.TestCase):
                 def iter_content(self,*args):yield content
             return lambda url,**kwargs: Response()
         self.assertTrue(self.runtime.refresh(getter(json.dumps(raw).encode())))
-        self.assertEqual(self.runtime.version,2)
-        self.assertEqual(knowledge.KnowledgeRuntime(PACK,self.folder/"pack.json").version,2)
+        self.assertEqual(self.runtime.version,raw["version"])
+        self.assertEqual(knowledge.KnowledgeRuntime(PACK,self.folder/"pack.json").version,raw["version"])
         self.assertFalse(self.runtime.refresh(getter(PACK.read_bytes())))
         with self.assertRaises(ValueError):
             self.runtime.refresh(getter(b'{"schema":99}'))
-        self.assertEqual(self.runtime.version,2)
+        self.assertEqual(self.runtime.version,raw["version"])
     def test_invalid_pack_and_ambiguous_alias(self):
         with self.assertRaises(ValueError): knowledge.KnowledgePack.from_bytes(b'a'*(knowledge.MAX_BYTES+1))
         raw={"schema":1,"version":1,"entries":[
@@ -175,6 +218,7 @@ class ExperienceTests(unittest.TestCase):
             store.record("incoming","en","ru","live","connect 127.0.0.1","no","ok","Google",1)
             store.record("incoming","en","ru","live","contact a@b.com","no","ok","Google",1)
             store.record("outgoing","ru","en","live","неизвестная фраза","","failed","offline",2100)
+            store.record_ui_lag(220)
             done=threading.Event();result=[]
             self.assertTrue(store.export(out,lambda ok,data:(result.append(ok),done.set())))
             self.assertTrue(done.wait(3));self.assertEqual(result,[True])
@@ -186,6 +230,8 @@ class ExperienceTests(unittest.TestCase):
                 metrics=json.loads(z.read("metrics.json"))
                 self.assertEqual(metrics["incoming"]["samples"],4)
                 self.assertEqual(metrics["outgoing"]["failed"],1)
+                self.assertEqual(metrics["ui"]["samples"],1)
+                self.assertEqual(metrics["ui"]["p95_ms"],220)
                 self.assertEqual(len(rows),2)
                 self.assertNotIn("Player",raw)
                 self.assertNotIn("127.0.0.1",raw)

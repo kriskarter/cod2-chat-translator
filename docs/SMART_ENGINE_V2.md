@@ -1,10 +1,10 @@
-# Smart Engine V2 — v1.19.0 release candidate
+# Smart Engine V2 — v1.19.1 hotfix release candidate
 
 ## Product contract
 
 - Existing F8, F9, Classic and Smart V1 remain available. The main **Smart** checkbox disables Smart entirely; **Knowledge → Enable V2 knowledge** disables only V2 extensions.
 - No paid LLM, key, signup, extra translation backend, or game-process modification.
-- F8/F9 first probe the entire local path (V1 direct forms, V2 exact multilingual aliases, validated tactical templates, optional exact cache). They bypass the slow network worker queue when possible. F8 uses 80 ms log polling and 40 ms UI polling; F9 shows local previews before the 180 ms network debounce. Network requests still need live Internet.
+- F8/F9 first probe the entire local path (V1 direct forms, V2 exact multilingual aliases, validated tactical templates, optional exact cache). They bypass the slow network worker queue when possible. F8 uses 100 ms log polling and 80 ms UI polling (fewer wake-ups on older PCs); F9 shows local previews before the 180 ms network debounce. Network requests still need live Internet.
 - Two bounded workers retained per direction; Google transport failures trigger a short shared cooldown (after two failures; 10 s); MyMemory is preferred briefly and Google remains fallback. No speculative parallel doubling of network requests.
 - Only exact or tightly validated patterns; no broad approximate replacement. RU/UK/EN primary, common PL/DE/FR/ES/TR phrases. Explicit same-speaker context snapshots follow log arrival order and expire after 8 seconds; map/log changes invalidate old results. Contextual low requires a preceding explicit HP fragment; unknown context remains unknown. V1 safety gates still apply. Sarcasm, arbitrary intent and all languages are not solved by this local data system.
 - On failed F8 online lookup, show original with warning instead of hiding it; F9 never automatically sends an invalid translation.
@@ -28,7 +28,33 @@ Bundled assets/knowledge_v2.json is the safe baseline. Data-only branch **knowle
 
 ## Validation
 
-- Seed pack: 195 curated authored phrase groups (roughly one thousand spellings/forms plus exact templates). These are draft authored knowledge, not a corpus independently verified by native speakers. Coverage on real servers is not yet known.
+- Seed pack: 216 curated authored phrase groups (roughly one thousand spellings/forms plus exact templates). These are draft authored knowledge, not a corpus independently verified by native speakers. Coverage on real servers is not yet known.
 - Synthetic offline reference set: 22 authored cases, ideal 50 ms provider stub; Classic and V1 route 19 requests online, V2 routes 3. All 22 reference matches in these curated cases. This measures routing and simulated time, not actual translation accuracy or live network.
 - Unit tests include persistence, privacy filtering, manual ZIP, version rollback, stale data, F8 queue bypass, F9 local route, fallback health, context and tactical preservation.
 - User must test Windows RC F8/F9 on real CoD2, including FPS, latency, collect/export, provider failure, style/mode switching and knowledge updates. No stable release, tag or merge before real playtest/approval. See RELEASE_PROCESS.md.
+
+
+## Real user feedback — 2026-11-21 / F8 diagnostics
+
+A voluntarily shared personal ZIP was inspected privately (not copied into the
+repo or shared data branch). **58 F8 measured attempts**; 56 unique stored
+text observations, 10 failed, 36 attributed to MyMemory. F8 processing
+p50=1047 ms, p95=8953 ms; MyMemory p95=8953 ms. No F9 timings in this sample.
+This shows an online fallback/network latency bottleneck for unrecognized
+messages; it does NOT prove that the player's old CPU caused it.
+
+Fixes:
+- Replaced unsupported Unicode warning/status characters on F8/F9 with plain
+  text symbols. The [!] marker explicitly denotes failed/unsafe translation.
+- Knowledge pack v2 adds common short game reactions (hi, xd, n1, sup, ouch).
+  No private player nicknames, quotes, or chat history in the public pack.
+- Conservative one-name + exact reviewed reaction parsing retains possible
+  nicknames. Unknown messages still use online translation, without guessing.
+- Reduced UI polling: input log 100 ms, UI events 80 ms. This may decrease CPU
+  wakeups on old machines at the cost of some latency in input presentation.
+- Opt-in collection also takes content-free Tk UI scheduling-lag samples every
+  five seconds, exposed under ui in metrics.json (not CPU/FPS telemetry).
+
+Test Windows RC in the actual game before a stable release. Capture a new ZIP
+with both F8 and F9, observe p95 and UI scheduling lag, and compare known
+short phrases with difficult online phrases. Network delays can remain.

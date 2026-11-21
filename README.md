@@ -33,6 +33,10 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## v1.19.1 RC follow-up — real F8 feedback
+
+First opt-in F8 export: 58 samples, 10 failures, 36 MyMemory routes, p95 8.95 seconds (network processing, not game delivery). Added localized short reactions, conservative nickname-preserving phrases, plain text UI/overlay markers instead of unsupported glyphs, lower UI polling frequency, and sampled content-free Tk scheduling lag in ZIP. Internet translation can still be slow. Manual gameplay RC validation required.
+
 ## What's new in v1.19.0 — Smart Engine V2 (RC)
 
 195 authored phrase groups, roughly one thousand forms, guarded templates and conservative context. Local fast paths bypass online queues for F8/F9. **Knowledge** menu: opt-in local observations/cache, latency statistics, manual ZIP, independent data-pack updates; no automatic upload. Classic and Smart V1 remain available, no paid LLM. [Smart V2](docs/SMART_ENGINE_V2.md).
