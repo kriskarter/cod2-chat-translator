@@ -1,0 +1,258 @@
+[
+  {
+    "id": "1_hp_exact",
+    "source": "1hp",
+    "target": "ru",
+    "mt_stub": "1 HP",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "1_hp_dropped",
+    "source": "1hp",
+    "target": "ru",
+    "mt_stub": "мало здоровья",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "2_enemies",
+    "source": "2 enemies mid",
+    "target": "ru",
+    "mt_stub": "2 врага в центре",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "2_enemies_mistranslated",
+    "source": "2 enemies mid",
+    "target": "ru",
+    "mt_stub": "1 враг в центре",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "rush_b",
+    "source": "rush B",
+    "target": "ru",
+    "mt_stub": "быстро на B",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "rush_wrong_site",
+    "source": "rush B",
+    "target": "ru",
+    "mt_stub": "быстро на A",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "go_a",
+    "source": "go A",
+    "target": "ru",
+    "mt_stub": "иди на A",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "go_a_wrong",
+    "source": "go A",
+    "target": "ru",
+    "mt_stub": "иди на B",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "negative_keep",
+    "source": "don't go B",
+    "target": "ru",
+    "mt_stub": "не иди на B",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "negative_lost",
+    "source": "don't go B",
+    "target": "ru",
+    "mt_stub": "иди на B",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "no_scope_ru",
+    "source": "no scope",
+    "target": "ru",
+    "mt_stub": "без прицела",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "no_scope_de",
+    "source": "no scope",
+    "target": "de",
+    "mt_stub": "ohne Zielfernrohr",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "dont_shoot_ru",
+    "source": "don't shoot",
+    "target": "ru",
+    "mt_stub": "не стреляй",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "dont_shoot_lost",
+    "source": "don't shoot",
+    "target": "ru",
+    "mt_stub": "стреляй",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "question_keep",
+    "source": "where are you?",
+    "target": "ru",
+    "mt_stub": "ты где?",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "question_lost",
+    "source": "where are you?",
+    "target": "ru",
+    "mt_stub": "ты где",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "mention_keep",
+    "source": "hello @Alfa",
+    "target": "ru",
+    "mt_stub": "привет @Alfa",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "mention_lost",
+    "source": "hello @Alfa",
+    "target": "ru",
+    "mt_stub": "привет Alfa",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "ip_keep",
+    "source": "server 192.168.1.10:28960",
+    "target": "ru",
+    "mt_stub": "сервер 192.168.1.10:28960",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "ip_changed",
+    "source": "server 192.168.1.10:28960",
+    "target": "ru",
+    "mt_stub": "сервер 192.168.1.11:28960",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "url_keep",
+    "source": "see https://example.com/map",
+    "target": "ru",
+    "mt_stub": "смотри https://example.com/map",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "url_lost",
+    "source": "see https://example.com/map",
+    "target": "ru",
+    "mt_stub": "смотри сайт",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "mp40_keep",
+    "source": "go with mp40",
+    "target": "ru",
+    "mt_stub": "иди с MP40",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "mp40_lost",
+    "source": "go with mp40",
+    "target": "ru",
+    "mt_stub": "иди с автоматом",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "kar98k_keep",
+    "source": "use kar98k",
+    "target": "ru",
+    "mt_stub": "бери Kar98k",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "kar98k_lost",
+    "source": "use kar98k",
+    "target": "ru",
+    "mt_stub": "бери винтовку",
+    "should_accept": false,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "normal",
+    "source": "hello",
+    "target": "ru",
+    "mt_stub": "привет",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "mixed_chat",
+    "source": "spasibo bro",
+    "target": "ru",
+    "mt_stub": "спасибо, братан",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "b_polish",
+    "source": "rush B",
+    "target": "pl",
+    "mt_stub": "biegnij na B",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "number_ukrainian",
+    "source": "1hp",
+    "target": "uk",
+    "mt_stub": "1 HP",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "generic_short",
+    "source": "he is low",
+    "target": "ru",
+    "mt_stub": "он ранен",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  },
+  {
+    "id": "same_negation_en",
+    "source": "do not go B",
+    "target": "en",
+    "mt_stub": "do not go B",
+    "should_accept": true,
+    "provenance": "SYNTHETIC"
+  }
+]

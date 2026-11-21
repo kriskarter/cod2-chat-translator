@@ -5,6 +5,10 @@ import ctypes
 import json
 import os
 import queue
+import requests
+import knowledge_v2
+import translation_memory
+from provider_health import HEALTH
 import re
 import shutil
 import subprocess
@@ -14,7 +18,7 @@ import threading
 import time
 import webbrowser
 from collections import OrderedDict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -27,6 +31,7 @@ from server_catalog import (
 )
 
 from outgoing_chat import LANGUAGES, OutgoingChatController
+from smart_engine import DEFAULT_ENGINE, ContextMessage, TranslationRequest, semantic_violations
 from translation_fallback import (
     looks_like_service_error as
     looks_like_fallback_service_error,
@@ -55,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.17.4"
+APP_VERSION = "1.19.2"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -140,6 +145,11 @@ DEFAULT_CONFIG = {
     "show_original": False,
     "hide_same_language": True,
     "gaming_slang": True,
+    "smart_engine_enabled": True,
+    "knowledge_v2_enabled": True,
+    "knowledge_auto_update": True,
+    "experience_collect": False,
+    "experience_cache": False,
     "slang_style": "live",
     "deduplicate_messages": True,
     "duplicate_window_seconds": 4,
@@ -192,7 +202,7 @@ UI_STRINGS = {
         "profile_rename_title": "Имя профиля", "profile_rename_prompt": "Название профиля:",
         "translate_to": "Переводить на:", "other": "Другой…",
         "show_original": "показывать оригинал", "hide_same": "не дублировать выбранный язык", "smart_chat": "Умный чат:",
-        "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
+        "smart_engine": "Smart", "gaming_slang": "игровой сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "убирать повторы (4 с)",
         "hotkey": "F8 — скрыть/показать", "overlay_hotkey_on": "F8 — входящий оверлей: ВКЛЮЧЕН", "overlay_hotkey_hidden": "F8 — входящий оверлей: СКРЫТ", "overlay_hotkey_off": "F8 — входящий оверлей: ВЫКЛЮЧЕН", "enabled": "Переводчик включён", "test": "Тест оверлея", "clear": "Очистить",
         "configure_overlay": "Настроить оверлей", "lock_overlay": "Зафиксировать оверлей", "cod2_top": "CoD2 → поверх",
         "overlay_view": "Вид оверлея", "font_size": "Размер текста", "background": "Фон",
@@ -267,7 +277,7 @@ UI_STRINGS = {
         "profile_rename_title": "Profile name", "profile_rename_prompt": "Profile name:",
         "translate_to": "Translate to:", "other": "Other…",
         "show_original": "show original", "hide_same": "hide messages already in target language", "smart_chat": "Smart chat:",
-        "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
+        "smart_engine": "Smart", "gaming_slang": "gaming slang (gg/wp/ns/afk/hs/tk…)", "style": "Style:", "dedupe": "remove duplicates (4 s)",
         "hotkey": "F8 — hide/show", "overlay_hotkey_on": "F8 — incoming overlay: ON", "overlay_hotkey_hidden": "F8 — incoming overlay: HIDDEN", "overlay_hotkey_off": "F8 — incoming overlay: OFF", "enabled": "Translator enabled", "test": "Test overlay", "clear": "Clear",
         "configure_overlay": "Configure overlay", "lock_overlay": "Lock overlay", "cod2_top": "CoD2 → overlay",
         "overlay_view": "Overlay appearance", "font_size": "Text size", "background": "Background",
@@ -346,7 +356,7 @@ UI_STRINGS["uk"] = {
     "profile_rename_title": "Назва профілю", "profile_rename_prompt": "Назва профілю:",
     "translate_to": "Перекладати на:", "other": "Інший…",
     "show_original": "показувати оригінал", "hide_same": "не дублювати вибрану мову", "smart_chat": "Розумний чат:",
-    "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
+    "smart_engine": "Smart", "gaming_slang": "ігровий сленг (gg/wp/ns/afk/hs/tk…)", "style": "Стиль:", "dedupe": "прибирати повтори (4 с)",
     "hotkey": "F8 — сховати/показати", "overlay_hotkey_on": "F8 — вхідний оверлей: УВІМКНЕНО", "overlay_hotkey_hidden": "F8 — вхідний оверлей: ПРИХОВАНО", "overlay_hotkey_off": "F8 — вхідний оверлей: ВИМКНЕНО", "enabled": "Перекладач увімкнено", "test": "Тест оверлею", "clear": "Очистити",
     "configure_overlay": "Налаштувати оверлей", "lock_overlay": "Зафіксувати оверлей", "cod2_top": "CoD2 → поверх",
     "overlay_view": "Вигляд оверлею", "font_size": "Розмір тексту", "background": "Фон",
@@ -1373,6 +1383,10 @@ class ChatMessage:
     nickname: str
     text: str
     raw: str = ""
+    enqueued_at: float = 0.0
+    context: tuple[ContextMessage, ...] | None = None
+    epoch: int = 0
+    settings: tuple | None = None
 
 
 def parse_chat_line(line: str) -> Optional[ChatMessage]:
@@ -1668,7 +1682,7 @@ RU_GAMING_SLANG_EXPANSIONS = {
 RU_GAMING_DIRECT = {
     "rip me": "мне конец",
     "relax": "расслабься",
-    "omg nice": "ого, здорово",
+    "omg nice": "Боже мой, здорово",
     "lol wtf": "ахаха, что за фигня",
     "what the hell": "что за фигня",
     "gg": "хорошая игра",
@@ -1710,7 +1724,7 @@ RU_GAMING_DIRECT = {
     "omw": "уже иду",
     "rn": "прямо сейчас",
     "rdy": "готов",
-    "omg": "ого",
+    "omg": "Боже мой",
     "lol": "смешно",
     "rofl": "очень смешно",
     "lmao": "очень смешно",
@@ -1840,7 +1854,8 @@ RU_GAMING_DIRECT = {
 # is only stronger when the source slang itself is profane.  "live" keeps the
 # short, joking style common on adult CoD2 servers.
 RU_GAMING_LIVE_DIRECT = {
-    "omg nice": "ого, классно",
+    "omg nice": "Офигеть, красиво",
+    "omg": "Офигеть",
     "lol wtf": "ахаха, какого хрена",
     "what the hell": "какого хрена",
     "rip me": "мне хана",
@@ -2239,7 +2254,7 @@ def looks_like_target_language(text: str, target: str) -> bool:
         if re.search(r"[ІіЇїЄєҐґЎўЈјЉљЊњЋћЂђЏџЃѓЌќЅѕ]", text):
             return False
         cyr = sum(1 for ch in letters if CYRILLIC_RE.fullmatch(ch))
-        if cyr / max(len(letters), 1) < 0.90:
+        if cyr / max(len(letters), 1) < (1.0 if knowledge_v2.version() else 0.90):
             return False
         return any(w in RUSSIAN_HINT_WORDS for w in words)
 
@@ -2257,7 +2272,7 @@ class LogTailer(threading.Thread):
         on_control: Optional[Callable[[str, str], None]] = None,
         status_text: Optional[Callable[[str], str]] = None,
         switch_position_getter: Optional[Callable[[Path], Optional[int]]] = None,
-        poll_seconds: float = 0.12,
+        poll_seconds: float = 0.10,
     ):
         super().__init__(daemon=True, name="cod2-log-tailer")
         self.path_getter = path_getter
@@ -2317,11 +2332,14 @@ class LogTailer(threading.Thread):
                 continue
 
             if self.current_path != path:
+                if self.current_path is not None and self.on_control:
+                    self.on_control("map_change","log_switch")
                 self._switch_path(path)
 
             try:
                 size = path.stat().st_size
                 if size < self.position:  # game restarted / log truncated
+                    if self.on_control:self.on_control("map_change","log_reset")
                     self.position = 0
                     self.buffer = b""
                     self._resume_positions[_path_key(path)] = 0
@@ -2368,6 +2386,45 @@ def looks_like_translation_service_error(result: str) -> bool:
 
 
 
+class TranslationWorkerSharedState:
+    """Small shared state for two bounded F8 workers.
+
+    The two workers retain independent HTTP connections, while successful
+    translations and same-speaker context remain coherent across them.
+    """
+
+    def __init__(self):
+        self.cache: OrderedDict[tuple[str, str], str] = OrderedDict()
+        self.cache_lock = threading.Lock()
+        self.context_history: deque[ContextMessage] = deque(maxlen=8)
+        self.context_lock = threading.Lock()
+        self.queue_wait_ms: deque[float] = deque(maxlen=64)
+        self.provider_ms: deque[float] = deque(maxlen=64)
+        self.metrics_lock = threading.Lock()
+
+    def record(self, queue_wait_ms: float, provider_ms: float) -> None:
+        # Only timing values are retained: never raw gamer chat or nicknames.
+        with self.metrics_lock:
+            self.queue_wait_ms.append(queue_wait_ms)
+            self.provider_ms.append(provider_ms)
+
+    def snapshot(self) -> dict[str, float]:
+        def percentile(data, fraction):
+            if not data:
+                return 0.0
+            values = sorted(data)
+            position = min(len(values)-1, max(0, int((len(values)-1)*fraction + 0.5)))
+            return round(values[position], 1)
+        with self.metrics_lock:
+            return {
+                "queue_p50_ms": percentile(self.queue_wait_ms, 0.5),
+                "queue_p95_ms": percentile(self.queue_wait_ms, 0.95),
+                "provider_p50_ms": percentile(self.provider_ms, 0.5),
+                "provider_p95_ms": percentile(self.provider_ms, 0.95),
+                "samples": len(self.queue_wait_ms),
+            }
+
+
 class TranslatorWorker(threading.Thread):
     def __init__(
         self,
@@ -2378,6 +2435,8 @@ class TranslatorWorker(threading.Thread):
         slang_enabled_getter: Callable[[], bool],
         slang_style_getter: Callable[[], str],
         stop_event: threading.Event,
+        smart_enabled_getter: Optional[Callable[[], bool]] = None,
+        shared_state: Optional[TranslationWorkerSharedState] = None,
     ):
         super().__init__(daemon=True, name="translator-worker")
         self.jobs = jobs
@@ -2387,10 +2446,17 @@ class TranslatorWorker(threading.Thread):
         self.slang_enabled_getter = slang_enabled_getter
         self.slang_style_getter = slang_style_getter
         self.stop_event = stop_event
-        self.cache: OrderedDict[tuple[str, str], str] = OrderedDict()
+        self.smart_enabled_getter = smart_enabled_getter or (lambda: True)
+        self.shared_state = shared_state or TranslationWorkerSharedState()
+        self.cache = self.shared_state.cache
+        self.cache_lock = self.shared_state.cache_lock
         self.cache_limit = 400
         self._translator = None
         self._translator_target = None
+        self._google_session: Optional[requests.Session] = None
+        self._mymemory_session: Optional[requests.Session] = None
+        self.context_history = self.shared_state.context_history
+        self.context_lock = self.shared_state.context_lock
 
     @staticmethod
     def _skip_translation(text: str) -> bool:
@@ -2402,6 +2468,10 @@ class TranslatorWorker(threading.Thread):
         return False
 
     def _new_translator(self, target: str):
+        if self._google_session is None:
+            self._google_session = requests.Session()
+        session = self._google_session
+
         class FastGoogleTranslator:
             def translate(
                 _self,
@@ -2411,6 +2481,7 @@ class TranslatorWorker(threading.Thread):
                     text,
                     source="auto",
                     target=target,
+                    request_get=session.get,
                 )
 
         return FastGoogleTranslator()
@@ -2420,19 +2491,55 @@ class TranslatorWorker(threading.Thread):
         text: str,
         target: str,
     ) -> str:
+        if self._mymemory_session is None:
+            self._mymemory_session = requests.Session()
         return translate_with_mymemory(
             text,
             source="auto",
             target=target,
+            request_get=self._mymemory_session.get,
         )
 
     def _translate(self, text: str, target: str) -> str:
         if self._skip_translation(text):
             return text
-        key = (target, text)
-        if key in self.cache:
-            self.cache.move_to_end(key)
-            return self.cache[key]
+        key = (target, text, knowledge_v2.version(), self.smart_enabled_getter()) if knowledge_v2.version() else (target,text)
+        with self.cache_lock:
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                self._last_provider="runtime-cache"
+                return self.cache[key]
+
+        if knowledge_v2.version() and self.smart_enabled_getter():
+            services=("MyMemory","Google") if HEALTH.prefer_backup() else ("Google","MyMemory")
+            last_error=None
+            for service in services:
+                primary=service=="Google"
+                try:
+                    if primary:
+                        if self._translator is None or self._translator_target!=target:
+                            self._translator=self._new_translator(target)
+                            self._translator_target=target
+                        result=self._translator.translate(text=text)
+                    else:
+                        result=self._translate_fallback(text,target)
+                except Exception as exc:
+                    last_error=exc
+                    if primary:HEALTH.failure()
+                    continue
+                if (not result or looks_like_translation_service_error(result)
+                        or unchanged_translation_needs_fallback(text,result,"auto",target)
+                        or semantic_violations(text,result,target)):
+                    last_error=RuntimeError("invalid or unsafe response")
+                    continue
+                if primary:HEALTH.success()
+                self._last_provider=service
+                with self.cache_lock:
+                    self.cache[key]=result
+                    self.cache.move_to_end(key)
+                    while len(self.cache)>self.cache_limit:self.cache.popitem(last=False)
+                return result
+            raise TranslationServiceTemporaryError("translation services unavailable or unsafe") from last_error
 
         last_error: Optional[Exception] = None
         # One short Google attempt only. A game chat must
@@ -2462,10 +2569,12 @@ class TranslatorWorker(threading.Thread):
                         "primary translator returned source text"
                     )
 
-                self.cache[key] = result
-                self.cache.move_to_end(key)
-                while len(self.cache) > self.cache_limit:
-                    self.cache.popitem(last=False)
+                self._last_provider="Google"
+                with self.cache_lock:
+                    self.cache[key] = result
+                    self.cache.move_to_end(key)
+                    while len(self.cache) > self.cache_limit:
+                        self.cache.popitem(last=False)
                 return result
             except Exception as exc:
                 last_error = exc
@@ -2496,17 +2605,12 @@ class TranslatorWorker(threading.Thread):
                     )
                 )
 
-            self.cache[key] = result
-            self.cache.move_to_end(key)
-
-            while (
-                len(self.cache)
-                > self.cache_limit
-            ):
-                self.cache.popitem(
-                    last=False
-                )
-
+            self._last_provider="MyMemory"
+            with self.cache_lock:
+                self.cache[key] = result
+                self.cache.move_to_end(key)
+                while len(self.cache) > self.cache_limit:
+                    self.cache.popitem(last=False)
             return result
 
         except Exception as fallback_error:
@@ -2521,29 +2625,114 @@ class TranslatorWorker(threading.Thread):
                 msg = self.jobs.get(timeout=0.2)
             except queue.Empty:
                 continue
-            target = self.target_getter()
+            config=msg.settings
+            target=config[0] if config else self.target_getter()
+            hide_same=config[1] if config else self.hide_same_getter()
+            slang=config[2] if config else self.slang_enabled_getter()
+            style=config[3] if config else self.slang_style_getter()
+            smart=config[4] if config else self.smart_enabled_getter()
             started = time.monotonic()
+            queue_wait_ms = max(0.0, (started - msg.enqueued_at) * 1000) if msg.enqueued_at else 0.0
+            provider_ms = 0.0
+            self._last_provider="none"
+            translated=""
+            observation="skipped"
+            observed_provider="none"
+            observed_context=()
+            observed_style="live"
+
+            def timed_provider(text: str, destination: str) -> str:
+                nonlocal provider_ms
+                call_start = time.monotonic()
+                try:
+                    return self._translate(text, destination)
+                finally:
+                    provider_ms += (time.monotonic() - call_start) * 1000
+
             try:
-                if self.hide_same_getter() and looks_like_target_language(msg.text, target):
+                if hide_same and looks_like_target_language(msg.text, target):
                     self.ui_queue.put(("same_language", msg, 0))
                     continue
 
-                source_text = msg.text
-                direct_result = None
-                if self.slang_enabled_getter():
-                    source_text, direct_result = gaming_slang_transform(msg.text, target, self.slang_style_getter())
-                translated = direct_result if direct_result is not None else self._translate(source_text, target)
-                elapsed_ms = int((time.monotonic() - started) * 1000)
-                if self.hide_same_getter() and normalize_for_compare(translated) == normalize_for_compare(msg.text):
+                observed_style=style
+                if smart:
+                    # Preserve original chat. Legacy dictionaries only provide
+                    # optional hints rather than destructive pre-processing.
+                    now = time.monotonic()
+                    if msg.context is not None:
+                        recent_context=msg.context
+                    else:
+                        with self.context_lock:
+                            recent_context = tuple(
+                                entry for entry in self.context_history
+                                if entry.nickname == msg.nickname
+                                and now - entry.timestamp <= 8
+                            )
+                    observed_context=tuple(entry.text for entry in recent_context)
+                    request = TranslationRequest(
+                        text=msg.text,
+                        target_lang=target,
+                        style=style,
+                        nickname=msg.nickname,
+                        direction="incoming",
+                        context=recent_context,
+                        use_slang=slang,
+                    )
+                    result = DEFAULT_ENGINE.translate(
+                        request,
+                        provider=lambda text, destination, _source:
+                            timed_provider(text, destination),
+                        legacy_transform=gaming_slang_transform,
+                    )
+                    translated = result.text
+                    uncertain = not result.safe
+                    observed_provider=self._last_provider if result.provider=="online" else result.provider
+                else:
+                    # Instant rollback switch: retain the previous behaviour.
+                    source_text, direct = msg.text, None
+                    if slang:
+                        source_text, direct = gaming_slang_transform(
+                            msg.text, target, style
+                        )
+                    translated = direct if direct is not None else timed_provider(source_text, target)
+                    uncertain = False
+                    observed_provider="classic"
+
+                observation="uncertain" if uncertain else "ok"
+                elapsed_ms = int((time.monotonic() - started) * 1000 + queue_wait_ms)
+                if uncertain:
+                    # Never hide an uncertain tactical message as a duplicate.
+                    self.ui_queue.put(("translation", msg, "[!] " + msg.text, elapsed_ms))
+                elif hide_same and normalize_for_compare(translated) == normalize_for_compare(msg.text):
                     self.ui_queue.put(("same_language", msg, elapsed_ms))
                 else:
                     self.ui_queue.put(("translation", msg, translated, elapsed_ms))
             except TranslationServiceTemporaryError:
+                observation="failed"
+                observed_provider="offline"
                 self.ui_queue.put(("translation_service_busy", msg))
             except Exception as exc:
+                observation="failed"
+                observed_provider="error"
                 self.ui_queue.put(("translation_error", msg, str(exc)))
             finally:
+                memory=translation_memory.RUNTIME
+                if memory and observation!="skipped":
+                    memory.record("incoming","auto",target,observed_style,msg.text,
+                                  translated if observation=="ok" else "",observation,
+                                  observed_provider,round((time.monotonic()-started)*1000+queue_wait_ms),
+                                  observed_context,nick=msg.nickname)
+                if msg.context is None:
+                    with self.context_lock:
+                        self.context_history.append(
+                            ContextMessage(msg.text, msg.nickname, time.monotonic())
+                        )
+                self.shared_state.record(queue_wait_ms, provider_ms)
                 self.jobs.task_done()
+        if self._google_session is not None:
+            self._google_session.close()
+        if self._mymemory_session is not None:
+            self._mymemory_session.close()
 
 
 @dataclass
@@ -2955,7 +3144,10 @@ class OverlayWindow:
             # only then started fading from 5%, which looked like a flash.
             self._set_text_alpha(0.05)
 
+        # Parallel MT may finish newer messages first. Display in original
+        # game chat order, not network completion order, without blocking.
         self.items.append(item)
+        self.items = deque(sorted(self.items, key=lambda entry: entry.created_at))
         max_messages = max(
             MIN_OVERLAY_MESSAGES,
             min(
@@ -3455,6 +3647,7 @@ class ControlApp:
         self.show_original_var = tk.BooleanVar(value=bool(self.config.get("show_original", False)))
         self.hide_same_var = tk.BooleanVar(value=bool(self.config.get("hide_same_language", True)))
         self.slang_var = tk.BooleanVar(value=bool(self.config.get("gaming_slang", True)))
+        self.smart_engine_var = tk.BooleanVar(value=bool(self.config.get("smart_engine_enabled", True)))
         self.slang_style_var = tk.StringVar(value=self._slang_style_name_for_code(self.config.get("slang_style", "live")))
         self.dedupe_var = tk.BooleanVar(value=bool(self.config.get("deduplicate_messages", True)))
         self.ui_language_var = tk.StringVar(value={"ru": "Русский", "uk": "Українська", "en": "English"}.get(self.ui_language, "Русский"))
@@ -3488,8 +3681,32 @@ class ControlApp:
             status_var=self.status_var,
             last_var=self.last_var,
             screenshot_callback=self.capture_game_screenshot,
+            legacy_transform=gaming_slang_transform,
+            style_getter=lambda: self.slang_style_code(),
+            slang_enabled_getter=lambda: bool(self.slang_var.get()),
+            smart_enabled_getter=lambda: bool(self.smart_engine_var.get()),
         )
 
+        self._f8_settings=(self.target_code(),bool(self.hide_same_var.get()),
+                           bool(self.slang_var.get()),self.slang_style_code(),
+                           bool(self.smart_engine_var.get()),bool(self.dedupe_var.get()))
+        self._knowledge_runtime=None
+        try:
+            self._knowledge_runtime=knowledge_v2.KnowledgeRuntime(
+                resource_path("assets/knowledge_v2.json"),
+                settings_dir()/"knowledge_v2.json")
+            self._knowledge_runtime.enabled=bool(self.config.get("knowledge_v2_enabled",True))
+        except (OSError,ValueError,TypeError,KeyError):
+            pass
+        knowledge_v2.configure(self._knowledge_runtime)
+        self.experience=translation_memory.LocalExperience(
+            settings_dir()/"translation_experience.sqlite3",
+            collect=self.config.get("experience_collect",False),
+            cache=self.config.get("experience_cache",False))
+        translation_memory.configure(self.experience)
+        self._knowledge_updating=False
+        self._arrival_context=deque(maxlen=24)
+        self._chat_epoch=0
         self._build_ui()
         self._refresh_server_profiles(initial=True)
         self.overlay = OverlayWindow(root, self.config, on_geometry_changed=self._on_overlay_geometry_changed, use_fresh_default_position=self.fresh_install)
@@ -3501,25 +3718,37 @@ class ControlApp:
             on_message=self.on_log_message,
             on_status=lambda s: self.ui_queue.put(("status", s)),
             stop_event=self.stop_event,
-            on_control=lambda kind, line: self.ui_queue.put((kind, line)),
+            on_control=self._on_log_control,
             status_text=self.t,
             switch_position_getter=self._consume_log_switch_position,
         )
-        self.translator = TranslatorWorker(
-            jobs=self.translation_jobs,
-            ui_queue=self.ui_queue,
-            target_getter=self.target_code,
-            hide_same_getter=lambda: bool(self.hide_same_var.get()),
-            slang_enabled_getter=lambda: bool(self.slang_var.get()),
-            slang_style_getter=self.slang_style_code,
-            stop_event=self.stop_event,
-        )
+        # Two workers prevent one slow online request from blocking every
+        # subsequent player message. Fixed pool: bounded CPU/network usage.
+        self.translation_shared_state = TranslationWorkerSharedState()
+        self.translators = [
+            TranslatorWorker(
+                jobs=self.translation_jobs,
+                ui_queue=self.ui_queue,
+                target_getter=lambda: self._f8_settings[0],
+                hide_same_getter=lambda: self._f8_settings[1],
+                slang_enabled_getter=lambda: self._f8_settings[2],
+                slang_style_getter=lambda: self._f8_settings[3],
+                stop_event=self.stop_event,
+                smart_enabled_getter=lambda: self._f8_settings[4],
+                shared_state=self.translation_shared_state,
+            )
+            for _ in range(2)
+        ]
+        self.translator = self.translators[0]
         self.tailer.start()
-        self.translator.start()
+        for translator in self.translators:
+            translator.start()
         self.root.after(80, self.process_ui_queue)
         self.root.after(500, self.expire_overlay)
         self.root.after(80, self.poll_global_hotkeys)
         self.root.after(900, self._profile_poll_tick)
+        if self.config.get("knowledge_auto_update",True):
+            self.root.after(5000,lambda:self._check_knowledge_update(False))
 
         release_cfg = load_release_config(release_config_path())
         if bool(release_cfg.get("check_on_start", True)) and str(release_cfg.get("repository", "")).strip():
@@ -3546,6 +3775,93 @@ class ControlApp:
                 return code
         return str(self.config.get("slang_style", "live"))
 
+    def _knowledge_text(self,ru,uk,en):
+        return {"ru":ru,"uk":uk,"en":en}.get(self.ui_language,en)
+
+    def _show_knowledge_dialog(self):
+        tr=self._knowledge_text
+        previous=getattr(self,"_knowledge_window",None)
+        if previous is not None and previous.winfo_exists():
+            previous.lift();return
+        win=tk.Toplevel(self.root)
+        self._knowledge_window=win
+        win.title(tr("Smart Engine V2 — база знаний","Smart Engine V2 — база знань","Smart Engine V2 — knowledge"))
+        win.transient(self.root)
+        body=ttk.Frame(win,padding=16)
+        body.pack(fill="both",expand=True)
+        runtime=self._knowledge_runtime
+        summary=tk.StringVar(value=(
+            f"V2 · {runtime.version} · {runtime.pack.count} "+tr("групп фраз","груп фраз","phrase groups")
+            if runtime else tr("База недоступна","База недоступна","Pack unavailable")))
+        self._knowledge_summary=summary
+        ttk.Label(body,textvariable=summary,font=("Segoe UI",12,"bold")).pack(anchor="w")
+        ttk.Label(body,wraplength=570,justify="left",text=tr(
+            "Знания проверяются отдельно от программы. Личный опыт хранится только на этом ПК. Сбор примеров и постоянный кэш по умолчанию выключены. Онлайн-перевод как раньше использует Google/MyMemory.",
+            "Знання оновлюються окремо від програми. Особистий досвід зберігається лише на цьому ПК. Збирання прикладів і постійний кеш за замовчуванням вимкнено. Онлайн-переклад використовує Google/MyMemory.",
+            "Knowledge updates are separate from the app. Personal experience stays on this PC. Example collection and persistent cache are off by default. Online translation still uses Google/MyMemory.")).pack(anchor="w",pady=(8,10))
+        options={k:tk.BooleanVar(value=bool(self.config.get(k,d))) for k,d in (
+            ("knowledge_v2_enabled",True),("knowledge_auto_update",True),
+            ("experience_collect",False),("experience_cache",False))}
+        def change():
+            for k,v in options.items():self.config[k]=bool(v.get())
+            if runtime:runtime.enabled=self.config["knowledge_v2_enabled"]
+            self.experience.set_options(self.config["experience_collect"],self.config["experience_cache"])
+            save_config(self.config)
+        labels={
+            "knowledge_v2_enabled":tr("Включить знания V2 (выкл. = Smart V1)","Увімкнути знання V2 (вимк. = Smart V1)","Enable V2 knowledge (off = Smart V1)"),
+            "knowledge_auto_update":tr("Проверять новые знания при запуске","Перевіряти нові знання при запуску","Check for knowledge updates at startup"),
+            "experience_collect":tr("Собирать примеры локально для ручного экспорта","Збирати приклади локально для ручного експорту","Collect local examples for manual export"),
+            "experience_cache":tr("Сохранять временный кэш переводов на диске (7 дней)","Зберігати тимчасовий кеш перекладів на диску (7 днів)","Keep temporary translation cache on disk (7 days)"),
+        }
+        for k,v in options.items():
+            ttk.Checkbutton(body,text=labels[k],variable=v,command=change).pack(anchor="w",pady=3)
+        ttk.Label(body,wraplength=570,justify="left",text=tr(
+            "Экспорт ZIP содержит текст примеров и переводы, без полей никнеймов, серверов или путей. Фильтр удаляет очевидные идентификаторы, но свободный текст может содержать личные сведения. Проверь архив перед передачей. Автоотправки нет.",
+            "Експорт ZIP містить текст прикладів і переклади, без полів нікнеймів, серверів чи шляхів. Фільтр відсіює очевидні ідентифікатори, але текст може містити особисті відомості. Перевір архів перед передаванням. Автонадсилання немає.",
+            "ZIP export contains example text and translations without nickname, server or path fields. The filter excludes obvious identifiers but free text may still contain personal information. Review the archive before sharing. There is no automatic upload.")).pack(anchor="w",pady=(12,8))
+        actions=ttk.Frame(body);actions.pack(fill="x",pady=4)
+        ttk.Button(actions,text=tr("Обновить знания","Оновити знання","Update knowledge"),command=lambda:self._check_knowledge_update(True)).pack(side="left",padx=(0,6))
+        ttk.Button(actions,text=tr("Экспорт ZIP","Експорт ZIP","Export ZIP"),command=self._export_knowledge).pack(side="left",padx=6)
+        ttk.Button(actions,text=tr("Статистика","Статистика","Statistics"),command=self._knowledge_stats).pack(side="left",padx=6)
+        ttk.Button(actions,text=tr("Очистить опыт","Очистити досвід","Clear experience"),command=self._clear_knowledge).pack(side="left",padx=6)
+        ttk.Button(body,text=tr("Закрыть","Закрити","Close"),command=win.destroy).pack(anchor="e",pady=(8,0))
+
+    def _knowledge_stats(self):
+        if not self.experience.stats(lambda ok,data:self.ui_queue.put(("knowledge_action","stats",ok,data))):
+            self.status_var.set(self._knowledge_text("База занята","База зайнята","Database busy"))
+
+    def _export_knowledge(self):
+        tr=self._knowledge_text
+        if not messagebox.askyesno(tr("Экспорт знаний","Експорт знань","Export knowledge"),tr(
+            "Создать ZIP с игровыми фразами и переводами? Перед отправкой проверь содержимое. Программа сама ничего не отправляет.",
+            "Створити ZIP з ігровими фразами та перекладами? Перед передаванням перевір вміст. Програма нічого не надсилає.",
+            "Create a ZIP of game phrases and translations? Review its contents before sharing. The program uploads nothing."),parent=self.root):
+            return
+        path=filedialog.asksaveasfilename(parent=self.root,defaultextension=".zip",
+            initialfile="CoD2-knowledge-"+time.strftime("%Y%m%d-%H%M%S")+".zip",filetypes=[("ZIP","*.zip")])
+        if path:
+            if not self.experience.export(path,lambda ok,data:self.ui_queue.put(("knowledge_action","export",ok,data))):
+                self.status_var.set(tr("База занята","База зайнята","Database busy"))
+
+    def _clear_knowledge(self):
+        tr=self._knowledge_text
+        if messagebox.askyesno(tr("Очистить опыт","Очистити досвід","Clear experience"),tr(
+            "Удалить локальные примеры и дисковый кэш? Общая база знаний останется.",
+            "Видалити локальні приклади й дисковий кеш? Загальна база знань залишиться.",
+            "Delete local examples and disk cache? The shared knowledge pack will remain."),parent=self.root):
+            if not self.experience.clear(lambda ok,data:self.ui_queue.put(("knowledge_action","clear",ok,data))):
+                self.status_var.set(tr("База занята","База зайнята","Database busy"))
+
+    def _check_knowledge_update(self,manual):
+        if self._knowledge_updating or not self._knowledge_runtime:return
+        self._knowledge_updating=True
+        if manual:self.status_var.set(self._knowledge_text("Проверяю знания…","Перевіряю знання…","Checking knowledge…"))
+        def work():
+            try:result=self._knowledge_runtime.refresh()
+            except Exception as exc:self.ui_queue.put(("knowledge_update",manual,False,type(exc).__name__))
+            else:self.ui_queue.put(("knowledge_update",manual,True,result))
+        threading.Thread(target=work,daemon=True,name="KnowledgeUpdate").start()
+
     def _build_ui(self) -> None:
         outer = ttk.Frame(self.root, padding=14)
         outer.pack(fill="both", expand=True)
@@ -3563,6 +3879,7 @@ class ControlApp:
         ttk.Label(title_box, text="CoD2 Chat Translator", font=("Segoe UI", 16, "bold")).pack(anchor="w")
         ttk.Label(title_box, text=self.t("subtitle")).pack(anchor="w", pady=(2, 0))
         ttk.Label(header, text=f"v{APP_VERSION}", foreground="#666666").pack(side="right", anchor="n")
+        ttk.Button(header,text=self._knowledge_text("База знаний","База знань","Knowledge"),command=self._show_knowledge_dialog).pack(side="right",padx=(0,10))
 
         server_frame = ttk.Frame(outer)
         server_frame.pack(fill="x", pady=(14, 0))
@@ -3587,6 +3904,7 @@ class ControlApp:
         smart = ttk.Frame(outer)
         smart.pack(fill="x", pady=(8, 0))
         ttk.Label(smart, text=self.t("smart_chat"), width=15).pack(side="left")
+        ttk.Checkbutton(smart, text=self.t("smart_engine"), variable=self.smart_engine_var, command=self._persist_settings).pack(side="left", padx=(0, 8))
         ttk.Checkbutton(smart, text=self.t("gaming_slang"), variable=self.slang_var, command=self._persist_settings).pack(side="left")
         ttk.Label(smart, text=self.t("style")).pack(side="left", padx=(10, 4))
         style_values = [self._style_label(code) for code in ("clear", "live", "raw")]
@@ -4667,8 +4985,12 @@ class ControlApp:
         self.config["show_original"] = bool(self.show_original_var.get())
         self.config["hide_same_language"] = bool(self.hide_same_var.get())
         self.config["gaming_slang"] = bool(self.slang_var.get())
+        self.config["smart_engine_enabled"] = bool(self.smart_engine_var.get())
         self.config["slang_style"] = self.slang_style_code()
         self.config["deduplicate_messages"] = bool(self.dedupe_var.get())
+        self._f8_settings=(self.config["target_language"],self.config["hide_same_language"],
+                           self.config["gaming_slang"],self.config["slang_style"],
+                           self.config["smart_engine_enabled"],self.config["deduplicate_messages"])
         overlay = self.config.setdefault("overlay", {})
         overlay["background_only_with_messages"] = bool(self.bg_only_var.get())
         overlay["compact_background"] = bool(self.compact_bg_var.get())
@@ -5055,26 +5377,82 @@ class ControlApp:
         self.overlay.render()
         self.overlay._set_text_alpha(1.0)
 
+    def _on_log_control(self,kind,line):
+        # Called by one log reader thread before later chat messages arrive.
+        if kind=="map_change":
+            self._chat_epoch+=1
+            self._arrival_context.clear()
+        self.ui_queue.put((kind,line))
+
     def on_log_message(self, msg: ChatMessage) -> None:
         if not self.enabled:
             return
-        if self.dedupe_var.get() and self.duplicate_filter.is_duplicate(msg):
+        settings=getattr(self,"_f8_settings",None)
+        dedupe=settings[5] if settings else self.dedupe_var.get()
+        if dedupe and self.duplicate_filter.is_duplicate(msg):
             self.ui_queue.put(("status", self.t("duplicate_skipped").format(nickname=msg.nickname, text=msg.text)))
             return
+        now=time.monotonic()
+        history=getattr(self,"_arrival_context",None)
+        context=tuple(e for e in history if e.nickname==msg.nickname and now-e.timestamp<=8)[-4:] if history is not None else None
+        if history is not None:history.append(ContextMessage(msg.text,msg.nickname,now))
+        received=replace(msg,enqueued_at=now,context=context,
+                         epoch=getattr(self,"_chat_epoch",0),settings=settings)
+        # Known phrases bypass the two potentially slow online workers.
+        # No Tkinter access, disk I/O or network on this path.
+        if settings and settings[4] and knowledge_v2.version():
+            target,hide,slang,style,_,_=settings
+            quick=DEFAULT_ENGINE.try_local(TranslationRequest(
+                text=msg.text,target_lang=target,style=style,
+                direction="incoming",nickname=msg.nickname,use_slang=slang,context=context or ()),
+                legacy_transform=gaming_slang_transform)
+            if quick:
+                translated,provider=quick
+                elapsed=round((time.monotonic()-received.enqueued_at)*1000)
+                memory=translation_memory.RUNTIME
+                if memory: memory.record("incoming","auto",target,style,msg.text,
+                                         translated,"ok",provider,elapsed,
+                                         tuple(e.text for e in context or ()),nick=msg.nickname)
+                if hide and normalize_for_compare(translated)==normalize_for_compare(msg.text):
+                    self.ui_queue.put(("same_language",received,elapsed))
+                else:
+                    self.ui_queue.put(("translation",received,translated,elapsed))
+                return
         try:
-            self.translation_jobs.put_nowait(msg)
+            self.translation_jobs.put_nowait(received)
             self.ui_queue.put(("status", self.t("translating_status").format(nickname=msg.nickname, text=msg.text)))
         except queue.Full:
             self.ui_queue.put(("status", self.t("translation_queue_full")))
+            if settings and settings[4] and knowledge_v2.version():
+                self.ui_queue.put(("translation_service_busy",received))
+                memory=translation_memory.RUNTIME
+                if memory:memory.record("incoming","auto",settings[0],settings[3],msg.text,"","queue_full","none",0,nick=msg.nickname)
 
     def process_ui_queue(self) -> None:
+        # A rare content-free UI scheduling sample can tell us whether a
+        # slower PC is freezing the Tk main loop. It is NOT a CPU/FPS reading.
+        now=time.monotonic()
+        expected=getattr(self,"_ui_expected_at",None)
+        last=getattr(self,"_ui_last_perf_at",0.0)
+        if expected is not None and now-last>=5.0:
+            self._ui_last_perf_at=now
+            memory=translation_memory.RUNTIME
+            if memory:
+                memory.record_ui_lag(max(0.0,(now-expected)*1000))
         try:
             while True:
                 item = self.ui_queue.get_nowait()
                 event = item[0]
+                if event in ("translation","translation_error","translation_service_busy","same_language"):
+                    msg=item[1]
+                    if msg.epoch!=getattr(self,"_chat_epoch",0):continue
+                    if msg.settings and msg.settings[0]!=self._f8_settings[0]:continue
                 if event == "status":
                     self.status_var.set(item[1])
                 elif event == "map_change":
+                    # Previous map context must never influence a new match.
+                    with self.translator.context_lock:
+                        self.translator.context_history.clear()
                     self.overlay._cancel_fade()
                     self.overlay.items.clear()
                     self.overlay.render()
@@ -5084,7 +5462,7 @@ class ControlApp:
                     _, msg, translated, elapsed_ms = item
                     self.last_var.set(f"{msg.nickname}: {msg.text}  →  {translated}")
                     self.status_var.set(self.t("translation_done").format(elapsed_ms=elapsed_ms))
-                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=translated, created_at=time.monotonic()))
+                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=translated, created_at=msg.enqueued_at or time.monotonic()))
                 elif event == "same_language":
                     _, msg, elapsed_ms = item
                     self.last_var.set(self.t("last_same_language").format(nickname=msg.nickname, text=msg.text))
@@ -5093,10 +5471,37 @@ class ControlApp:
                     _, msg = item
                     self.last_var.set(f"{msg.nickname}: {msg.text}")
                     self.status_var.set(self.t("translation_service_busy"))
+                    if knowledge_v2.version():
+                        self.overlay.add(OverlayItem(nickname=msg.nickname,original=msg.text,translated="[!] "+msg.text,created_at=msg.enqueued_at or time.monotonic()))
                 elif event == "translation_error":
                     _, msg, error = item
                     self.status_var.set(self.t("translation_unavailable").format(error=error))
-                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=msg.text, created_at=time.monotonic()))
+                    self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=msg.text, created_at=msg.enqueued_at or time.monotonic()))
+                elif event == "knowledge_update":
+                    _,manual,ok,data=item
+                    self._knowledge_updating=False
+                    if ok and data and hasattr(self,"_knowledge_summary"):
+                        runtime=self._knowledge_runtime
+                        self._knowledge_summary.set(f"V2 · {runtime.version} · {runtime.pack.count} "+self._knowledge_text("групп фраз","груп фраз","phrase groups"))
+                    if manual or (ok and data):
+                        tr=self._knowledge_text
+                        result=(tr("Знания обновлены","Знання оновлено","Knowledge updated") if data else tr("Знания актуальны","Знання актуальні","Knowledge up to date")) if ok else tr("Обновление недоступно; текущая база сохранена","Оновлення недоступне; поточну базу збережено","Update unavailable; current pack preserved")
+                        self.status_var.set(result)
+                        if manual:messagebox.showinfo("Smart V2",result,parent=self.root)
+                elif event == "knowledge_action":
+                    _,action,ok,data=item
+                    tr=self._knowledge_text
+                    if not ok:result=tr("Ошибка локальной базы: ","Помилка локальної бази: ","Local database error: ")+str(data)
+                    elif action=="stats":
+                        result=tr("Уникальных записей: ","Унікальних записів: ","Unique records: ")+str(data[0])+"; "+tr("наблюдений: ","спостережень: ","observations: ")+str(data[1])+"; "+tr("пропущено при нагрузке: ","пропущено під навантаженням: ","dropped under load: ")+str(self.experience.dropped)
+                        for direction,label in (("incoming","F8"),("outgoing","F9"),("ui","UI")):
+                            stats=data[2].get(direction)
+                            if stats:
+                                result+=f"\n{label}: n={stats['samples']}, p50={stats['p50_ms']} ms, p95={stats['p95_ms']} ms, "+tr("ошибок: ","помилок: ","failures: ")+str(stats["failed"])
+                    elif action=="clear":result=tr("Локальный опыт очищен","Локальний досвід очищено","Local experience cleared")
+                    else:result=tr("ZIP сохранён: ","ZIP збережено: ","ZIP saved: ")+str(data)
+                    self.status_var.set(result)
+                    messagebox.showinfo("Smart V2",result,parent=self.root)
                 elif event == "screenshot_saved":
                     _, path = item
                     self.status_var.set(
@@ -5138,6 +5543,7 @@ class ControlApp:
         except queue.Empty:
             pass
         if not self.stop_event.is_set():
+            self._ui_expected_at=time.monotonic()+0.080
             self.root.after(80, self.process_ui_queue)
 
     def expire_overlay(self) -> None:
@@ -5148,6 +5554,8 @@ class ControlApp:
     def close(self) -> None:
         self._persist_settings()
         self.stop_event.set()
+        self.outgoing_chat.close()
+        if hasattr(self,"experience"):self.experience.close()
 
         try:
             native_surface = getattr(

@@ -33,6 +33,30 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## v1.19.2 RC — OMG semantic correction
+
+The old RU mapping collapsed OMG into weak ого, and nickname-reaction detection confused omg nice with a player name. New code offers literal Clear and emotional Live/Raw (no added profanity); data-only knowledge pack v3 provides a neutral correction to already installed V2 clients through Knowledge → Update knowledge.
+
+## v1.19.1 RC follow-up — real F8 feedback
+
+First opt-in F8 export: 58 samples, 10 failures, 36 MyMemory routes, p95 8.95 seconds (network processing, not game delivery). Added localized short reactions, conservative nickname-preserving phrases, plain text UI/overlay markers instead of unsupported glyphs, lower UI polling frequency, and sampled content-free Tk scheduling lag in ZIP. Internet translation can still be slow. Manual gameplay RC validation required.
+
+## What's new in v1.19.0 — Smart Engine V2 (RC)
+
+195 authored phrase groups, roughly one thousand forms, guarded templates and conservative context. Local fast paths bypass online queues for F8/F9. **Knowledge** menu: opt-in local observations/cache, latency statistics, manual ZIP, independent data-pack updates; no automatic upload. Classic and Smart V1 remain available, no paid LLM. [Smart V2](docs/SMART_ENGINE_V2.md).
+
+## What's new in v1.18.0 — Smart Engine V1 (release candidate)
+
+The incoming F8 overlay and outgoing F9 chat now share a conservative semantic engine. Known gaming phrases can be handled locally without a network request. Critical tactical tokens (numbers/HP, A/B objectives, negation, mentions, URLs and recognized weapon names) are checked before showing or sending a translation.
+
+A questionable incoming translation shows the original with a warning; F9 does not automatically send a translation that failed the safety checks. The **Smart V1** checkbox can switch to the previous Classic translation logic without reinstalling.
+
+**Incoming F8 speed:** a bounded two-worker queue, a shared translation cache, and per-worker HTTPS connection reuse prevent one slow translation from blocking every subsequent message. No paid LLM is used.
+
+**Outgoing F9 stability:** UI/Tkinter options are captured before the network thread, stale pending preview requests are replaced with the latest text, and free Google/MyMemory HTTPS connections are reused. Successful translations use a small memory-only cache. F9 shows provider, progress and elapsed time directly in the game-facing popup footer (not just the main window), or explains why no message was sent. A semantically unsafe Google result may be retried through MyMemory.
+
+**Important:** this is a lightweight rules/knowledge + online MT release candidate, not a trained LLM. Most unknown texts still require internet. The safety validator is intentionally partial and cannot guarantee translation correctness. See [Smart Engine V1 technical notes](docs/SMART_ENGINE_V1.md) and the test plan.
+
 ## What's new in v1.17
 
 Outgoing chat is now faster during gameplay.

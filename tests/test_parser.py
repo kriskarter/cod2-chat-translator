@@ -233,13 +233,32 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(direct, "мне конец")
 
         _prepared, direct = gaming_slang_transform("omg nice", "ru", "live")
-        self.assertEqual(direct, "ого, классно")
+        self.assertEqual(direct, "Офигеть, красиво")
 
         _prepared, direct = gaming_slang_transform("stalk3r relax", "ru", "clear")
         self.assertEqual(direct, "stalk3r, расслабься")
 
         _prepared, direct = gaming_slang_transform("unio lol wtf", "ru", "clear")
         self.assertEqual(direct, "unio: ахаха, что за фигня")
+
+    def test_omg_is_not_flat_ogo_in_classic_slang(self):
+        for style, expected in (
+            ("clear", "Боже мой"),
+            ("live", "Офигеть"),
+            ("raw", "Офигеть"),
+        ):
+            with self.subTest(style=style):
+                for text, suffix in (("OMG", ""), ("omg!", "!")):
+                    _prepared, direct=gaming_slang_transform(text, "ru", style)
+                    self.assertEqual(direct, expected+suffix)
+        self.assertEqual(
+            gaming_slang_transform("omg nice", "ru", "clear")[1],
+            "Боже мой, здорово",
+        )
+        self.assertEqual(
+            gaming_slang_transform("omg nice", "ru", "live")[1],
+            "Офигеть, красиво",
+        )
 
     def test_camp_phrase_is_not_translated_as_tourist_camp(self):
         prepared, direct = gaming_slang_transform("stop camp idiot", "ru", "live")

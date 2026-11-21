@@ -1,6 +1,6 @@
 #define MyAppName "CoD2 Chat Translator"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.17.4"
+  #define MyAppVersion "1.19.2"
 #endif
 #define MyAppPublisher "kriskarter"
 #define MyAppPublisherURL "https://github.com/kriskarter"

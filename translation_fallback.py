@@ -129,7 +129,13 @@ def detect_source_language(
     if re.search(r"[ІіЇїЄєҐґ]", value):
         return "uk"
 
-    if re.search(r"[А-Яа-яЁё]", value):
+    # Distinctive Russian characters are reliable script hints. Generic
+    # Cyrillic is not: Bulgarian, Serbian and Belarusian also use it.
+    # Let the statistical detector evaluate shared Cyrillic first.
+    if re.search(r"[ЫыЭэЁё]", value):
+        return "ru"
+    if re.fullmatch(r"(?:привет|спасибо|пока|давай|сзади|хорошо)[!?\s]*",
+                    value, flags=re.IGNORECASE):
         return "ru"
 
     if re.search(r"[Α-ωΆ-ώ]", value):
