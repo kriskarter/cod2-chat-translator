@@ -32,7 +32,13 @@ class DashboardContractTests(unittest.TestCase):
         self.assertIn('nav=tk.Frame(nav_shell,bg=SIDEBAR)', tactical)
         self.assertNotIn("sidebar.pack(side=\"left\"", tactical)
         self.assertNotIn('self._home_overlay_prefs', tactical)
-        self.assertIn('self._home_quick', tactical)
+        self.assertIn('build_premium_home(self, page)', tactical)
+        live=(ROOT/"premium_home.py").read_text(encoding="utf-8")
+        self.assertIn('console_chassis.png', live)
+        self.assertIn('variable=var', tactical)
+        for callback in ('toggle_enabled', '_outgoing_enabled_changed',
+                         '_launch_featured_server', 'capture_game_screenshot'):
+            self.assertIn(callback, live)
 
     def test_all_localizations_cover_the_same_pages_and_labels(self):
         i18n = static_i18n()

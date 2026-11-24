@@ -55,7 +55,8 @@ def main():
             expected = ("home", "translation", "overlay", "knowledge", "stats", "settings")
             assert all(key in dashboard.pages for key in expected)
             assert root.winfo_width() >= 1050
-            assert len(dashboard.nav_buttons) == 7
+            assert len(dashboard.nav_buttons) == 6
+            assert dashboard.service_menu.index("end") >= 1
             assert app.language_combo.winfo_exists()
             assert app.overlay_edit_button.winfo_exists()
             assert app.overlay_edit_button_alt.winfo_exists()
@@ -104,21 +105,21 @@ def main():
             # Exercise the actual image-backed F8/F9 native switches,
             # not just the shared BooleanVar in Python.
             assert dashboard.navigate("home")
-            for caption,variable in (
-                ("F8",app.enabled_var),
-                ("F9",app.outgoing_chat.enabled_var),
+            for key,variable in (
+                ("f8",app.enabled_var),
+                ("f9",app.outgoing_chat.enabled_var),
             ):
-                switch=next(
-                    w for w in descendants(dashboard.pages["home"])
-                    if isinstance(w,tk.Checkbutton) and w.cget("text").startswith(caption)
-                )
+                surface=dashboard.premium_home.console
+                item=dashboard.premium_home.controls[key]
+                switch=surface.nametowidget(surface.itemcget(item,"window"))
+                assert isinstance(switch,tk.Checkbutton)
                 before=bool(variable.get())
                 switch.invoke()
                 root.update()
-                assert bool(variable.get())!=before,caption
+                assert bool(variable.get())!=before,key
                 switch.invoke()
                 root.update()
-                assert bool(variable.get())==before,caption
+                assert bool(variable.get())==before,key
 
             app.smart_engine_var.set(False)
             app._persist_settings()
@@ -202,8 +203,8 @@ def main():
                 assert not has_bar, "Unexpected Home scrollbar"
             # Beginner Home must stay compact, but expert tools must
             # remain reachable through the existing dedicated pages.
-            assert app.dashboard.home_more_menu.index("end")==2
-            assert app.dashboard.home_more_button.winfo_exists()
+            assert app.dashboard.service_menu.index("end")>=1
+            assert app.dashboard.service_button.winfo_exists()
             home_widgets=list(descendants(app.dashboard.pages["home"]))
             assert not any(isinstance(w,ttk.Scale) for w in home_widgets)
             overlay_widgets=list(descendants(app.dashboard.pages["overlay"]))

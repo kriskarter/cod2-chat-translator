@@ -18,6 +18,15 @@ This preserves the already integrated Windows overlay and PyInstaller path,
 while the image-backed ttk controls deliver scalable illustrated materials.
 No third-party font or external image is required for these three source PNGs.
 
+`console_chassis.png` and `generic_panel.png` were newly generated for this
+project from the owner's approved concept on 24 November 2026. The first is
+the empty two-bay Home chassis with illustrated scout/radio operator and an
+empty in-game scene; the second is a reusable blank metal panel. Neither
+contains interface text, numeric values, buttons or state. `premium_home.py`
+places actual Tk controls above the chassis and scales it with the window.
+These authored assets are distinct from the old v1.21.3 screenshots and do
+not incorporate stock photography or a third-party font.
+
 Illustrated output must be reviewed on actual Windows DPI settings in
 addition to the automated Linux Tk layout checks; neither test stands in
 for an in-game CoD2 interaction test.

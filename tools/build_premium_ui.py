@@ -55,7 +55,9 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     hero = Image.open(SRC / "hero_source.png").convert("RGB")
     hero = hero.resize((1500, 500), Image.Resampling.LANCZOS)
-    hero.crop((0, 17, 1500, 173)).save(OUT / "premium_hero.png", optimize=True)
+    # Keep a taller composition so the helmet, skyline and stonework remain
+    # legible behind the separate logo at the real 148px Windows header.
+    hero.crop((0, 0, 1500, 180)).save(OUT / "premium_hero.png", optimize=True)
     hero.crop((880, 55, 1470, 355)).resize((190, 86), Image.Resampling.LANCZOS).save(
         OUT / "premium_server.png", optimize=True)
     hero.crop((1080, 80, 1440, 350)).resize((94, 72), Image.Resampling.LANCZOS).save(
@@ -63,9 +65,9 @@ def main():
 
     logo = Image.open(SRC / "logo_source.png").convert("RGBA")
     logo = logo.crop(logo.getbbox())
-    logo.thumbnail((580, 110), Image.Resampling.LANCZOS)
+    logo.thumbnail((640, 136), Image.Resampling.LANCZOS)
     logo.save(OUT / "premium_logo.png", optimize=True)
-    logo.thumbnail((485, 88), Image.Resampling.LANCZOS)
+    logo.thumbnail((580, 120), Image.Resampling.LANCZOS)
     logo.save(OUT / "premium_logo_compact.png", optimize=True)
 
     plate = material(1024, 46, start=172).convert("RGBA")

@@ -4874,7 +4874,9 @@ class ControlApp:
             if not self.overlay.items:
                 self.test_overlay()
         else:
-            self.overlay_edit_button.configure(text=self.t("configure_overlay"))
+            self.overlay_edit_button.configure(text={
+                "ru": "Положение", "uk": "Положення", "en": "Position",
+            }.get(self.ui_language, "Position"))
             if hasattr(self, "overlay_edit_button_alt"):
                 self.overlay_edit_button_alt.configure(text=self.t("configure_overlay"))
             self._persist_settings()
