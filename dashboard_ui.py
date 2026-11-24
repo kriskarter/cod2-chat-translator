@@ -203,6 +203,15 @@ def setup_theme(root: tk.Tk):
     style.map("TCombobox", fieldbackground=[("readonly", "#DCCBAD")],
               foreground=[("readonly", "#21190F")])
     style.configure("TScale", background=CARD, troughcolor="#473725", borderwidth=0)
+    if "Premium.Scale.trough" not in style.element_names():
+        style.element_create("Premium.Scale.trough", "image",
+            ui_photo(root, "premium_scale_trough.png"),
+            border=(9, 3, 9, 3), sticky="we")
+        style.element_create("Premium.Scale.slider", "image",
+            ui_photo(root, "premium_scale_thumb.png"), sticky="")
+    style.layout("Horizontal.TScale", [
+        ("Premium.Scale.trough", {"sticky": "we", "children": [
+            ("Premium.Scale.slider", {"side": "left", "sticky": ""})]})])
     # Compact, metal-framed home actions. Advanced settings keep the
     # larger touch targets from their existing styles.
     style.configure("Tactical.TButton", background="#443728", foreground="#FFF0D3",
@@ -314,14 +323,16 @@ def card(parent, title=None, *, tone=CYAN, padding=5):
 
 
 def check(parent, caption, var, fn):
-    # Real Tk checkbutton, with a gold check indicator instead of an emoji or
-    # bitmap baked into the background. Keyboard toggle remains functional.
+    # The visual states are illustrated; Tk owns the value and the callback.
     return tk.Checkbutton(
         parent,text=caption,variable=var,command=fn,
+        indicatoron=0,image=ui_photo(parent,"premium_check_off.png"),
+        selectimage=ui_photo(parent,"premium_check_on.png"),
+        compound="left",
         bg=CARD,fg=TEXT,activebackground=CARD,activeforeground=TEXT,
-        selectcolor="#B9791C",font=(FONT,10),cursor="hand2",
-        highlightcolor=AMBER,highlightbackground=CARD,
-        borderwidth=0,padx=2,pady=3,
+        selectcolor=CARD,font=(FONT,10),cursor="hand2",
+        highlightcolor=AMBER,highlightbackground=CARD,highlightthickness=1,
+        borderwidth=0,padx=4,pady=2,takefocus=True,
     )
 
 

@@ -48,9 +48,6 @@ def button(name, *, amber=False, hover=False, pressed=False, disabled=False):
                            outline=rim, width=2)
     draw.line((11, 7, w - 12, 7), fill=(255, 226, 167, 95 if not pressed else 30), width=2)
     draw.line((11, h - 8, w - 12, h - 8), fill=(0, 0, 0, 190), width=3)
-    for x in (12, w - 13):
-        draw.ellipse((x - 2, h // 2 - 2, x + 2, h // 2 + 2),
-                     fill=(10, 9, 7, 220), outline=(195, 155, 98, 190))
     im.save(OUT / f"premium_{name}.png", optimize=True)
 
 
@@ -95,6 +92,32 @@ def main():
         d.ellipse((x - 9, 3, x + 9, 21), fill=(230, 210, 165, 255),
                   outline=(69, 44, 19, 255), width=2)
         im.save(OUT / f"premium_switch_{'on' if on else 'off'}.png", optimize=True)
+        check = material(22, 22, start=43).convert("RGBA")
+        check = Image.alpha_composite(check, Image.new("RGBA", check.size,
+             (138, 64, 4, 200) if on else (11, 10, 8, 200)))
+        c = ImageDraw.Draw(check, "RGBA")
+        c.rounded_rectangle((1, 1, 20, 20), radius=3,
+            outline=(255, 177, 72, 255) if on else (172, 146, 99, 255), width=2)
+        if on:
+            c.line((5, 11, 9, 15, 17, 6), fill=(255, 240, 197, 255), width=3,
+                   joint="curve")
+        check.save(OUT / f"premium_check_{'on' if on else 'off'}.png", optimize=True)
+
+    trough = material(100, 13, start=93).convert("RGBA")
+    trough = Image.alpha_composite(trough, Image.new("RGBA", trough.size,
+                                                    (10, 9, 6, 195)))
+    t = ImageDraw.Draw(trough, "RGBA")
+    t.rounded_rectangle((1, 3, 98, 10), radius=3, fill=(32, 24, 15, 255),
+                        outline=(158, 125, 76, 255), width=1)
+    t.line((5, 5, 94, 5), fill=(240, 165, 62, 145), width=2)
+    trough.save(OUT / "premium_scale_trough.png", optimize=True)
+    thumb = material(22, 26, start=99).convert("RGBA")
+    th = ImageDraw.Draw(thumb, "RGBA")
+    th.rounded_rectangle((2, 2, 19, 23), radius=6, fill=(188, 159, 108, 255),
+                         outline=(245, 211, 145, 255), width=2)
+    th.line((7, 9, 14, 9), fill=(88, 64, 37, 255), width=2)
+    th.line((7, 16, 14, 16), fill=(88, 64, 37, 255), width=2)
+    thumb.save(OUT / "premium_scale_thumb.png", optimize=True)
     print("Premium art rebuilt from the three supplied original source images")
 
 
