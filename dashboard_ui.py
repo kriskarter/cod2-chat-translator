@@ -10,17 +10,17 @@ from tkinter import ttk
 
 from server_catalog import FEATURED_SERVER
 
-BG = "#0B131C"
-SIDEBAR = "#0F1C28"
-CARD = "#142633"
-CARD_ALT = "#182D3D"
-BORDER = "#355064"
-TEXT = "#EFF8FD"
-MUTED = "#B4CAD8"
-CYAN = "#36D8F2"
-AMBER = "#F3BD70"
-GREEN = "#66E6B0"
-DANGER = "#FF9A9A"
+BG = "#17150F"
+SIDEBAR = "#231F18"
+CARD = "#201E17"
+CARD_ALT = "#393329"
+BORDER = "#9C7950"
+TEXT = "#F6E9CB"
+MUTED = "#D2BE99"
+CYAN = "#F0B15B"
+AMBER = "#FFB25D"
+GREEN = "#91E06D"
+DANGER = "#FF9B8A"
 FONT = "Segoe UI"
 
 # Only real configurable functions and actual application states appear here.
@@ -178,26 +178,30 @@ def setup_theme(root: tk.Tk):
     style.configure("CardHead.TLabel", background=CARD, foreground=TEXT, font=(FONT, 12, "bold"))
     style.configure("Body.TLabel", background=BG, foreground=TEXT)
     style.configure("Muted.TLabel", background=BG, foreground=MUTED)
-    style.configure("TButton", background=CARD_ALT, foreground=TEXT,
-                    borderwidth=1, padding=(10, 8), relief="flat")
-    style.map("TButton", background=[("pressed", "#24445A"), ("active", "#28435A")],
+    style.configure("TButton", background="#3D3528", foreground=TEXT,
+                    font=(FONT, 10, "bold"), bordercolor="#99774C",
+                    lightcolor="#94744C", darkcolor="#17130F",
+                    borderwidth=2, padding=(10, 7), relief="raised")
+    style.map("TButton", background=[("pressed", "#6A502E"), ("active", "#554027")],
               foreground=[("disabled", MUTED), ("active", TEXT)])
-    style.configure("Accent.TButton", background="#076B87", foreground="#FFFFFF",
-                    padding=(13, 9), borderwidth=1)
-    style.map("Accent.TButton", background=[("active", "#0F8AA9"), ("pressed", "#03506A")])
-    style.configure("Warm.TButton", background="#8C5C24", foreground="#FFF8EC",
-                    padding=(12, 9))
-    style.map("Warm.TButton", background=[("active", "#AD7530"), ("pressed", "#69431B")])
+    style.configure("Accent.TButton", background="#9E4E0B", foreground="#FFFFFF",
+                    font=(FONT, 10, "bold"), bordercolor="#F3AC52",
+                    lightcolor="#EC9E40", darkcolor="#482002",
+                    padding=(13, 9), borderwidth=2, relief="raised")
+    style.map("Accent.TButton", background=[("active", "#C97212"), ("pressed", "#733804")])
+    style.configure("Warm.TButton", background="#5E391A", foreground="#FFF1D5",
+                    bordercolor="#BC8546", padding=(12, 9))
+    style.map("Warm.TButton", background=[("active", "#BA681B"), ("pressed", "#4D2D0E")])
     style.configure("TCheckbutton", background=CARD, foreground=TEXT, padding=(2, 5))
     style.map("TCheckbutton", background=[("active", CARD)],
               foreground=[("disabled", MUTED)])
-    style.configure("TCombobox", fieldbackground="#213747", background=CARD_ALT,
-                    foreground="#101D28", arrowcolor=CYAN, bordercolor=BORDER,
-                    lightcolor=BORDER, darkcolor=BORDER, selectbackground="#24465D",
+    style.configure("TCombobox", fieldbackground="#332C20", background=CARD_ALT,
+                    foreground="#201B12", arrowcolor=AMBER, bordercolor=BORDER,
+                    lightcolor=BORDER, darkcolor=BORDER, selectbackground="#B46B1C",
                     selectforeground=TEXT, padding=5)
-    style.map("TCombobox", fieldbackground=[("readonly", "#DDEAF4")],
-              foreground=[("readonly", "#111E2B")])
-    style.configure("TScale", background=CARD, troughcolor="#2C4658", borderwidth=0)
+    style.map("TCombobox", fieldbackground=[("readonly", "#DCCBAD")],
+              foreground=[("readonly", "#21190F")])
+    style.configure("TScale", background=CARD, troughcolor="#473725", borderwidth=0)
     style.configure("TSeparator", background=BORDER)
 
 
@@ -212,21 +216,55 @@ def text(parent, value, *, size=10, color=TEXT, bold=False,
                     anchor=anchor, justify="left", wraplength=wraplength)
 
 
-def card(parent, title=None, *, tone=CYAN, padding=15):
-    border = tk.Frame(parent, bg=BORDER, padx=1, pady=1)
-    box = tk.Frame(border, bg=CARD, padx=padding, pady=padding)
-    box.pack(fill="both", expand=True)
+# UI art is raster background only. Labels, toggles and buttons remain real
+# widgets with live callbacks; no baked telemetry or screenshot mockups.
+_PHOTOS = {}
+
+
+def ui_photo(master, name):
+    from app import resource_path
+    key=(str(master.tk), name)
+    photo=_PHOTOS.get(key)
+    if photo is None:
+        photo=tk.PhotoImage(file=str(resource_path("assets/ui_wwii/"+name)))
+        _PHOTOS[key]=photo
+    return photo
+
+
+def card(parent, title=None, *, tone=CYAN, padding=12):
+    border=tk.Frame(parent, bg="#8F7148", padx=2, pady=2)
+    shell=tk.Frame(border, bg="#15130D")
+    shell.pack(fill="both", expand=True)
     if title:
-        titleline = tk.Frame(box, bg=CARD)
-        titleline.pack(fill="x", pady=(0, 11))
-        tk.Frame(titleline, bg=tone, width=3).pack(side="left", fill="y", padx=(0, 10))
-        text(titleline, title, size=11, bold=True).pack(side="left")
-    return border, box
+        heading=tk.Canvas(shell, bg="#3B3326", height=43,
+                          highlightthickness=0, borderwidth=0)
+        heading.pack(fill="x")
+        plate=ui_photo(parent, "plate.png")
+        heading.create_image(0,0,anchor="nw",image=plate)
+        def adjust(event,plate=plate):
+            heading.delete("repeat")
+            for x in range(plate.width(),event.width+plate.width(),plate.width()):
+                heading.create_image(x,0,anchor="nw",image=plate,tags="repeat")
+        heading.bind("<Configure>", adjust)
+        heading.create_text(20,21,text=title.upper(),anchor="w",
+                            font=("Bahnschrift SemiCondensed",15,"bold"),
+                            fill=TEXT)
+        heading.create_line(2,42,1152,42,fill="#B28B4B",width=1)
+    box=tk.Frame(shell, bg=CARD, padx=padding, pady=padding)
+    box.pack(fill="both",expand=True)
+    return border,box
 
 
 def check(parent, caption, var, fn):
-    widget = ttk.Checkbutton(parent, text=caption, variable=var, command=fn)
-    return widget
+    # Real Tk checkbutton, with a gold check indicator instead of an emoji or
+    # bitmap baked into the background. Keyboard toggle remains functional.
+    return tk.Checkbutton(
+        parent,text=caption,variable=var,command=fn,
+        bg=CARD,fg=TEXT,activebackground=CARD,activeforeground=TEXT,
+        selectcolor="#B9791C",font=(FONT,10),cursor="hand2",
+        highlightcolor=AMBER,highlightbackground=CARD,
+        borderwidth=0,padx=2,pady=3,
+    )
 
 
 def action(parent, caption, fn, *, primary=False, warm=False):
@@ -262,7 +300,7 @@ class Dashboard:
         self.root.configure(background=BG)
         # The initial window geometry is set by ControlApp. Do not reset a
         # user-resized window every time interface language changes.
-        self.root.minsize(1050, 690)
+        self.root.minsize(1050, 650)
         setup_theme(self.root)
         self._build()
         self.refresh()
