@@ -25,7 +25,7 @@ class DashboardContractTests(unittest.TestCase):
         self.assertIn("ttk.Combobox", SOURCE)
         self.assertIn("def build_dashboard(app):", SOURCE)
         self.assertNotIn("Screenshot mockup", SOURCE)
-        self.assertIn("from dashboard_ui import build_dashboard", (ROOT / "app.py").read_text())
+        self.assertIn("from dashboard_ui import build_dashboard", (ROOT / "app.py").read_text(encoding="utf-8"))
 
     def test_all_localizations_cover_the_same_pages_and_labels(self):
         i18n = static_i18n()
