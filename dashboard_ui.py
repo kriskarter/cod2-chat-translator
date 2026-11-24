@@ -219,6 +219,40 @@ def setup_theme(root: tk.Tk):
     style.map("TacticalAccent.TButton",
               background=[("active", "#BE6A16"), ("pressed", "#7B3102")])
     style.configure("TSeparator", background=BORDER)
+    # Image-backed, nine-slice controls use the exact same drawn material as
+    # the navigation, cards and footer.  ttk retains native focus, keyboard
+    # activation, disabled and pressed states and the existing callbacks.
+    for group in ("metal", "amber"):
+        images = {state: ui_photo(root, f"premium_{group}_{state}.png")
+                  for state in ("normal", "hover", "pressed", "disabled")}
+        element = f"Premium{group.title()}.surface"
+        if element not in style.element_names():
+            style.element_create(element, "image", images["normal"],
+                ("disabled", images["disabled"]),
+                ("pressed", images["pressed"]),
+                ("active", images["hover"]),
+                border=(13, 12, 13, 12), sticky="nsew")
+        layout = [(element, {"sticky":"nsew", "children":[
+            ("Button.padding", {"sticky":"nsew", "children":[
+                ("Button.label", {"sticky":"nsew"})]})]})]
+        names = ("Accent.TButton", "TacticalAccent.TButton", "PremiumNavActive.TButton") if group == "amber" else (
+            "TButton", "Tactical.TButton", "Warm.TButton", "PremiumNav.TButton")
+        for name in names:
+            style.layout(name, layout)
+            style.configure(name, foreground="#FFF0D1", background=CARD,
+                            borderwidth=0, padding=(12, 8), relief="flat")
+            style.map(name, foreground=[("disabled", "#A4977E"),
+                                         ("active", "#FFFFFF")])
+    for name in ("PremiumNav.TButton", "PremiumNavActive.TButton"):
+        style.configure(name, font=(FONT, 10, "bold"), padding=(7, 10))
+    for name in ("Tactical.TButton", "TacticalAccent.TButton"):
+        style.configure(name, padding=(9, 6))
+    # Real readonly comboboxes and scales keep their native semantics.
+    style.configure("TCombobox", fieldbackground="#252218", background="#382D20",
+                    foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
+                    selectbackground="#A75B11", selectforeground="#FFFFFF")
+    style.map("TCombobox", fieldbackground=[("readonly", "#29251B")],
+              foreground=[("readonly", TEXT)])
 
 
 def tr(app, key):
@@ -248,25 +282,25 @@ def ui_photo(master, name):
 
 
 def card(parent, title=None, *, tone=CYAN, padding=5):
-    border=tk.Frame(parent, bg="#8F7148", padx=1, pady=1)
-    shell=tk.Frame(border, bg="#15130D")
+    border=tk.Frame(parent, bg="#BC975D", padx=2, pady=2)
+    shell=tk.Frame(border, bg="#100F0B", padx=2, pady=2)
     shell.pack(fill="both", expand=True)
     if title:
-        heading=tk.Canvas(shell, bg="#3B3326", height=27,
+        heading=tk.Canvas(shell, bg="#302B20", height=37,
                           highlightthickness=0, borderwidth=0)
         heading.pack(fill="x")
-        plate=ui_photo(parent, "plate.png")
+        plate=ui_photo(parent, "premium_plate.png")
         heading.create_image(0,0,anchor="nw",image=plate)
         def adjust(event,plate=plate):
             heading.delete("repeat")
             for x in range(plate.width(),event.width+plate.width(),plate.width()):
                 heading.create_image(x,0,anchor="nw",image=plate,tags="repeat")
         heading.bind("<Configure>", adjust)
-        heading.create_text(13,13,text=title.upper(),anchor="w",
-                            font=("Bahnschrift SemiCondensed",12,"bold"),
+        heading.create_text(17,19,text=title.upper(),anchor="w",
+                            font=("Bahnschrift SemiCondensed",13,"bold"),
                             fill=TEXT)
-        heading.create_line(2,26,1152,26,fill="#B28B4B",width=1)
-    box=tk.Frame(shell, bg=CARD, padx=padding, pady=padding)
+        heading.create_line(2,36,1152,36,fill="#B28B4B",width=1)
+    box=tk.Frame(shell, bg=CARD, padx=padding+5, pady=padding+5)
     box.pack(fill="both",expand=True)
     return border,box
 

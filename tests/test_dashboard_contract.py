@@ -28,7 +28,7 @@ class DashboardContractTests(unittest.TestCase):
         self.assertIn("from wwii_dashboard import build_dashboard", (ROOT / "app.py").read_text(encoding="utf-8"))
         tactical=(ROOT/"wwii_dashboard.py").read_text(encoding="utf-8")
         self.assertIn("class WWIIDashboard(Dashboard):", tactical)
-        self.assertIn("ui_photo(header,\"hero.png\")", tactical)
+        self.assertIn("ui_photo(header,\"premium_hero.png\")", tactical)
         self.assertIn('nav=tk.Frame(nav_shell,bg=SIDEBAR)', tactical)
         self.assertNotIn("sidebar.pack(side=\"left\"", tactical)
         self.assertNotIn('self._home_overlay_prefs', tactical)

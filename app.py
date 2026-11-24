@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.21.2"
+APP_VERSION = "1.21.3"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -3675,7 +3675,7 @@ class ControlApp:
         # as possible; smaller monitors retain a scrollable home screen.
         screen_w,screen_h=root.winfo_screenwidth(),root.winfo_screenheight()
         preferred_w=max(1050,min(1490,screen_w-48))
-        preferred_h=max(650,min(780,screen_h-90))
+        preferred_h=max(650,min(780,screen_h-50))
         root.geometry(f"{preferred_w}x{preferred_h}")
         root.minsize(1050, 650)
         root.protocol("WM_DELETE_WINDOW", self.close)

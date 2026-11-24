@@ -4,7 +4,6 @@ Style is derived from the user's confirmed second concept. The hero and
 plate graphics contain NO UI state; all labels and actions are real Tk widgets.
 """
 from __future__ import annotations
-import math
 import tkinter as tk
 from tkinter import ttk
 from dashboard_ui import (
@@ -46,8 +45,8 @@ def tactical_switch(parent, caption, var, command):
     """
     return tk.Checkbutton(
         parent,text=caption,variable=var,command=command,indicatoron=0,
-        image=ui_photo(parent,"switch_off.png"),
-        selectimage=ui_photo(parent,"switch_on.png"),
+        image=ui_photo(parent,"premium_switch_off.png"),
+        selectimage=ui_photo(parent,"premium_switch_on.png"),
         compound="left",bg=CARD,fg=TEXT,selectcolor=CARD,
         activebackground=CARD,activeforeground=TEXT,
         padx=1,pady=0,bd=0,relief="flat",overrelief="flat",
@@ -68,27 +67,17 @@ class WWIIDashboard(Dashboard):
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header=tk.Canvas(outer,height=124,bg="#17130E",
+        header=tk.Canvas(outer,height=137,bg="#17130E",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
-        hero=ui_photo(header,"hero.png")
-        brand=ui_photo(header,"brand_logo_compact.png")
+        hero=ui_photo(header,"premium_hero.png")
+        brand=ui_photo(header,"premium_logo.png")
         plaque=ui_photo(header,"version_plate.png")
-        header.create_image(0,-28,anchor="nw",image=hero)
-        header.create_image(11,2,anchor="nw",image=brand)
-        header.create_text(406,113,text=tr(app,"tagline"),anchor="w",
+        header.create_image(0,0,anchor="nw",image=hero)
+        header.create_image(205,4,anchor="nw",image=brand)
+        header.create_text(229,120,text=tr(app,"tagline"),anchor="w",
                            fill="#EED6A7",font=(FONT,9,"bold"))
-        header.create_line(0,122,1600,122,fill="#BC8A46",width=2)
-        # Decor: a hand-drawn metallic insignia, not an online/health signal.
-        emblem=[]
-        for n in range(10):
-            theta=-math.pi/2 + n*math.pi/5
-            radius=20 if n%2==0 else 8
-            emblem.extend((760+radius*math.cos(theta),
-                           55+radius*math.sin(theta)))
-        header.create_polygon(emblem,fill="#CCAA70",
-                              outline="#684B2B",width=2)
-        header.create_oval(742,37,778,73,outline="#5D4225",width=1)
+        header.create_line(0,135,1600,135,fill="#BC8A46",width=2)
         self.version_plate=header.create_image(0,0,image=plaque,anchor="ne")
         self.banner_version=header.create_text(0,0,text="",
             font=(FONT,11,"bold"),fill="#F8E0AE",anchor="e")
@@ -99,7 +88,8 @@ class WWIIDashboard(Dashboard):
                                  text="v"+__import__("app").APP_VERSION)
         header.bind("<Configure>",resize_header)
 
-        # Exactly the horizontal metal menu in the approved concept.
+        # The seven actions are real ttk buttons on stretchable illustrated
+        # surfaces; focus, disabled state and mouse states are live.
         nav_shell=tk.Frame(outer,bg="#89633D",pady=1)
         nav_shell.pack(fill="x")
         nav=tk.Frame(nav_shell,bg=SIDEBAR)
@@ -120,12 +110,8 @@ class WWIIDashboard(Dashboard):
         for index,(name,callback) in enumerate(buttons):
             nav.columnconfigure(index,weight=1,uniform="nav")
             photo=ui_photo(nav,"nav_"+name+".png")
-            button=tk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
-                command=callback,bg="#332C21",fg=TEXT,
-                activebackground="#74400E",activeforeground="#FFF4D9",
-                font=(FONT,self._nav_font_size,"bold"),bd=2,relief="raised",
-                highlightthickness=1,highlightbackground="#775A35",
-                highlightcolor="#FFC067",cursor="hand2",pady=3)
+            button=ttk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
+                command=callback,style="PremiumNav.TButton",cursor="hand2")
             button.grid(row=0,column=index,sticky="nsew",padx=1,pady=1)
             self.nav_buttons[name]=button
             if name=="discord" and not FEATURED_SERVER.discord_url:
@@ -149,7 +135,7 @@ class WWIIDashboard(Dashboard):
                 widget=getattr(app,key,None)
                 if widget:widget.configure(text=app.t("lock_overlay"))
         for page in self.pages.values():self._enable_page_wheel(page)
-        footer=tk.Frame(outer,bg="#15130D",height=38,
+        footer=tk.Frame(outer,bg="#15130D",height=40,
                         highlightbackground="#9C7442",highlightthickness=2)
         footer.pack(fill="x")
         footer.pack_propagate(False)
@@ -229,7 +215,7 @@ class WWIIDashboard(Dashboard):
     def _home_server(self,p):
         row=tk.Frame(p,bg=CARD)
         row.pack(fill="x")
-        tk.Label(row,image=ui_photo(p,"server_scene_thumb.png"),
+        tk.Label(row,image=ui_photo(p,"premium_server.png"),
                  bg=CARD).pack(side="left",padx=(0,12))
         info=tk.Frame(row,bg=CARD)
         info.pack(side="left",fill="both",expand=True)
@@ -333,13 +319,17 @@ class WWIIDashboard(Dashboard):
         row.pack(fill="x")
         left=tk.Frame(row,bg=CARD)
         left.pack(side="left",fill="both",expand=True,pady=(10,0))
-        tactical_switch(left,tr(self.app,"enabled"),
+        overlay_switch={"ru":"Перевод F8 и оверлей", "uk":"Переклад F8 й оверлей",
+                        "en":"F8 translation and overlay"}
+        tactical_switch(left,overlay_switch.get(self.app.ui_language,
+                                                overlay_switch["en"]),
                         self.app.enabled_var,self.app.toggle_enabled).pack(anchor="w")
         text(left,tr(self.app,"overlay_hint"),color=MUTED,size=9,
              wraplength=240).pack(anchor="w",pady=(6,0))
         scene=tk.Canvas(row,bg="#1A1813",height=72,width=94,
                         borderwidth=0,highlightthickness=0)
         scene.pack(side="right",padx=(8,0))
+        scene.create_image(0,0,anchor="nw",image=ui_photo(scene,"premium_overlay_preview.png"))
         scene.create_rectangle(4,4,90,68,outline="#90734A",width=2)
         for x1,y1,x2,y2 in ((11,18,11,11),(11,11,18,11),
                              (76,11,84,11),(84,11,84,18),
@@ -401,12 +391,10 @@ class WWIIDashboard(Dashboard):
         self.pages[name].tkraise()
         if name=="stats":self.request_stats()
         for key,button in self.nav_buttons.items():
-            if button.cget("state")=="disabled":continue
+            if button.instate(["disabled"]):continue
             active=key==name
-            button.configure(bg="#9B4A07" if active else "#332C21",
-                             fg="#FFF6E7" if active else TEXT,
-                             activebackground="#BB6713",
-                             font=(FONT,self._nav_font_size,"bold"))
+            button.configure(style="PremiumNavActive.TButton" if active
+                             else "PremiumNav.TButton")
         return True
 
     def refresh(self):

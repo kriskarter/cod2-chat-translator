@@ -68,13 +68,21 @@ class WWIIContractTests(unittest.TestCase):
             self.assertEqual(struct.unpack(">II",data[16:24]),size)
         for icon in ("test","clear","configure","screenshot","export","updates"):
             self.assertTrue((ASSETS/("quick_"+icon+".png")).exists())
-        self.assertIn('image=ui_photo(parent,"switch_off.png")',UI)
-        self.assertIn('selectimage=ui_photo(parent,"switch_on.png")',UI)
+        self.assertIn('image=ui_photo(parent,"premium_switch_off.png")',UI)
+        self.assertIn('selectimage=ui_photo(parent,"premium_switch_on.png")',UI)
         self.assertIn("self._nav_font_size",UI)
         self.assertIn("self.home_more_button",UI)
         self.assertIn("self.home_scrollbar=bar",UI)
         self.assertIn("content.winfo_reqheight()",UI)
-        self.assertIn('"brand_logo_compact.png"',UI)
+        self.assertIn('"premium_logo.png"',UI)
+        self.assertIn('"premium_hero.png"',UI)
+        for name in ("hero_source", "logo_source", "steel_source"):
+            self.assertTrue((ROOT/"assets/ui_premium"/(name+".png")).exists())
+        for group in ("metal", "amber"):
+            for state in ("normal", "hover", "pressed", "disabled"):
+                self.assertTrue((ASSETS/f"premium_{group}_{state}.png").exists())
+        self.assertIn('style.element_create(element, "image"',
+                      (ROOT/"dashboard_ui.py").read_text(encoding="utf-8"))
         self.assertIn('"body_backdrop.png"',UI)
         self.assertIn("self.root.tk.call",UI)
         # The original game message parser and translation engine remain
@@ -89,5 +97,5 @@ class WWIIContractTests(unittest.TestCase):
         self.assertIn("runtime.pack.count",(ROOT/"dashboard_ui.py").read_text(encoding="utf-8"))
 
     def test_version_increment_without_translation_rewrite(self):
-        self.assertIn('APP_VERSION = "1.21.2"',APP)
-        self.assertIn('MyAppVersion "1.21.2"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))
+        self.assertIn('APP_VERSION = "1.21.3"',APP)
+        self.assertIn('MyAppVersion "1.21.3"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))
