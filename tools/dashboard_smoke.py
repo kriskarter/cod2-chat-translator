@@ -198,6 +198,17 @@ def main():
                 assert content_height <= viewport_height+3, (
                     f"Home does not fit: {content_height} > {viewport_height}")
                 assert not has_bar, "Unexpected Home scrollbar"
+            # These are actual button extents after Tk layout, not
+            # screenshots judged by a text detector.
+            for widget in descendants(app.dashboard.pages["home"]):
+                if not isinstance(widget,ttk.Button):
+                    continue
+                visible=widget.winfo_width()
+                natural=widget.winfo_reqwidth()
+                if natural>=30 and widget.winfo_ismapped():
+                    assert visible+5 >= natural, (
+                        f"Clipped native action {widget.cget('text')!r}: "
+                        f"{visible}px versus {natural}px required")
             if args.screenshot:
                 # Only take a screenshot when an X11 server and ffmpeg are
                 # explicitly provided. No screenshots are sent anywhere.

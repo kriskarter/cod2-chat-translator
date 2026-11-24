@@ -15,6 +15,16 @@ Larger 1490 × 780 window with the actual background artwork:
 
 ![Actual desktop RC3 window](images/wwii_rebrand_rc3_desktop.png)
 
+At increased Tk font scaling in the narrow 1318 × 678 window,
+native settings automatically reflow into extra rows rather than crop
+the Other Language button, standard preset, or quick action labels:
+
+![Actual high-DPI responsive RC3 window](images/wwii_rebrand_rc3_scale150_compact.png)
+
+The high-DPI narrow layout uses vertical scrolling intentionally to
+keep every control reachable. Native Windows display scaling still
+requires an in-game owner check.
+
 These images are captures of the executable UI under isolated Xvfb/Tk, not
 illustrations or a simulated HTML page. There is no fictional ping, FPS or
 connected-server label, and user files or Telegram content are never uploaded.

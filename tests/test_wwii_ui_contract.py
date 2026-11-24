@@ -71,6 +71,8 @@ class WWIIContractTests(unittest.TestCase):
         self.assertIn('image=ui_photo(parent,"switch_off.png")',UI)
         self.assertIn('selectimage=ui_photo(parent,"switch_on.png")',UI)
         self.assertIn("self._nav_font_size",UI)
+        self.assertIn("fit_translation",UI)
+        self.assertIn("fit_actions",UI)
         self.assertIn("self.home_scrollbar=bar",UI)
         self.assertIn("content.winfo_reqheight()",UI)
         self.assertIn('"brand_logo_compact.png"',UI)

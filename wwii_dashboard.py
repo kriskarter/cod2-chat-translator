@@ -319,12 +319,42 @@ class WWIIDashboard(Dashboard):
                         lambda:self.navigate("translation")).pack(side="right")
         options=tk.Frame(layout,bg=CARD)
         options.grid(row=0,column=2,sticky="ne",padx=(6,0))
+        flags=[]
         for label,var,command in (
             ("slang",self.app.slang_var,self.app._persist_settings),
             ("dedupe",self.app.dedupe_var,self.app._persist_settings),
             ("original",self.app.show_original_var,self.app.toggle_original),
         ):
-            check(options,tr(self.app,label),var,command).pack(anchor="w",pady=0)
+            widget=check(options,tr(self.app,label),var,command)
+            widget.pack(anchor="w",pady=0)
+            flags.append(widget)
+
+        # High DPI + narrow windows: move the three flags BELOW the
+        # language selectors, instead of clipping the "Other language"
+        # button. This is a real rearrangement of native controls.
+        layout_mode=[False]
+        def fit_translation(event):
+            # Use real requested widths, not a hardcoded DPI/window cutoff.
+            # Keep the flags in a second row whenever all three columns
+            # would clip the Other-language or style controls.
+            required=(modes.winfo_reqwidth()+central.winfo_reqwidth()
+                      +max(w.winfo_reqwidth() for w in flags)+28)
+            narrow=event.width<required
+            if narrow==layout_mode[0]:
+                return
+            layout_mode[0]=narrow
+            options.grid_forget()
+            if narrow:
+                options.grid(row=1,column=0,columnspan=3,sticky="w",pady=(3,0))
+                for control in flags:
+                    control.pack_forget()
+                    control.pack(side="left",padx=(0,12))
+            else:
+                options.grid(row=0,column=2,sticky="ne",padx=(6,0))
+                for control in flags:
+                    control.pack_forget()
+                    control.pack(anchor="w",pady=0)
+        layout.bind("<Configure>",fit_translation)
 
     def _home_overlay(self,p):
         row=tk.Frame(p,bg=CARD)
@@ -370,14 +400,18 @@ class WWIIDashboard(Dashboard):
             slider.pack(side="right",fill="x",expand=True,padx=(12,6))
         options=tk.Frame(p,bg=CARD)
         options.pack(fill="x",pady=(5,0))
+        count_group=tk.Frame(options,bg=CARD)
+        count_group.pack(side="left")
         from app import MIN_OVERLAY_MESSAGES,MAX_OVERLAY_MESSAGES
-        text(options,tr(self.app,"messages")+":",color=MUTED,size=9).pack(side="left")
+        text(count_group,tr(self.app,"messages")+":",color=MUTED,size=9).pack(side="left")
         amount=ttk.Combobox(
-            options,values=list(range(MIN_OVERLAY_MESSAGES,MAX_OVERLAY_MESSAGES+1)),
+            count_group,values=list(range(MIN_OVERLAY_MESSAGES,MAX_OVERLAY_MESSAGES+1)),
             textvariable=self.app.max_messages_var,width=3,state="readonly")
         amount.pack(side="left",padx=(5,10))
         amount.bind("<<ComboboxSelected>>",
                     lambda _e:self.app._max_messages_changed())
+        presets_group=tk.Frame(options,bg=CARD)
+        presets_group.pack(side="left")
         at_high_dpi=float(self.root.tk.call("tk","scaling"))>=1.85
         short_standard={"ru":"Стандарт","uk":"Стандарт","en":"Default"}
         short_text={"ru":"Только текст","uk":"Лише текст","en":"Text only"}
@@ -392,7 +426,27 @@ class WWIIDashboard(Dashboard):
                 caption=short_standard.get(self.app.ui_language,"Default")
             if at_high_dpi and label=="text_only":
                 caption=short_text.get(self.app.ui_language,"Text only")
-            tactical_action(options,caption,callback).pack(side="left",padx=(0,4))
+            tactical_action(presets_group,caption,callback).pack(
+                side="left",padx=(0,4))
+
+        # On 150%-sized text at narrow widths, put all four presets on
+        # their own row instead of cropping the final preset at the edge.
+        appearance_stacked=[False]
+        def fit_presets(event):
+            total=count_group.winfo_reqwidth()+presets_group.winfo_reqwidth()+6
+            stacked=event.width<total
+            if stacked==appearance_stacked[0]:
+                return
+            appearance_stacked[0]=stacked
+            count_group.pack_forget()
+            presets_group.pack_forget()
+            if stacked:
+                count_group.pack(anchor="w")
+                presets_group.pack(anchor="w",pady=(4,0))
+            else:
+                count_group.pack(side="left")
+                presets_group.pack(side="left")
+        options.bind("<Configure>",fit_presets)
 
     def _home_quick(self,p):
         layout=tk.Frame(p,bg=CARD)
@@ -419,13 +473,31 @@ class WWIIDashboard(Dashboard):
                   "export":"Export data","updates":"Updates"},
         }
         labels=short.get(self.app.ui_language,short["en"])
+        quick_buttons=[]
         for i,(name,callback) in enumerate(controls):
             label=labels[name]
             button=tactical_action(layout,label,callback,
                                   primary=name=="test",icon=name)
             button.grid(row=i//3,column=i%3,sticky="nsew",padx=3,pady=4,ipady=2)
+            quick_buttons.append(button)
             if name=="configure":
                 self.app.overlay_edit_button=button
+
+        # 3x2 on normal displays; 2x3 when actual widget measurements
+        # show that high-DPI text cannot fit in the available panel.
+        layout_columns=[3]
+        def fit_actions(event):
+            width_required=3*(max(w.winfo_reqwidth() for w in quick_buttons)+8)
+            columns=3 if event.width>=width_required else 2
+            if columns==layout_columns[0]:
+                return
+            layout_columns[0]=columns
+            for column in range(3):
+                layout.columnconfigure(column,weight=1 if column<columns else 0)
+            for index,button in enumerate(quick_buttons):
+                button.grid_configure(row=index//columns,column=index%columns)
+
+        layout.bind("<Configure>",fit_actions)
 
     def navigate(self,name):
         if name not in self.pages:return False
