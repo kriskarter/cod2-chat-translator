@@ -31,7 +31,7 @@ class DashboardContractTests(unittest.TestCase):
         self.assertIn("ui_photo(header,\"hero.png\")", tactical)
         self.assertIn('nav=tk.Frame(nav_shell,bg=SIDEBAR)', tactical)
         self.assertNotIn("sidebar.pack(side=\"left\"", tactical)
-        self.assertIn('self._home_overlay_prefs', tactical)
+        self.assertNotIn('self._home_overlay_prefs', tactical)
         self.assertIn('self._home_quick', tactical)
 
     def test_all_localizations_cover_the_same_pages_and_labels(self):

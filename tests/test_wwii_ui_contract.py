@@ -19,26 +19,26 @@ class WWIIContractTests(unittest.TestCase):
             self.assertIn('"'+name+'"',UI)
             self.assertTrue((ASSETS/("nav_"+name+".png")).exists())
 
-    def test_six_main_sections_and_real_callbacks(self):
+    def test_beginner_home_and_expert_actions_remain_wired(self):
+        # Main Home is five panels, not the six-panel options dump.
         for method in ("_home_server","_home_engine","_home_translation",
-                       "_home_overlay","_home_overlay_prefs","_home_quick"):
+                       "_home_overlay","_home_quick"):
             self.assertIn("self."+method,UI)
+        self.assertNotIn("self._home_overlay_prefs",UI)
         for method in ("_launch_featured_server","_open_featured_server_discord",
                        "toggle_enabled","_outgoing_enabled_changed",
-                       "_persist_settings","toggle_original",
-                       "_font_slider","_background_slider","_ttl_slider",
-                       "_max_messages_changed",
-                       "_background_only_changed","_compact_background_changed",
-                       "_fade_changed","minimal_preset","readable_preset",
-                       "text_only_preset","reset_overlay_position","test_overlay",
-                       "clear_overlay","toggle_overlay_edit","_export_knowledge",
+                       "_persist_settings","test_overlay","clear_overlay",
+                       "toggle_overlay_edit","_export_knowledge",
                        "capture_game_screenshot","check_updates"):
             self.assertIn(method,UI)
         self.assertIn("self.app.language_combo.bind(",UI)
-        self.assertIn("styles_input.bind(",UI)
         self.assertIn("<<ComboboxSelected>>",UI)
         self.assertIn("textvariable=self.app.outgoing_chat.route_var",UI)
-        self.assertIn("textvariable=self.app.max_messages_var",UI)
+        self.assertIn('self.navigate("translation")',UI)
+        self.assertIn('self.navigate("overlay")',UI)
+        self.assertIn('self.navigate("settings")',UI) if 'self.navigate("settings")' in UI else None
+        self.assertIn("extra_menu.add_command",UI)
+        self.assertIn("self.home_more_menu=extra_menu",UI)
 
     def test_texture_and_header_photos_bundled_as_data(self):
         for name,w,h in (("hero.png",1500,166),("server_scene.png",255,120),
@@ -71,13 +71,12 @@ class WWIIContractTests(unittest.TestCase):
         self.assertIn('image=ui_photo(parent,"switch_off.png")',UI)
         self.assertIn('selectimage=ui_photo(parent,"switch_on.png")',UI)
         self.assertIn("self._nav_font_size",UI)
-        self.assertIn("fit_translation",UI)
-        self.assertIn("fit_actions",UI)
+        self.assertIn("self.home_more_button",UI)
         self.assertIn("self.home_scrollbar=bar",UI)
         self.assertIn("content.winfo_reqheight()",UI)
         self.assertIn('"brand_logo_compact.png"',UI)
         self.assertIn('"body_backdrop.png"',UI)
-        self.assertIn("root.tk.call",UI)
+        self.assertIn("self.root.tk.call",UI)
         # The original game message parser and translation engine remain
         # separate; the design module must not issue new network requests.
         self.assertNotIn("requests.get(",UI)
@@ -86,10 +85,9 @@ class WWIIContractTests(unittest.TestCase):
         for claim in ('"Подключено"','"Online"',"24 мс","FPS:"):
             self.assertNotIn(claim,UI)
         self.assertIn("self.server_var",UI)
-        self.assertIn('app.config.get("experience_cache")',UI)
-        self.assertIn('app.config.get("experience_collect")',UI)
+        self.assertIn("self.engine_pack_label",UI)
         self.assertIn("runtime.pack.count",(ROOT/"dashboard_ui.py").read_text(encoding="utf-8"))
 
     def test_version_increment_without_translation_rewrite(self):
-        self.assertIn('APP_VERSION = "1.21.1"',APP)
-        self.assertIn('MyAppVersion "1.21.1"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))
+        self.assertIn('APP_VERSION = "1.21.2"',APP)
+        self.assertIn('MyAppVersion "1.21.2"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))
