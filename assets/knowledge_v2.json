@@ -1,0 +1,4689 @@
+{
+  "schema": 1,
+  "version": 3,
+  "entries": [
+    {
+      "id": "game-001",
+      "forms": {
+        "en": [
+          "hello everyone",
+          "hi all",
+          "hey all",
+          "helo all"
+        ],
+        "ru": [
+          "привет всем",
+          "всем привет",
+          "прив всем",
+          "privet vsem"
+        ],
+        "uk": [
+          "привіт усім",
+          "всім привіт",
+          "pryvit usim"
+        ],
+        "pl": [
+          "cześć wszystkim",
+          "czesc wszystkim"
+        ],
+        "de": [
+          "hallo zusammen"
+        ],
+        "fr": [
+          "salut tout le monde"
+        ],
+        "es": [
+          "hola a todos"
+        ],
+        "tr": [
+          "herkese merhaba"
+        ]
+      },
+      "translations": {
+        "en": "hello everyone",
+        "ru": "привет всем",
+        "uk": "привіт усім",
+        "pl": "cześć wszystkim",
+        "de": "hallo zusammen",
+        "fr": "salut tout le monde",
+        "es": "hola a todos",
+        "tr": "herkese merhaba"
+      }
+    },
+    {
+      "id": "game-002",
+      "forms": {
+        "en": [
+          "bye everyone",
+          "see you all"
+        ],
+        "ru": [
+          "всем пока",
+          "пока всем"
+        ],
+        "uk": [
+          "усім бувайте",
+          "бувайте всі"
+        ]
+      },
+      "translations": {
+        "en": "bye everyone",
+        "ru": "всем пока",
+        "uk": "усім бувайте"
+      }
+    },
+    {
+      "id": "game-003",
+      "forms": {
+        "en": [
+          "thanks a lot",
+          "thank you very much"
+        ],
+        "ru": [
+          "большое спасибо",
+          "спасибо большое"
+        ],
+        "uk": [
+          "дуже дякую",
+          "велике спасибі"
+        ],
+        "pl": [
+          "wielkie dzięki",
+          "wielkie dzieki"
+        ],
+        "de": [
+          "vielen dank"
+        ],
+        "fr": [
+          "merci beaucoup"
+        ],
+        "es": [
+          "muchas gracias"
+        ],
+        "tr": [
+          "çok teşekkürler"
+        ]
+      },
+      "translations": {
+        "en": "thanks a lot",
+        "ru": "большое спасибо",
+        "uk": "дуже дякую",
+        "pl": "wielkie dzięki",
+        "de": "vielen dank",
+        "fr": "merci beaucoup",
+        "es": "muchas gracias",
+        "tr": "çok teşekkürler"
+      }
+    },
+    {
+      "id": "game-004",
+      "forms": {
+        "en": [
+          "you're welcome",
+          "you are welcome"
+        ],
+        "ru": [
+          "не за что"
+        ],
+        "uk": [
+          "нема за що"
+        ]
+      },
+      "translations": {
+        "en": "no problem",
+        "ru": "не за что",
+        "uk": "немає за що"
+      }
+    },
+    {
+      "id": "game-005",
+      "forms": {
+        "en": [
+          "sorry mate",
+          "sorry bro"
+        ],
+        "ru": [
+          "извини брат",
+          "сорян брат"
+        ],
+        "uk": [
+          "вибач друже",
+          "вибач брате"
+        ]
+      },
+      "translations": {
+        "en": "sorry mate",
+        "ru": "извини брат",
+        "uk": "вибач друже"
+      }
+    },
+    {
+      "id": "game-006",
+      "forms": {
+        "en": [
+          "my bad",
+          "my fault"
+        ],
+        "ru": [
+          "моя вина",
+          "мой косяк"
+        ],
+        "uk": [
+          "моя вина",
+          "мій косяк"
+        ]
+      },
+      "translations": {
+        "en": "my bad",
+        "ru": "моя вина",
+        "uk": "моя вина"
+      }
+    },
+    {
+      "id": "game-007",
+      "forms": {
+        "en": [
+          "nice one mate",
+          "nice one",
+          "well done"
+        ],
+        "ru": [
+          "красавчик",
+          "молодец"
+        ],
+        "uk": [
+          "молодець",
+          "гарно"
+        ]
+      },
+      "translations": {
+        "en": "nice one mate",
+        "ru": "красавчик",
+        "uk": "молодець"
+      }
+    },
+    {
+      "id": "game-008",
+      "forms": {
+        "en": [
+          "nice shot",
+          "good shot"
+        ],
+        "ru": [
+          "хороший выстрел",
+          "отличный выстрел"
+        ],
+        "uk": [
+          "гарний постріл",
+          "чудовий постріл"
+        ]
+      },
+      "translations": {
+        "en": "nice shot",
+        "ru": "хороший выстрел",
+        "uk": "гарний постріл"
+      }
+    },
+    {
+      "id": "game-009",
+      "forms": {
+        "en": [
+          "lucky shot"
+        ],
+        "ru": [
+          "повезло с выстрелом"
+        ],
+        "uk": [
+          "пощастило з пострілом"
+        ]
+      },
+      "translations": {
+        "en": "lucky shot",
+        "ru": "повезло с выстрелом",
+        "uk": "пощастило з пострілом"
+      }
+    },
+    {
+      "id": "game-010",
+      "forms": {
+        "en": [
+          "good teamwork",
+          "nice teamwork"
+        ],
+        "ru": [
+          "хорошая командная игра",
+          "отличная командная игра"
+        ],
+        "uk": [
+          "гарна командна гра"
+        ]
+      },
+      "translations": {
+        "en": "good teamwork",
+        "ru": "хорошая командная игра",
+        "uk": "гарна командна гра"
+      }
+    },
+    {
+      "id": "game-011",
+      "forms": {
+        "en": [
+          "that was close",
+          "so close"
+        ],
+        "ru": [
+          "было близко"
+        ],
+        "uk": [
+          "було близько"
+        ]
+      },
+      "translations": {
+        "en": "that was close",
+        "ru": "было близко",
+        "uk": "було близько"
+      }
+    },
+    {
+      "id": "game-012",
+      "forms": {
+        "en": [
+          "one more round",
+          "another round"
+        ],
+        "ru": [
+          "ещё раунд",
+          "еще раунд"
+        ],
+        "uk": [
+          "ще раунд"
+        ]
+      },
+      "translations": {
+        "en": "one more round",
+        "ru": "ещё раунд",
+        "uk": "ще раунд"
+      }
+    },
+    {
+      "id": "game-013",
+      "forms": {
+        "en": [
+          "im ready",
+          "i'm ready",
+          "i am ready"
+        ],
+        "ru": [
+          "я готов",
+          "готов"
+        ],
+        "uk": [
+          "я готовий",
+          "готовий"
+        ]
+      },
+      "translations": {
+        "en": "im ready",
+        "ru": "я готов",
+        "uk": "я готовий"
+      }
+    },
+    {
+      "id": "game-014",
+      "forms": {
+        "en": [
+          "are you ready?"
+        ],
+        "ru": [
+          "ты готов?"
+        ],
+        "uk": [
+          "ти готовий?"
+        ]
+      },
+      "translations": {
+        "en": "are you ready?",
+        "ru": "ты готов?",
+        "uk": "ти готовий?"
+      }
+    },
+    {
+      "id": "game-015",
+      "forms": {
+        "en": [
+          "wait for me"
+        ],
+        "ru": [
+          "подожди меня",
+          "жди меня",
+          "podozhdi menya"
+        ],
+        "uk": [
+          "зачекай мене",
+          "чекай мене"
+        ],
+        "pl": [
+          "poczekaj na mnie"
+        ],
+        "de": [
+          "warte auf mich"
+        ],
+        "fr": [
+          "attends-moi"
+        ],
+        "es": [
+          "espérame"
+        ],
+        "tr": [
+          "beni bekle"
+        ]
+      },
+      "translations": {
+        "en": "wait for me",
+        "ru": "подожди меня",
+        "uk": "зачекай мене",
+        "pl": "poczekaj na mnie",
+        "de": "warte auf mich",
+        "fr": "attends-moi",
+        "es": "espérame",
+        "tr": "beni bekle"
+      }
+    },
+    {
+      "id": "game-016",
+      "forms": {
+        "en": [
+          "wait a sec",
+          "wait a second",
+          "one sec"
+        ],
+        "ru": [
+          "секунду",
+          "подожди секунду"
+        ],
+        "uk": [
+          "секунду",
+          "зачекай секунду"
+        ]
+      },
+      "translations": {
+        "en": "wait a sec",
+        "ru": "секунду",
+        "uk": "секунду"
+      }
+    },
+    {
+      "id": "game-017",
+      "forms": {
+        "en": [
+          "follow me"
+        ],
+        "ru": [
+          "иди за мной",
+          "за мной"
+        ],
+        "uk": [
+          "іди за мною",
+          "за мною"
+        ]
+      },
+      "translations": {
+        "en": "follow me",
+        "ru": "иди за мной",
+        "uk": "іди за мною"
+      }
+    },
+    {
+      "id": "game-018",
+      "forms": {
+        "en": [
+          "coming from the left"
+        ],
+        "ru": [
+          "иду слева",
+          "захожу слева"
+        ],
+        "uk": [
+          "йду зліва",
+          "заходжу зліва"
+        ]
+      },
+      "translations": {
+        "en": "coming from the left",
+        "ru": "иду слева",
+        "uk": "йду зліва"
+      }
+    },
+    {
+      "id": "game-019",
+      "forms": {
+        "en": [
+          "coming from the right"
+        ],
+        "ru": [
+          "иду справа",
+          "захожу справа"
+        ],
+        "uk": [
+          "йду справа",
+          "заходжу справа"
+        ]
+      },
+      "translations": {
+        "en": "coming from the right",
+        "ru": "иду справа",
+        "uk": "йду справа"
+      }
+    },
+    {
+      "id": "game-020",
+      "forms": {
+        "en": [
+          "behind you"
+        ],
+        "ru": [
+          "у тебя за спиной",
+          "сзади тебя"
+        ],
+        "uk": [
+          "у тебе за спиною",
+          "позаду тебе"
+        ]
+      },
+      "translations": {
+        "en": "behind you",
+        "ru": "у тебя за спиной",
+        "uk": "у тебе за спиною"
+      }
+    },
+    {
+      "id": "game-021",
+      "forms": {
+        "en": [
+          "i'll flank them",
+          "ill flank them",
+          "i will flank them"
+        ],
+        "ru": [
+          "зайду им в тыл",
+          "обойду их"
+        ],
+        "uk": [
+          "зайду їм у тил",
+          "обійду їх"
+        ]
+      },
+      "translations": {
+        "en": "i'll flank them",
+        "ru": "зайду им в тыл",
+        "uk": "зайду їм у тил"
+      }
+    },
+    {
+      "id": "game-022",
+      "forms": {
+        "en": [
+          "i'll come around from behind",
+          "ill come around from behind"
+        ],
+        "ru": [
+          "ща зайду сзади",
+          "сейчас зайду сзади",
+          "shcha zaydu szadi"
+        ],
+        "uk": [
+          "зараз зайду ззаду"
+        ]
+      },
+      "translations": {
+        "en": "i'll come around from behind",
+        "ru": "ща зайду сзади",
+        "uk": "зараз зайду ззаду"
+      }
+    },
+    {
+      "id": "game-023",
+      "forms": {
+        "en": [
+          "cover me",
+          "cover me pls",
+          "cover me please",
+          "cover me plz"
+        ],
+        "ru": [
+          "прикрой меня",
+          "прикрой",
+          "прикрой меня пж",
+          "prikroi menya",
+          "prikroy menya",
+          "прикрой me"
+        ],
+        "uk": [
+          "прикрий мене",
+          "прикрий"
+        ],
+        "pl": [
+          "osłaniaj mnie",
+          "oslaniaj mnie"
+        ],
+        "de": [
+          "deck mich"
+        ],
+        "fr": [
+          "couvre-moi"
+        ],
+        "es": [
+          "cúbreme"
+        ],
+        "tr": [
+          "beni koru"
+        ]
+      },
+      "translations": {
+        "en": "cover me",
+        "ru": "прикрой меня",
+        "uk": "прикрий мене",
+        "pl": "osłaniaj mnie",
+        "de": "deck mich",
+        "fr": "couvre-moi",
+        "es": "cúbreme",
+        "tr": "beni koru"
+      }
+    },
+    {
+      "id": "game-024",
+      "forms": {
+        "en": [
+          "cover them"
+        ],
+        "ru": [
+          "прикрой их"
+        ],
+        "uk": [
+          "прикрий їх"
+        ]
+      },
+      "translations": {
+        "en": "cover them",
+        "ru": "прикрой их",
+        "uk": "прикрий їх"
+      }
+    },
+    {
+      "id": "game-025",
+      "forms": {
+        "en": [
+          "reloading",
+          "im reloading",
+          "i'm reloading",
+          "reloadin"
+        ],
+        "ru": [
+          "перезаряжаюсь",
+          "perezaryazhayus",
+          "релоадюсь"
+        ],
+        "uk": [
+          "перезаряджаюся",
+          "перезаряджаюсь"
+        ],
+        "pl": [
+          "przeładowuję"
+        ],
+        "de": [
+          "ich lade nach"
+        ],
+        "fr": [
+          "je recharge"
+        ],
+        "es": [
+          "estoy recargando"
+        ],
+        "tr": [
+          "şarjör değiştiriyorum"
+        ]
+      },
+      "translations": {
+        "en": "reloading",
+        "ru": "перезаряжаюсь",
+        "uk": "перезаряджаюся",
+        "pl": "przeładowuję",
+        "de": "ich lade nach",
+        "fr": "je recharge",
+        "es": "estoy recargando",
+        "tr": "şarjör değiştiriyorum"
+      }
+    },
+    {
+      "id": "game-026",
+      "forms": {
+        "en": [
+          "cover me i'm reloading",
+          "cover me, i'm reloading",
+          "cover me im reloading"
+        ],
+        "ru": [
+          "прикрой меня я перезаряжаюсь",
+          "прикрой меня, я перезаряжаюсь"
+        ],
+        "uk": [
+          "прикрий мене я перезаряджаюся",
+          "прикрий мене, я перезаряджаюся"
+        ]
+      },
+      "translations": {
+        "en": "cover me i'm reloading",
+        "ru": "прикрой меня я перезаряжаюсь",
+        "uk": "прикрий мене я перезаряджаюся"
+      }
+    },
+    {
+      "id": "game-027",
+      "forms": {
+        "en": [
+          "out of ammo",
+          "no ammo"
+        ],
+        "ru": [
+          "нет патронов",
+          "патронов нет"
+        ],
+        "uk": [
+          "немає набоїв",
+          "нема патронів"
+        ]
+      },
+      "translations": {
+        "en": "no ammo",
+        "ru": "нет патронов",
+        "uk": "немає набоїв"
+      }
+    },
+    {
+      "id": "game-028",
+      "forms": {
+        "en": [
+          "need ammo",
+          "i need ammo"
+        ],
+        "ru": [
+          "нужны патроны",
+          "мне нужны патроны"
+        ],
+        "uk": [
+          "потрібні набої",
+          "мені потрібні набої"
+        ]
+      },
+      "translations": {
+        "en": "need ammo",
+        "ru": "нужны патроны",
+        "uk": "потрібні набої"
+      }
+    },
+    {
+      "id": "game-029",
+      "forms": {
+        "en": [
+          "need help",
+          "i need help",
+          "help me"
+        ],
+        "ru": [
+          "нужна помощь",
+          "помоги мне",
+          "помогите"
+        ],
+        "uk": [
+          "потрібна допомога",
+          "допоможи мені"
+        ],
+        "pl": [
+          "potrzebuję pomocy"
+        ],
+        "de": [
+          "brauche hilfe"
+        ],
+        "fr": [
+          "besoin d'aide"
+        ],
+        "es": [
+          "necesito ayuda"
+        ],
+        "tr": [
+          "yardıma ihtiyacım var"
+        ]
+      },
+      "translations": {
+        "en": "need help",
+        "ru": "нужна помощь",
+        "uk": "потрібна допомога",
+        "pl": "potrzebuję pomocy",
+        "de": "brauche hilfe",
+        "fr": "besoin d'aide",
+        "es": "necesito ayuda",
+        "tr": "yardıma ihtiyacım var"
+      }
+    },
+    {
+      "id": "game-030",
+      "forms": {
+        "en": [
+          "im coming to help",
+          "i'm coming to help"
+        ],
+        "ru": [
+          "иду на помощь"
+        ],
+        "uk": [
+          "йду на допомогу"
+        ]
+      },
+      "translations": {
+        "en": "im coming to help",
+        "ru": "иду на помощь",
+        "uk": "йду на допомогу"
+      }
+    },
+    {
+      "id": "game-031",
+      "forms": {
+        "en": [
+          "hold this position",
+          "hold here"
+        ],
+        "ru": [
+          "держи эту позицию",
+          "держи здесь"
+        ],
+        "uk": [
+          "тримай цю позицію",
+          "тримай тут"
+        ]
+      },
+      "translations": {
+        "en": "hold this position",
+        "ru": "держи эту позицию",
+        "uk": "тримай цю позицію"
+      }
+    },
+    {
+      "id": "game-032",
+      "forms": {
+        "en": [
+          "don't shoot",
+          "dont shoot",
+          "hold fire"
+        ],
+        "ru": [
+          "не стреляй",
+          "не стрелять"
+        ],
+        "uk": [
+          "не стріляй",
+          "не стріляти"
+        ],
+        "pl": [
+          "nie strzelaj"
+        ],
+        "de": [
+          "schieß nicht"
+        ],
+        "fr": [
+          "ne tire pas"
+        ],
+        "es": [
+          "no dispares"
+        ],
+        "tr": [
+          "ateş etme"
+        ]
+      },
+      "translations": {
+        "en": "don't shoot",
+        "ru": "не стреляй",
+        "uk": "не стріляй",
+        "pl": "nie strzelaj",
+        "de": "schieß nicht",
+        "fr": "ne tire pas",
+        "es": "no dispares",
+        "tr": "ateş etme"
+      }
+    },
+    {
+      "id": "game-033",
+      "forms": {
+        "en": [
+          "open fire"
+        ],
+        "ru": [
+          "открывай огонь",
+          "открыть огонь"
+        ],
+        "uk": [
+          "відкривай вогонь"
+        ]
+      },
+      "translations": {
+        "en": "open fire",
+        "ru": "открывай огонь",
+        "uk": "відкривай вогонь"
+      }
+    },
+    {
+      "id": "game-034",
+      "forms": {
+        "en": [
+          "get down"
+        ],
+        "ru": [
+          "пригнись"
+        ],
+        "uk": [
+          "пригнися"
+        ]
+      },
+      "translations": {
+        "en": "get down",
+        "ru": "пригнись",
+        "uk": "пригнися"
+      }
+    },
+    {
+      "id": "game-035",
+      "forms": {
+        "en": [
+          "be careful",
+          "watch out"
+        ],
+        "ru": [
+          "осторожно",
+          "берегись"
+        ],
+        "uk": [
+          "обережно",
+          "стережись"
+        ],
+        "pl": [
+          "uważaj",
+          "uwazaj"
+        ],
+        "de": [
+          "pass auf"
+        ],
+        "fr": [
+          "fais attention"
+        ],
+        "es": [
+          "ten cuidado"
+        ],
+        "tr": [
+          "dikkat et"
+        ]
+      },
+      "translations": {
+        "en": "be careful",
+        "ru": "осторожно",
+        "uk": "обережно",
+        "pl": "uważaj",
+        "de": "pass auf",
+        "fr": "fais attention",
+        "es": "ten cuidado",
+        "tr": "dikkat et"
+      }
+    },
+    {
+      "id": "game-036",
+      "forms": {
+        "en": [
+          "watch left",
+          "watch the left"
+        ],
+        "ru": [
+          "смотри слева"
+        ],
+        "uk": [
+          "дивись зліва"
+        ]
+      },
+      "translations": {
+        "en": "watch left",
+        "ru": "смотри слева",
+        "uk": "дивись зліва"
+      }
+    },
+    {
+      "id": "game-037",
+      "forms": {
+        "en": [
+          "watch right",
+          "watch the right"
+        ],
+        "ru": [
+          "смотри справа"
+        ],
+        "uk": [
+          "дивись справа"
+        ]
+      },
+      "translations": {
+        "en": "watch right",
+        "ru": "смотри справа",
+        "uk": "дивись справа"
+      }
+    },
+    {
+      "id": "game-038",
+      "forms": {
+        "en": [
+          "watch your back"
+        ],
+        "ru": [
+          "смотри за спиной",
+          "проверь тыл"
+        ],
+        "uk": [
+          "дивись за спиною"
+        ]
+      },
+      "translations": {
+        "en": "watch your back",
+        "ru": "смотри за спиной",
+        "uk": "дивись за спиною"
+      }
+    },
+    {
+      "id": "game-039",
+      "forms": {
+        "en": [
+          "grenade incoming",
+          "incoming grenade"
+        ],
+        "ru": [
+          "летит граната",
+          "граната летит"
+        ],
+        "uk": [
+          "летить граната",
+          "граната летить"
+        ]
+      },
+      "translations": {
+        "en": "grenade incoming",
+        "ru": "летит граната",
+        "uk": "летить граната"
+      }
+    },
+    {
+      "id": "game-040",
+      "forms": {
+        "en": [
+          "throw a grenade"
+        ],
+        "ru": [
+          "кинь гранату",
+          "брось гранату"
+        ],
+        "uk": [
+          "кинь гранату"
+        ]
+      },
+      "translations": {
+        "en": "throw a grenade",
+        "ru": "кинь гранату",
+        "uk": "кинь гранату"
+      }
+    },
+    {
+      "id": "game-041",
+      "forms": {
+        "en": [
+          "throw smoke",
+          "throw a smoke"
+        ],
+        "ru": [
+          "кинь дым",
+          "брось дымовуху"
+        ],
+        "uk": [
+          "кинь дим",
+          "кинь димову гранату"
+        ]
+      },
+      "translations": {
+        "en": "throw smoke",
+        "ru": "кинь дым",
+        "uk": "кинь дим"
+      }
+    },
+    {
+      "id": "game-042",
+      "forms": {
+        "en": [
+          "sniper ahead"
+        ],
+        "ru": [
+          "впереди снайпер",
+          "снайпер впереди"
+        ],
+        "uk": [
+          "попереду снайпер",
+          "снайпер попереду"
+        ]
+      },
+      "translations": {
+        "en": "sniper ahead",
+        "ru": "впереди снайпер",
+        "uk": "попереду снайпер"
+      }
+    },
+    {
+      "id": "game-043",
+      "forms": {
+        "en": [
+          "he's just camping",
+          "hes just camping",
+          "he is just camping"
+        ],
+        "ru": [
+          "да он тупо кемпит",
+          "он просто кемпит"
+        ],
+        "uk": [
+          "та він просто кемпить",
+          "він просто кемпить"
+        ]
+      },
+      "translations": {
+        "en": "he's just camping",
+        "ru": "да он тупо кемпит",
+        "uk": "та він просто кемпить"
+      }
+    },
+    {
+      "id": "game-044",
+      "forms": {
+        "en": [
+          "don't camp",
+          "dont camp"
+        ],
+        "ru": [
+          "не кемпи",
+          "не кемперить"
+        ],
+        "uk": [
+          "не кемпь",
+          "не кемпи"
+        ]
+      },
+      "translations": {
+        "en": "don't camp",
+        "ru": "не кемпи",
+        "uk": "не кемпь"
+      }
+    },
+    {
+      "id": "game-045",
+      "forms": {
+        "en": [
+          "he's low hp",
+          "hes low hp"
+        ],
+        "ru": [
+          "у него мало хп",
+          "у него мало здоровья"
+        ],
+        "uk": [
+          "у нього мало хп",
+          "у нього мало здоров'я"
+        ]
+      },
+      "translations": {
+        "en": "he's low hp",
+        "ru": "у него мало хп",
+        "uk": "у нього мало хп"
+      }
+    },
+    {
+      "id": "game-046",
+      "forms": {
+        "en": [
+          "he's low af",
+          "hes low af"
+        ],
+        "ru": [
+          "у него очень мало хп"
+        ],
+        "uk": [
+          "у нього дуже мало хп"
+        ]
+      },
+      "translations": {
+        "en": "he's low af",
+        "ru": "у него очень мало хп",
+        "uk": "у нього дуже мало хп"
+      }
+    },
+    {
+      "id": "game-047",
+      "forms": {
+        "en": [
+          "u laggin bro?",
+          "you lagging bro?",
+          "are you lagging?"
+        ],
+        "ru": [
+          "бро у тебя лагает?",
+          "бро, у тебя лагает?",
+          "у тебя лагает?"
+        ],
+        "uk": [
+          "бро, у тебе лагає?",
+          "у тебе лагає?"
+        ]
+      },
+      "translations": {
+        "en": "u laggin bro?",
+        "ru": "бро у тебя лагает?",
+        "uk": "бро, у тебе лагає?"
+      }
+    },
+    {
+      "id": "game-048",
+      "forms": {
+        "en": [
+          "im lagging",
+          "i'm lagging",
+          "i am lagging"
+        ],
+        "ru": [
+          "у меня лаги",
+          "меня лагает",
+          "у меня лагает",
+          "u menya lagi"
+        ],
+        "uk": [
+          "у мене лаги",
+          "у мене лагає"
+        ]
+      },
+      "translations": {
+        "en": "im lagging",
+        "ru": "у меня лаги",
+        "uk": "у мене лаги"
+      }
+    },
+    {
+      "id": "game-049",
+      "forms": {
+        "en": [
+          "high ping"
+        ],
+        "ru": [
+          "высокий пинг"
+        ],
+        "uk": [
+          "високий пінг"
+        ]
+      },
+      "translations": {
+        "en": "high ping",
+        "ru": "высокий пинг",
+        "uk": "високий пінг"
+      }
+    },
+    {
+      "id": "game-050",
+      "forms": {
+        "en": [
+          "low fps"
+        ],
+        "ru": [
+          "низкий фпс",
+          "мало фпс"
+        ],
+        "uk": [
+          "низький фпс",
+          "мало фпс"
+        ]
+      },
+      "translations": {
+        "en": "low fps",
+        "ru": "низкий фпс",
+        "uk": "низький фпс"
+      }
+    },
+    {
+      "id": "game-051",
+      "forms": {
+        "en": [
+          "i'll be right back",
+          "be right back"
+        ],
+        "ru": [
+          "сейчас вернусь",
+          "скоро вернусь",
+          "ща вернусь"
+        ],
+        "uk": [
+          "зараз повернуся",
+          "скоро повернуся"
+        ]
+      },
+      "translations": {
+        "en": "i'll be right back",
+        "ru": "сейчас вернусь",
+        "uk": "зараз повернуся"
+      }
+    },
+    {
+      "id": "game-052",
+      "forms": {
+        "en": [
+          "im back",
+          "i'm back",
+          "i am back"
+        ],
+        "ru": [
+          "я вернулся",
+          "я снова здесь"
+        ],
+        "uk": [
+          "я повернувся",
+          "я знову тут"
+        ]
+      },
+      "translations": {
+        "en": "im back",
+        "ru": "я вернулся",
+        "uk": "я повернувся"
+      }
+    },
+    {
+      "id": "game-053",
+      "forms": {
+        "en": [
+          "kick him"
+        ],
+        "ru": [
+          "кикни его",
+          "выкиньте его"
+        ],
+        "uk": [
+          "кікни його",
+          "виженіть його"
+        ]
+      },
+      "translations": {
+        "en": "kick him",
+        "ru": "кикни его",
+        "uk": "кікни його"
+      }
+    },
+    {
+      "id": "game-054",
+      "forms": {
+        "en": [
+          "is he cheating?"
+        ],
+        "ru": [
+          "он читерит?"
+        ],
+        "uk": [
+          "він читерить?"
+        ]
+      },
+      "translations": {
+        "en": "is he cheating?",
+        "ru": "он читерит?",
+        "uk": "він читерить?"
+      }
+    },
+    {
+      "id": "game-055",
+      "forms": {
+        "en": [
+          "stop cheating"
+        ],
+        "ru": [
+          "хватит читерить",
+          "перестань читерить"
+        ],
+        "uk": [
+          "припини читерити"
+        ]
+      },
+      "translations": {
+        "en": "stop cheating",
+        "ru": "хватит читерить",
+        "uk": "припини читерити"
+      }
+    },
+    {
+      "id": "game-056",
+      "forms": {
+        "en": [
+          "don't teamkill",
+          "dont teamkill"
+        ],
+        "ru": [
+          "не убивай своих",
+          "не тимкилль"
+        ],
+        "uk": [
+          "не вбивай своїх"
+        ]
+      },
+      "translations": {
+        "en": "don't teamkill",
+        "ru": "не убивай своих",
+        "uk": "не вбивай своїх"
+      }
+    },
+    {
+      "id": "game-057",
+      "forms": {
+        "en": [
+          "sorry for the teamkill",
+          "sorry tk"
+        ],
+        "ru": [
+          "сорян за тимкилл",
+          "извини за тимкилл"
+        ],
+        "uk": [
+          "вибач за тімкіл"
+        ]
+      },
+      "translations": {
+        "en": "sorry for the teamkill",
+        "ru": "сорян за тимкилл",
+        "uk": "вибач за тімкіл"
+      }
+    },
+    {
+      "id": "game-058",
+      "forms": {
+        "en": [
+          "balance the teams"
+        ],
+        "ru": [
+          "сбалансируйте команды",
+          "уравняйте команды"
+        ],
+        "uk": [
+          "збалансуйте команди"
+        ]
+      },
+      "translations": {
+        "en": "balance the teams",
+        "ru": "сбалансируйте команды",
+        "uk": "збалансуйте команди"
+      }
+    },
+    {
+      "id": "game-059",
+      "forms": {
+        "en": [
+          "switch teams",
+          "change team"
+        ],
+        "ru": [
+          "смени команду",
+          "перейди в другую команду"
+        ],
+        "uk": [
+          "зміни команду",
+          "перейди в іншу команду"
+        ]
+      },
+      "translations": {
+        "en": "switch teams",
+        "ru": "смени команду",
+        "uk": "зміни команду"
+      }
+    },
+    {
+      "id": "game-060",
+      "forms": {
+        "en": [
+          "at spawn"
+        ],
+        "ru": [
+          "на респе",
+          "на респавне"
+        ],
+        "uk": [
+          "на респі",
+          "на респавні"
+        ]
+      },
+      "translations": {
+        "en": "at spawn",
+        "ru": "на респе",
+        "uk": "на респі"
+      }
+    },
+    {
+      "id": "game-061",
+      "forms": {
+        "en": [
+          "go mid",
+          "go middle"
+        ],
+        "ru": [
+          "иди на центр",
+          "иди в центр"
+        ],
+        "uk": [
+          "іди в центр"
+        ]
+      },
+      "translations": {
+        "en": "go mid",
+        "ru": "иди на центр",
+        "uk": "іди в центр"
+      }
+    },
+    {
+      "id": "game-062",
+      "forms": {
+        "en": [
+          "don't peek mid",
+          "dont peek mid"
+        ],
+        "ru": [
+          "не высовывайся на центре",
+          "не выглядывай на центре",
+          "не пикай мид",
+          "не пикай mid"
+        ],
+        "uk": [
+          "не виглядай у центрі"
+        ]
+      },
+      "translations": {
+        "en": "don't peek mid",
+        "ru": "не высовывайся на центре",
+        "uk": "не виглядай у центрі"
+      }
+    },
+    {
+      "id": "game-063",
+      "forms": {
+        "en": [
+          "push together"
+        ],
+        "ru": [
+          "пушим вместе",
+          "атакуем вместе"
+        ],
+        "uk": [
+          "пушимо разом",
+          "атакуємо разом"
+        ]
+      },
+      "translations": {
+        "en": "push together",
+        "ru": "пушим вместе",
+        "uk": "пушимо разом"
+      }
+    },
+    {
+      "id": "game-064",
+      "forms": {
+        "en": [
+          "fall back",
+          "pull back"
+        ],
+        "ru": [
+          "отступай"
+        ],
+        "uk": [
+          "відступай"
+        ]
+      },
+      "translations": {
+        "en": "fall back",
+        "ru": "отступай",
+        "uk": "відступай"
+      }
+    },
+    {
+      "id": "game-065",
+      "forms": {
+        "en": [
+          "regroup"
+        ],
+        "ru": [
+          "перегруппируйся"
+        ],
+        "uk": [
+          "перегрупуйся"
+        ]
+      },
+      "translations": {
+        "en": "regroup",
+        "ru": "перегруппируйся",
+        "uk": "перегрупуйся"
+      }
+    },
+    {
+      "id": "game-066",
+      "forms": {
+        "en": [
+          "take the bomb",
+          "pick up the bomb"
+        ],
+        "ru": [
+          "подбери бомбу",
+          "возьми бомбу"
+        ],
+        "uk": [
+          "підбери бомбу",
+          "візьми бомбу"
+        ]
+      },
+      "translations": {
+        "en": "take the bomb",
+        "ru": "подбери бомбу",
+        "uk": "підбери бомбу"
+      }
+    },
+    {
+      "id": "game-067",
+      "forms": {
+        "en": [
+          "drop the bomb"
+        ],
+        "ru": [
+          "брось бомбу",
+          "скинь бомбу"
+        ],
+        "uk": [
+          "кинь бомбу",
+          "скинь бомбу"
+        ]
+      },
+      "translations": {
+        "en": "drop the bomb",
+        "ru": "брось бомбу",
+        "uk": "кинь бомбу"
+      }
+    },
+    {
+      "id": "game-068",
+      "forms": {
+        "en": [
+          "plant the bomb"
+        ],
+        "ru": [
+          "ставь бомбу",
+          "заложи бомбу"
+        ],
+        "uk": [
+          "встанови бомбу",
+          "заклади бомбу"
+        ]
+      },
+      "translations": {
+        "en": "plant the bomb",
+        "ru": "ставь бомбу",
+        "uk": "встанови бомбу"
+      }
+    },
+    {
+      "id": "game-069",
+      "forms": {
+        "en": [
+          "defuse the bomb"
+        ],
+        "ru": [
+          "разминируй бомбу",
+          "обезвредь бомбу"
+        ],
+        "uk": [
+          "знешкодь бомбу",
+          "розмінуй бомбу"
+        ]
+      },
+      "translations": {
+        "en": "defuse the bomb",
+        "ru": "разминируй бомбу",
+        "uk": "знешкодь бомбу"
+      }
+    },
+    {
+      "id": "game-070",
+      "forms": {
+        "en": [
+          "don't plant",
+          "dont plant"
+        ],
+        "ru": [
+          "не ставь бомбу",
+          "не закладывай"
+        ],
+        "uk": [
+          "не встановлюй бомбу",
+          "не закладай"
+        ]
+      },
+      "translations": {
+        "en": "don't plant",
+        "ru": "не ставь бомбу",
+        "uk": "не встановлюй бомбу"
+      }
+    },
+    {
+      "id": "game-071",
+      "forms": {
+        "en": [
+          "bomb dropped"
+        ],
+        "ru": [
+          "бомба упала",
+          "бомбу бросили"
+        ],
+        "uk": [
+          "бомба впала",
+          "бомбу кинули"
+        ]
+      },
+      "translations": {
+        "en": "bomb dropped",
+        "ru": "бомба упала",
+        "uk": "бомба впала"
+      }
+    },
+    {
+      "id": "game-072",
+      "forms": {
+        "en": [
+          "last man alive"
+        ],
+        "ru": [
+          "последний выживший",
+          "последний живой"
+        ],
+        "uk": [
+          "останній живий"
+        ]
+      },
+      "translations": {
+        "en": "last man alive",
+        "ru": "последний выживший",
+        "uk": "останній живий"
+      }
+    },
+    {
+      "id": "game-073",
+      "forms": {
+        "en": [
+          "all clear",
+          "area clear"
+        ],
+        "ru": [
+          "чисто",
+          "зона чиста"
+        ],
+        "uk": [
+          "чисто",
+          "зона чиста"
+        ]
+      },
+      "translations": {
+        "en": "all clear",
+        "ru": "чисто",
+        "uk": "чисто"
+      }
+    },
+    {
+      "id": "game-074",
+      "forms": {
+        "en": [
+          "where is the enemy?"
+        ],
+        "ru": [
+          "где враг?"
+        ],
+        "uk": [
+          "де ворог?"
+        ]
+      },
+      "translations": {
+        "en": "where is the enemy?",
+        "ru": "где враг?",
+        "uk": "де ворог?"
+      }
+    },
+    {
+      "id": "game-075",
+      "forms": {
+        "en": [
+          "where are they?"
+        ],
+        "ru": [
+          "где они?"
+        ],
+        "uk": [
+          "де вони?"
+        ]
+      },
+      "translations": {
+        "en": "where are they?",
+        "ru": "где они?",
+        "uk": "де вони?"
+      }
+    },
+    {
+      "id": "game-076",
+      "forms": {
+        "en": [
+          "where are you?",
+          "where r u?",
+          "where u at?",
+          "where are u?",
+          "where r you?"
+        ],
+        "ru": [
+          "ты где?",
+          "где ты?",
+          "ty gde?",
+          "gde ty?"
+        ],
+        "uk": [
+          "ти де?",
+          "де ти?"
+        ],
+        "pl": [
+          "gdzie jesteś?",
+          "gdzie jestes?"
+        ],
+        "de": [
+          "wo bist du?"
+        ],
+        "fr": [
+          "où es-tu?"
+        ],
+        "es": [
+          "¿dónde estás?"
+        ],
+        "tr": [
+          "neredesin?"
+        ]
+      },
+      "translations": {
+        "en": "where are you?",
+        "ru": "ты где?",
+        "uk": "ти де?",
+        "pl": "gdzie jesteś?",
+        "de": "wo bist du?",
+        "fr": "où es-tu?",
+        "es": "¿dónde estás?",
+        "tr": "neredesin?"
+      }
+    },
+    {
+      "id": "game-077",
+      "forms": {
+        "en": [
+          "where is the bomb?"
+        ],
+        "ru": [
+          "где бомба?",
+          "gde bomba?",
+          "где bomb?",
+          "gde bomb?"
+        ],
+        "uk": [
+          "де бомба?"
+        ],
+        "pl": [
+          "gdzie jest bomba?"
+        ],
+        "de": [
+          "wo ist die bombe?"
+        ],
+        "fr": [
+          "où est la bombe?"
+        ],
+        "es": [
+          "¿dónde está la bomba?"
+        ],
+        "tr": [
+          "bomba nerede?"
+        ]
+      },
+      "translations": {
+        "en": "where is the bomb?",
+        "ru": "где бомба?",
+        "uk": "де бомба?",
+        "pl": "gdzie jest bomba?",
+        "de": "wo ist die bombe?",
+        "fr": "où est la bombe?",
+        "es": "¿dónde está la bomba?",
+        "tr": "bomba nerede?"
+      }
+    },
+    {
+      "id": "game-078",
+      "forms": {
+        "en": [
+          "on my way",
+          "im on my way",
+          "i'm on my way"
+        ],
+        "ru": [
+          "уже иду",
+          "я в пути",
+          "uzhe idu"
+        ],
+        "uk": [
+          "вже йду",
+          "я в дорозі"
+        ]
+      },
+      "translations": {
+        "en": "on my way",
+        "ru": "уже иду",
+        "uk": "вже йду"
+      }
+    },
+    {
+      "id": "game-079",
+      "forms": {
+        "en": [
+          "on the left side"
+        ],
+        "ru": [
+          "с левой стороны",
+          "слева"
+        ],
+        "uk": [
+          "з лівого боку",
+          "зліва"
+        ]
+      },
+      "translations": {
+        "en": "on the left side",
+        "ru": "с левой стороны",
+        "uk": "з лівого боку"
+      }
+    },
+    {
+      "id": "game-080",
+      "forms": {
+        "en": [
+          "on the right side"
+        ],
+        "ru": [
+          "с правой стороны",
+          "справа"
+        ],
+        "uk": [
+          "з правого боку",
+          "справа"
+        ]
+      },
+      "translations": {
+        "en": "on the right side",
+        "ru": "с правой стороны",
+        "uk": "з правого боку"
+      }
+    },
+    {
+      "id": "game-081",
+      "forms": {
+        "en": [
+          "upstairs",
+          "on the upper floor"
+        ],
+        "ru": [
+          "наверху",
+          "на верхнем этаже"
+        ],
+        "uk": [
+          "нагорі",
+          "на верхньому поверсі"
+        ]
+      },
+      "translations": {
+        "en": "upstairs",
+        "ru": "наверху",
+        "uk": "нагорі"
+      }
+    },
+    {
+      "id": "game-082",
+      "forms": {
+        "en": [
+          "downstairs",
+          "on the lower floor"
+        ],
+        "ru": [
+          "внизу",
+          "на нижнем этаже"
+        ],
+        "uk": [
+          "внизу",
+          "на нижньому поверсі"
+        ]
+      },
+      "translations": {
+        "en": "downstairs",
+        "ru": "внизу",
+        "uk": "внизу"
+      }
+    },
+    {
+      "id": "game-083",
+      "forms": {
+        "en": [
+          "in the window"
+        ],
+        "ru": [
+          "в окне"
+        ],
+        "uk": [
+          "у вікні"
+        ]
+      },
+      "translations": {
+        "en": "in the window",
+        "ru": "в окне",
+        "uk": "у вікні"
+      }
+    },
+    {
+      "id": "game-084",
+      "forms": {
+        "en": [
+          "on the roof"
+        ],
+        "ru": [
+          "на крыше"
+        ],
+        "uk": [
+          "на даху"
+        ]
+      },
+      "translations": {
+        "en": "on the roof",
+        "ru": "на крыше",
+        "uk": "на даху"
+      }
+    },
+    {
+      "id": "game-085",
+      "forms": {
+        "en": [
+          "on the bridge"
+        ],
+        "ru": [
+          "на мосту"
+        ],
+        "uk": [
+          "на мосту"
+        ]
+      },
+      "translations": {
+        "en": "on the bridge",
+        "ru": "на мосту",
+        "uk": "на мосту"
+      }
+    },
+    {
+      "id": "game-086",
+      "forms": {
+        "en": [
+          "in the house"
+        ],
+        "ru": [
+          "в доме"
+        ],
+        "uk": [
+          "у будинку"
+        ]
+      },
+      "translations": {
+        "en": "in the house",
+        "ru": "в доме",
+        "uk": "у будинку"
+      }
+    },
+    {
+      "id": "game-087",
+      "forms": {
+        "en": [
+          "don't move",
+          "dont move"
+        ],
+        "ru": [
+          "не двигайся"
+        ],
+        "uk": [
+          "не рухайся"
+        ]
+      },
+      "translations": {
+        "en": "don't move",
+        "ru": "не двигайся",
+        "uk": "не рухайся"
+      }
+    },
+    {
+      "id": "game-088",
+      "forms": {
+        "en": [
+          "don't go there",
+          "dont go there"
+        ],
+        "ru": [
+          "не ходи туда",
+          "не иди туда"
+        ],
+        "uk": [
+          "не йди туди"
+        ]
+      },
+      "translations": {
+        "en": "don't go there",
+        "ru": "не ходи туда",
+        "uk": "не йди туди"
+      }
+    },
+    {
+      "id": "game-089",
+      "forms": {
+        "en": [
+          "not me",
+          "it wasn't me"
+        ],
+        "ru": [
+          "не я",
+          "это был не я"
+        ],
+        "uk": [
+          "не я",
+          "це був не я"
+        ]
+      },
+      "translations": {
+        "en": "not me",
+        "ru": "не я",
+        "uk": "не я"
+      }
+    },
+    {
+      "id": "game-090",
+      "forms": {
+        "en": [
+          "i don't know",
+          "i dont know"
+        ],
+        "ru": [
+          "я не знаю"
+        ],
+        "uk": [
+          "я не знаю"
+        ],
+        "pl": [
+          "nie wiem"
+        ],
+        "de": [
+          "ich weiß nicht"
+        ],
+        "fr": [
+          "je ne sais pas"
+        ],
+        "es": [
+          "no sé"
+        ],
+        "tr": [
+          "bilmiyorum"
+        ]
+      },
+      "translations": {
+        "en": "i don't know",
+        "ru": "я не знаю",
+        "uk": "я не знаю",
+        "pl": "nie wiem",
+        "de": "ich weiß nicht",
+        "fr": "je ne sais pas",
+        "es": "no sé",
+        "tr": "bilmiyorum"
+      }
+    },
+    {
+      "id": "game-091",
+      "forms": {
+        "en": [
+          "i understand",
+          "got it"
+        ],
+        "ru": [
+          "понял",
+          "я понял",
+          "ponyal"
+        ],
+        "uk": [
+          "зрозумів",
+          "я зрозумів"
+        ]
+      },
+      "translations": {
+        "en": "i understand",
+        "ru": "понял",
+        "uk": "зрозумів"
+      }
+    },
+    {
+      "id": "game-092",
+      "forms": {
+        "en": [
+          "i don't understand",
+          "i dont understand"
+        ],
+        "ru": [
+          "не понимаю",
+          "я не понял",
+          "ne ponimayu"
+        ],
+        "uk": [
+          "не розумію",
+          "я не зрозумів"
+        ],
+        "pl": [
+          "nie rozumiem"
+        ],
+        "de": [
+          "ich verstehe nicht"
+        ],
+        "fr": [
+          "je ne comprends pas"
+        ],
+        "es": [
+          "no entiendo"
+        ],
+        "tr": [
+          "anlamıyorum"
+        ]
+      },
+      "translations": {
+        "en": "i don't understand",
+        "ru": "не понимаю",
+        "uk": "не розумію",
+        "pl": "nie rozumiem",
+        "de": "ich verstehe nicht",
+        "fr": "je ne comprends pas",
+        "es": "no entiendo",
+        "tr": "anlamıyorum"
+      }
+    },
+    {
+      "id": "game-093",
+      "forms": {
+        "en": [
+          "say that again",
+          "repeat please"
+        ],
+        "ru": [
+          "повтори пожалуйста",
+          "повтори пж"
+        ],
+        "uk": [
+          "повтори будь ласка"
+        ]
+      },
+      "translations": {
+        "en": "say that again",
+        "ru": "повтори пожалуйста",
+        "uk": "повтори будь ласка"
+      }
+    },
+    {
+      "id": "game-094",
+      "forms": {
+        "en": [
+          "i don't speak english",
+          "i dont speak english"
+        ],
+        "ru": [
+          "я не говорю по английски",
+          "я не говорю по-английски"
+        ],
+        "uk": [
+          "я не розмовляю англійською"
+        ]
+      },
+      "translations": {
+        "en": "i don't speak english",
+        "ru": "я не говорю по английски",
+        "uk": "я не розмовляю англійською"
+      }
+    },
+    {
+      "id": "game-095",
+      "forms": {
+        "en": [
+          "im using a translator",
+          "i'm using a translator"
+        ],
+        "ru": [
+          "я пользуюсь переводчиком",
+          "я через переводчик"
+        ],
+        "uk": [
+          "я користуюся перекладачем"
+        ]
+      },
+      "translations": {
+        "en": "im using a translator",
+        "ru": "я пользуюсь переводчиком",
+        "uk": "я користуюся перекладачем"
+      }
+    },
+    {
+      "id": "game-096",
+      "forms": {
+        "en": [
+          "next map"
+        ],
+        "ru": [
+          "следующая карта"
+        ],
+        "uk": [
+          "наступна карта"
+        ]
+      },
+      "translations": {
+        "en": "next map",
+        "ru": "следующая карта",
+        "uk": "наступна карта"
+      }
+    },
+    {
+      "id": "game-097",
+      "forms": {
+        "en": [
+          "nice server",
+          "good server"
+        ],
+        "ru": [
+          "хороший сервер",
+          "классный сервер"
+        ],
+        "uk": [
+          "гарний сервер",
+          "класний сервер"
+        ]
+      },
+      "translations": {
+        "en": "nice server",
+        "ru": "хороший сервер",
+        "uk": "гарний сервер"
+      }
+    },
+    {
+      "id": "game-098",
+      "forms": {
+        "en": [
+          "that was fun"
+        ],
+        "ru": [
+          "было весело"
+        ],
+        "uk": [
+          "було весело"
+        ]
+      },
+      "translations": {
+        "en": "that was fun",
+        "ru": "было весело",
+        "uk": "було весело"
+      }
+    },
+    {
+      "id": "game-099",
+      "forms": {
+        "en": [
+          "i got disconnected"
+        ],
+        "ru": [
+          "меня выкинуло",
+          "меня отключило"
+        ],
+        "uk": [
+          "мене викинуло",
+          "мене від'єднало"
+        ]
+      },
+      "translations": {
+        "en": "i got disconnected",
+        "ru": "меня выкинуло",
+        "uk": "мене викинуло"
+      }
+    },
+    {
+      "id": "game-100",
+      "forms": {
+        "en": [
+          "i'll reconnect",
+          "ill reconnect"
+        ],
+        "ru": [
+          "переподключусь",
+          "перезайду"
+        ],
+        "uk": [
+          "перепідключуся",
+          "перезайду"
+        ]
+      },
+      "translations": {
+        "en": "i'll reconnect",
+        "ru": "переподключусь",
+        "uk": "перепідключуся"
+      }
+    },
+    {
+      "id": "game-101",
+      "forms": {
+        "en": [
+          "too easy",
+          "so easy"
+        ],
+        "ru": [
+          "слишком легко"
+        ],
+        "uk": [
+          "занадто легко"
+        ]
+      },
+      "translations": {
+        "en": "too easy",
+        "ru": "слишком легко",
+        "uk": "занадто легко"
+      }
+    },
+    {
+      "id": "game-102",
+      "forms": {
+        "en": [
+          "unlucky",
+          "bad luck"
+        ],
+        "ru": [
+          "не повезло",
+          "неудача"
+        ],
+        "uk": [
+          "не пощастило"
+        ]
+      },
+      "translations": {
+        "en": "no luck",
+        "ru": "не повезло",
+        "uk": "не пощастило"
+      }
+    },
+    {
+      "id": "intl-1",
+      "forms": {
+        "pl": [
+          "czesc",
+          "cześć"
+        ]
+      },
+      "translations": {
+        "en": "hello",
+        "ru": "привет",
+        "uk": "привіт"
+      }
+    },
+    {
+      "id": "intl-2",
+      "forms": {
+        "pl": [
+          "dzieki",
+          "dzięki",
+          "dziękuję",
+          "dziekuje"
+        ]
+      },
+      "translations": {
+        "en": "thanks",
+        "ru": "спасибо",
+        "uk": "дякую"
+      }
+    },
+    {
+      "id": "intl-3",
+      "forms": {
+        "pl": [
+          "poczekaj"
+        ]
+      },
+      "translations": {
+        "en": "wait",
+        "ru": "подожди",
+        "uk": "зачекай"
+      }
+    },
+    {
+      "id": "intl-4",
+      "forms": {
+        "de": [
+          "hallo zusammen"
+        ]
+      },
+      "translations": {
+        "en": "hello everyone",
+        "ru": "всем привет",
+        "uk": "привіт усім"
+      }
+    },
+    {
+      "id": "intl-5",
+      "forms": {
+        "de": [
+          "vielen dank"
+        ]
+      },
+      "translations": {
+        "en": "thanks a lot",
+        "ru": "большое спасибо",
+        "uk": "дуже дякую"
+      }
+    },
+    {
+      "id": "intl-6",
+      "forms": {
+        "fr": [
+          "salut tout le monde"
+        ]
+      },
+      "translations": {
+        "en": "hello everyone",
+        "ru": "всем привет",
+        "uk": "привіт усім"
+      }
+    },
+    {
+      "id": "intl-7",
+      "forms": {
+        "es": [
+          "hola a todos"
+        ]
+      },
+      "translations": {
+        "en": "hello everyone",
+        "ru": "всем привет",
+        "uk": "привіт усім"
+      }
+    },
+    {
+      "id": "intl-8",
+      "forms": {
+        "tr": [
+          "herkese merhaba"
+        ]
+      },
+      "translations": {
+        "en": "hello everyone",
+        "ru": "всем привет",
+        "uk": "привіт усім"
+      }
+    },
+    {
+      "id": "extra-001",
+      "forms": {
+        "en": [
+          "no problem",
+          "np"
+        ],
+        "ru": [
+          "без проблем"
+        ],
+        "uk": [
+          "без проблем"
+        ],
+        "pl": [
+          "nie ma problemu"
+        ],
+        "de": [
+          "kein problem"
+        ],
+        "fr": [
+          "pas de problème"
+        ],
+        "es": [
+          "no hay problema"
+        ],
+        "tr": [
+          "sorun değil"
+        ]
+      },
+      "translations": {
+        "en": "no problem",
+        "ru": "без проблем",
+        "uk": "без проблем",
+        "pl": "nie ma problemu",
+        "de": "kein problem",
+        "fr": "pas de problème",
+        "es": "no hay problema",
+        "tr": "sorun değil"
+      }
+    },
+    {
+      "id": "extra-002",
+      "forms": {
+        "en": [
+          "my ping is high"
+        ],
+        "ru": [
+          "у меня высокий пинг"
+        ],
+        "uk": [
+          "у мене високий пінг"
+        ]
+      },
+      "translations": {
+        "en": "my ping is high",
+        "ru": "у меня высокий пинг",
+        "uk": "у мене високий пінг"
+      }
+    },
+    {
+      "id": "extra-003",
+      "forms": {
+        "en": [
+          "regroup here"
+        ],
+        "ru": [
+          "соберитесь здесь"
+        ],
+        "uk": [
+          "зберіться тут"
+        ]
+      },
+      "translations": {
+        "en": "regroup here",
+        "ru": "соберитесь здесь",
+        "uk": "зберіться тут"
+      }
+    },
+    {
+      "id": "extra-004",
+      "forms": {
+        "en": [
+          "at the window"
+        ],
+        "ru": [
+          "у окна",
+          "около окна"
+        ],
+        "uk": [
+          "біля вікна"
+        ]
+      },
+      "translations": {
+        "en": "at the window",
+        "ru": "у окна",
+        "uk": "біля вікна"
+      }
+    },
+    {
+      "id": "extra-005",
+      "forms": {
+        "en": [
+          "we are falling back",
+          "we're falling back"
+        ],
+        "ru": [
+          "мы отходим",
+          "отходим"
+        ],
+        "uk": [
+          "ми відходимо",
+          "відходимо"
+        ]
+      },
+      "translations": {
+        "en": "we are falling back",
+        "ru": "мы отходим",
+        "uk": "ми відходимо"
+      }
+    },
+    {
+      "id": "extra-006",
+      "forms": {
+        "en": [
+          "i'm out of grenades",
+          "i am out of grenades"
+        ],
+        "ru": [
+          "у меня нет гранат",
+          "нет гранат"
+        ],
+        "uk": [
+          "у мене немає гранат",
+          "немає гранат"
+        ]
+      },
+      "translations": {
+        "en": "i have no grenades",
+        "ru": "у меня нет гранат",
+        "uk": "у мене немає гранат"
+      }
+    },
+    {
+      "id": "extra-007",
+      "forms": {
+        "en": [
+          "save your ammo"
+        ],
+        "ru": [
+          "экономь патроны"
+        ],
+        "uk": [
+          "бережи набої"
+        ]
+      },
+      "translations": {
+        "en": "save your ammo",
+        "ru": "экономь патроны",
+        "uk": "бережи набої"
+      }
+    },
+    {
+      "id": "extra-008",
+      "forms": {
+        "en": [
+          "don't waste ammo",
+          "dont waste ammo"
+        ],
+        "ru": [
+          "не трать патроны зря"
+        ],
+        "uk": [
+          "не витрачай набої дарма"
+        ]
+      },
+      "translations": {
+        "en": "don't waste ammo",
+        "ru": "не трать патроны зря",
+        "uk": "не витрачай набої дарма"
+      }
+    },
+    {
+      "id": "extra-009",
+      "forms": {
+        "en": [
+          "look behind you"
+        ],
+        "ru": [
+          "посмотри назад",
+          "оглянись"
+        ],
+        "uk": [
+          "подивись назад",
+          "озирнись"
+        ]
+      },
+      "translations": {
+        "en": "look behind you",
+        "ru": "посмотри назад",
+        "uk": "подивись назад"
+      }
+    },
+    {
+      "id": "extra-010",
+      "forms": {
+        "en": [
+          "enemy behind us"
+        ],
+        "ru": [
+          "враг у нас за спиной"
+        ],
+        "uk": [
+          "ворог у нас за спиною"
+        ]
+      },
+      "translations": {
+        "en": "enemy behind us",
+        "ru": "враг у нас за спиной",
+        "uk": "ворог у нас за спиною"
+      }
+    },
+    {
+      "id": "extra-011",
+      "forms": {
+        "en": [
+          "enemy on the roof"
+        ],
+        "ru": [
+          "враг на крыше"
+        ],
+        "uk": [
+          "ворог на даху"
+        ]
+      },
+      "translations": {
+        "en": "enemy on the roof",
+        "ru": "враг на крыше",
+        "uk": "ворог на даху"
+      }
+    },
+    {
+      "id": "extra-012",
+      "forms": {
+        "en": [
+          "enemy upstairs"
+        ],
+        "ru": [
+          "враг наверху"
+        ],
+        "uk": [
+          "ворог нагорі"
+        ]
+      },
+      "translations": {
+        "en": "enemy upstairs",
+        "ru": "враг наверху",
+        "uk": "ворог нагорі"
+      }
+    },
+    {
+      "id": "extra-013",
+      "forms": {
+        "en": [
+          "enemy downstairs"
+        ],
+        "ru": [
+          "враг внизу"
+        ],
+        "uk": [
+          "ворог внизу"
+        ]
+      },
+      "translations": {
+        "en": "enemy downstairs",
+        "ru": "враг внизу",
+        "uk": "ворог внизу"
+      }
+    },
+    {
+      "id": "extra-014",
+      "forms": {
+        "en": [
+          "enemy in the house"
+        ],
+        "ru": [
+          "враг в доме"
+        ],
+        "uk": [
+          "ворог у будинку"
+        ]
+      },
+      "translations": {
+        "en": "enemy in the house",
+        "ru": "враг в доме",
+        "uk": "ворог у будинку"
+      }
+    },
+    {
+      "id": "extra-015",
+      "forms": {
+        "en": [
+          "enemy in the window"
+        ],
+        "ru": [
+          "враг в окне"
+        ],
+        "uk": [
+          "ворог у вікні"
+        ]
+      },
+      "translations": {
+        "en": "enemy in the window",
+        "ru": "враг в окне",
+        "uk": "ворог у вікні"
+      }
+    },
+    {
+      "id": "extra-016",
+      "forms": {
+        "en": [
+          "enemy on the bridge"
+        ],
+        "ru": [
+          "враг на мосту"
+        ],
+        "uk": [
+          "ворог на мосту"
+        ]
+      },
+      "translations": {
+        "en": "enemy on the bridge",
+        "ru": "враг на мосту",
+        "uk": "ворог на мосту"
+      }
+    },
+    {
+      "id": "extra-017",
+      "forms": {
+        "en": [
+          "enemy on the left",
+          "enemy left"
+        ],
+        "ru": [
+          "враг слева"
+        ],
+        "uk": [
+          "ворог зліва"
+        ]
+      },
+      "translations": {
+        "en": "enemy on the left",
+        "ru": "враг слева",
+        "uk": "ворог зліва"
+      }
+    },
+    {
+      "id": "extra-018",
+      "forms": {
+        "en": [
+          "enemy on the right",
+          "enemy right"
+        ],
+        "ru": [
+          "враг справа"
+        ],
+        "uk": [
+          "ворог справа"
+        ]
+      },
+      "translations": {
+        "en": "enemy on the right",
+        "ru": "враг справа",
+        "uk": "ворог справа"
+      }
+    },
+    {
+      "id": "extra-019",
+      "forms": {
+        "en": [
+          "sniper on the roof"
+        ],
+        "ru": [
+          "снайпер на крыше"
+        ],
+        "uk": [
+          "снайпер на даху"
+        ]
+      },
+      "translations": {
+        "en": "sniper on the roof",
+        "ru": "снайпер на крыше",
+        "uk": "снайпер на даху"
+      }
+    },
+    {
+      "id": "extra-020",
+      "forms": {
+        "en": [
+          "watch the window"
+        ],
+        "ru": [
+          "следи за окном"
+        ],
+        "uk": [
+          "стеж за вікном"
+        ]
+      },
+      "translations": {
+        "en": "watch the window",
+        "ru": "следи за окном",
+        "uk": "стеж за вікном"
+      }
+    },
+    {
+      "id": "extra-021",
+      "forms": {
+        "en": [
+          "watch the roof"
+        ],
+        "ru": [
+          "следи за крышей"
+        ],
+        "uk": [
+          "стеж за дахом"
+        ]
+      },
+      "translations": {
+        "en": "watch the roof",
+        "ru": "следи за крышей",
+        "uk": "стеж за дахом"
+      }
+    },
+    {
+      "id": "extra-022",
+      "forms": {
+        "en": [
+          "hold the bridge"
+        ],
+        "ru": [
+          "держи мост"
+        ],
+        "uk": [
+          "тримай міст"
+        ]
+      },
+      "translations": {
+        "en": "hold the bridge",
+        "ru": "держи мост",
+        "uk": "тримай міст"
+      }
+    },
+    {
+      "id": "extra-023",
+      "forms": {
+        "en": [
+          "hold the stairs"
+        ],
+        "ru": [
+          "держи лестницу"
+        ],
+        "uk": [
+          "тримай сходи"
+        ]
+      },
+      "translations": {
+        "en": "hold the stairs",
+        "ru": "держи лестницу",
+        "uk": "тримай сходи"
+      }
+    },
+    {
+      "id": "extra-024",
+      "forms": {
+        "en": [
+          "check the house"
+        ],
+        "ru": [
+          "проверь дом"
+        ],
+        "uk": [
+          "перевір будинок"
+        ]
+      },
+      "translations": {
+        "en": "check the house",
+        "ru": "проверь дом",
+        "uk": "перевір будинок"
+      }
+    },
+    {
+      "id": "extra-025",
+      "forms": {
+        "en": [
+          "check the corners"
+        ],
+        "ru": [
+          "проверь углы"
+        ],
+        "uk": [
+          "перевір кути"
+        ]
+      },
+      "translations": {
+        "en": "check the corners",
+        "ru": "проверь углы",
+        "uk": "перевір кути"
+      }
+    },
+    {
+      "id": "extra-026",
+      "forms": {
+        "en": [
+          "don't rush",
+          "dont rush"
+        ],
+        "ru": [
+          "не спеши атаковать",
+          "не рашь"
+        ],
+        "uk": [
+          "не поспішай атакувати",
+          "не рашись"
+        ]
+      },
+      "translations": {
+        "en": "don't rush",
+        "ru": "не спеши атаковать",
+        "uk": "не поспішай атакувати"
+      }
+    },
+    {
+      "id": "extra-027",
+      "forms": {
+        "en": [
+          "rush together"
+        ],
+        "ru": [
+          "атакуем вместе",
+          "рашим вместе"
+        ],
+        "uk": [
+          "атакуємо разом"
+        ]
+      },
+      "translations": {
+        "en": "rush together",
+        "ru": "атакуем вместе",
+        "uk": "атакуємо разом"
+      }
+    },
+    {
+      "id": "extra-028",
+      "forms": {
+        "en": [
+          "go left"
+        ],
+        "ru": [
+          "иди налево",
+          "иди влево"
+        ],
+        "uk": [
+          "іди ліворуч"
+        ],
+        "pl": [
+          "idź w lewo"
+        ],
+        "de": [
+          "geh nach links"
+        ],
+        "fr": [
+          "va à gauche"
+        ],
+        "es": [
+          "ve a la izquierda"
+        ],
+        "tr": [
+          "sola git"
+        ]
+      },
+      "translations": {
+        "en": "go left",
+        "ru": "иди налево",
+        "uk": "іди ліворуч",
+        "pl": "idź w lewo",
+        "de": "geh nach links",
+        "fr": "va à gauche",
+        "es": "ve a la izquierda",
+        "tr": "sola git"
+      }
+    },
+    {
+      "id": "extra-029",
+      "forms": {
+        "en": [
+          "go right"
+        ],
+        "ru": [
+          "иди направо",
+          "иди вправо"
+        ],
+        "uk": [
+          "іди праворуч"
+        ],
+        "pl": [
+          "idź w prawo"
+        ],
+        "de": [
+          "geh nach rechts"
+        ],
+        "fr": [
+          "va à droite"
+        ],
+        "es": [
+          "ve a la derecha"
+        ],
+        "tr": [
+          "sağa git"
+        ]
+      },
+      "translations": {
+        "en": "go right",
+        "ru": "иди направо",
+        "uk": "іди праворуч",
+        "pl": "idź w prawo",
+        "de": "geh nach rechts",
+        "fr": "va à droite",
+        "es": "ve a la derecha",
+        "tr": "sağa git"
+      }
+    },
+    {
+      "id": "extra-030",
+      "forms": {
+        "en": [
+          "go back"
+        ],
+        "ru": [
+          "иди назад"
+        ],
+        "uk": [
+          "іди назад"
+        ]
+      },
+      "translations": {
+        "en": "go back",
+        "ru": "иди назад",
+        "uk": "іди назад"
+      }
+    },
+    {
+      "id": "extra-031",
+      "forms": {
+        "en": [
+          "stay here"
+        ],
+        "ru": [
+          "оставайся здесь"
+        ],
+        "uk": [
+          "залишайся тут"
+        ]
+      },
+      "translations": {
+        "en": "stay here",
+        "ru": "оставайся здесь",
+        "uk": "залишайся тут"
+      }
+    },
+    {
+      "id": "extra-032",
+      "forms": {
+        "en": [
+          "stay together"
+        ],
+        "ru": [
+          "держитесь вместе"
+        ],
+        "uk": [
+          "тримайтеся разом"
+        ]
+      },
+      "translations": {
+        "en": "stay together",
+        "ru": "держитесь вместе",
+        "uk": "тримайтеся разом"
+      }
+    },
+    {
+      "id": "extra-033",
+      "forms": {
+        "en": [
+          "split up"
+        ],
+        "ru": [
+          "разделитесь"
+        ],
+        "uk": [
+          "розділіться"
+        ]
+      },
+      "translations": {
+        "en": "split up",
+        "ru": "разделитесь",
+        "uk": "розділіться"
+      }
+    },
+    {
+      "id": "extra-034",
+      "forms": {
+        "en": [
+          "i'm going in",
+          "im going in"
+        ],
+        "ru": [
+          "я захожу"
+        ],
+        "uk": [
+          "я заходжу"
+        ]
+      },
+      "translations": {
+        "en": "i'm going in",
+        "ru": "я захожу",
+        "uk": "я заходжу"
+      }
+    },
+    {
+      "id": "extra-035",
+      "forms": {
+        "en": [
+          "i'm coming",
+          "i am coming"
+        ],
+        "ru": [
+          "я иду"
+        ],
+        "uk": [
+          "я йду"
+        ]
+      },
+      "translations": {
+        "en": "i'm coming",
+        "ru": "я иду",
+        "uk": "я йду"
+      }
+    },
+    {
+      "id": "extra-036",
+      "forms": {
+        "en": [
+          "let me go first"
+        ],
+        "ru": [
+          "дай мне пройти первым"
+        ],
+        "uk": [
+          "дай мені пройти першим"
+        ]
+      },
+      "translations": {
+        "en": "let me go first",
+        "ru": "дай мне пройти первым",
+        "uk": "дай мені пройти першим"
+      }
+    },
+    {
+      "id": "extra-037",
+      "forms": {
+        "en": [
+          "i will go first",
+          "i'll go first"
+        ],
+        "ru": [
+          "я пойду первым"
+        ],
+        "uk": [
+          "я піду першим"
+        ]
+      },
+      "translations": {
+        "en": "i will go first",
+        "ru": "я пойду первым",
+        "uk": "я піду першим"
+      }
+    },
+    {
+      "id": "extra-038",
+      "forms": {
+        "en": [
+          "you go first"
+        ],
+        "ru": [
+          "иди первым"
+        ],
+        "uk": [
+          "іди першим"
+        ]
+      },
+      "translations": {
+        "en": "you go first",
+        "ru": "иди первым",
+        "uk": "іди першим"
+      }
+    },
+    {
+      "id": "extra-039",
+      "forms": {
+        "en": [
+          "wait until i reload"
+        ],
+        "ru": [
+          "подожди пока я перезаряжусь"
+        ],
+        "uk": [
+          "зачекай поки я перезаряджуся"
+        ]
+      },
+      "translations": {
+        "en": "wait until i reload",
+        "ru": "подожди пока я перезаряжусь",
+        "uk": "зачекай поки я перезаряджуся"
+      }
+    },
+    {
+      "id": "extra-040",
+      "forms": {
+        "en": [
+          "i need backup",
+          "need backup"
+        ],
+        "ru": [
+          "мне нужно подкрепление",
+          "нужно подкрепление"
+        ],
+        "uk": [
+          "мені потрібне підкріплення",
+          "потрібне підкріплення"
+        ]
+      },
+      "translations": {
+        "en": "i need backup",
+        "ru": "мне нужно подкрепление",
+        "uk": "мені потрібне підкріплення"
+      }
+    },
+    {
+      "id": "extra-041",
+      "forms": {
+        "en": [
+          "i'm surrounded",
+          "im surrounded"
+        ],
+        "ru": [
+          "меня окружили"
+        ],
+        "uk": [
+          "мене оточили"
+        ]
+      },
+      "translations": {
+        "en": "i'm surrounded",
+        "ru": "меня окружили",
+        "uk": "мене оточили"
+      }
+    },
+    {
+      "id": "extra-042",
+      "forms": {
+        "en": [
+          "we are surrounded",
+          "we're surrounded"
+        ],
+        "ru": [
+          "нас окружили"
+        ],
+        "uk": [
+          "нас оточили"
+        ]
+      },
+      "translations": {
+        "en": "we are surrounded",
+        "ru": "нас окружили",
+        "uk": "нас оточили"
+      }
+    },
+    {
+      "id": "extra-043",
+      "forms": {
+        "en": [
+          "i'm stuck",
+          "im stuck"
+        ],
+        "ru": [
+          "я застрял"
+        ],
+        "uk": [
+          "я застряг"
+        ]
+      },
+      "translations": {
+        "en": "i'm stuck",
+        "ru": "я застрял",
+        "uk": "я застряг"
+      }
+    },
+    {
+      "id": "extra-044",
+      "forms": {
+        "en": [
+          "i'm dead",
+          "im dead"
+        ],
+        "ru": [
+          "меня убили"
+        ],
+        "uk": [
+          "мене вбили"
+        ]
+      },
+      "translations": {
+        "en": "i'm dead",
+        "ru": "меня убили",
+        "uk": "мене вбили"
+      }
+    },
+    {
+      "id": "extra-045",
+      "forms": {
+        "en": [
+          "he killed me"
+        ],
+        "ru": [
+          "он меня убил"
+        ],
+        "uk": [
+          "він мене вбив"
+        ]
+      },
+      "translations": {
+        "en": "he killed me",
+        "ru": "он меня убил",
+        "uk": "він мене вбив"
+      }
+    },
+    {
+      "id": "extra-046",
+      "forms": {
+        "en": [
+          "i killed him"
+        ],
+        "ru": [
+          "я его убил"
+        ],
+        "uk": [
+          "я його вбив"
+        ]
+      },
+      "translations": {
+        "en": "i killed him",
+        "ru": "я его убил",
+        "uk": "я його вбив"
+      }
+    },
+    {
+      "id": "extra-047",
+      "forms": {
+        "en": [
+          "he's still alive",
+          "hes still alive"
+        ],
+        "ru": [
+          "он ещё жив",
+          "он еще жив"
+        ],
+        "uk": [
+          "він ще живий"
+        ]
+      },
+      "translations": {
+        "en": "he's still alive",
+        "ru": "он ещё жив",
+        "uk": "він ще живий"
+      }
+    },
+    {
+      "id": "extra-048",
+      "forms": {
+        "en": [
+          "i'm still alive",
+          "im still alive"
+        ],
+        "ru": [
+          "я ещё жив",
+          "я еще жив"
+        ],
+        "uk": [
+          "я ще живий"
+        ]
+      },
+      "translations": {
+        "en": "i'm still alive",
+        "ru": "я ещё жив",
+        "uk": "я ще живий"
+      }
+    },
+    {
+      "id": "extra-049",
+      "forms": {
+        "en": [
+          "i'm spectating",
+          "im spectating"
+        ],
+        "ru": [
+          "я наблюдаю",
+          "я в спектаторах"
+        ],
+        "uk": [
+          "я спостерігаю"
+        ]
+      },
+      "translations": {
+        "en": "i'm spectating",
+        "ru": "я наблюдаю",
+        "uk": "я спостерігаю"
+      }
+    },
+    {
+      "id": "extra-050",
+      "forms": {
+        "en": [
+          "spectate me"
+        ],
+        "ru": [
+          "посмотри за моей игрой"
+        ],
+        "uk": [
+          "поспостерігай за моєю грою"
+        ]
+      },
+      "translations": {
+        "en": "spectate me",
+        "ru": "посмотри за моей игрой",
+        "uk": "поспостерігай за моєю грою"
+      }
+    },
+    {
+      "id": "extra-051",
+      "forms": {
+        "en": [
+          "who killed me?"
+        ],
+        "ru": [
+          "кто меня убил?"
+        ],
+        "uk": [
+          "хто мене вбив?"
+        ]
+      },
+      "translations": {
+        "en": "who killed me?",
+        "ru": "кто меня убил?",
+        "uk": "хто мене вбив?"
+      }
+    },
+    {
+      "id": "extra-052",
+      "forms": {
+        "en": [
+          "who has the bomb?"
+        ],
+        "ru": [
+          "у кого бомба?"
+        ],
+        "uk": [
+          "у кого бомба?"
+        ]
+      },
+      "translations": {
+        "en": "who has the bomb?",
+        "ru": "у кого бомба?",
+        "uk": "у кого бомба?"
+      }
+    },
+    {
+      "id": "extra-053",
+      "forms": {
+        "en": [
+          "the bomb is planted"
+        ],
+        "ru": [
+          "бомба заложена",
+          "бомбу поставили"
+        ],
+        "uk": [
+          "бомбу закладено",
+          "бомбу встановлено"
+        ]
+      },
+      "translations": {
+        "en": "the bomb is planted",
+        "ru": "бомба заложена",
+        "uk": "бомбу закладено"
+      }
+    },
+    {
+      "id": "extra-054",
+      "forms": {
+        "en": [
+          "the bomb is defused"
+        ],
+        "ru": [
+          "бомба обезврежена"
+        ],
+        "uk": [
+          "бомбу знешкоджено"
+        ]
+      },
+      "translations": {
+        "en": "the bomb is defused",
+        "ru": "бомба обезврежена",
+        "uk": "бомбу знешкоджено"
+      }
+    },
+    {
+      "id": "extra-055",
+      "forms": {
+        "en": [
+          "we lost the round"
+        ],
+        "ru": [
+          "мы проиграли раунд"
+        ],
+        "uk": [
+          "ми програли раунд"
+        ]
+      },
+      "translations": {
+        "en": "we lost the round",
+        "ru": "мы проиграли раунд",
+        "uk": "ми програли раунд"
+      }
+    },
+    {
+      "id": "extra-056",
+      "forms": {
+        "en": [
+          "we won the round"
+        ],
+        "ru": [
+          "мы выиграли раунд"
+        ],
+        "uk": [
+          "ми виграли раунд"
+        ]
+      },
+      "translations": {
+        "en": "we won the round",
+        "ru": "мы выиграли раунд",
+        "uk": "ми виграли раунд"
+      }
+    },
+    {
+      "id": "extra-057",
+      "forms": {
+        "en": [
+          "good round"
+        ],
+        "ru": [
+          "хороший раунд"
+        ],
+        "uk": [
+          "гарний раунд"
+        ],
+        "pl": [
+          "dobra runda"
+        ],
+        "de": [
+          "gute runde"
+        ],
+        "fr": [
+          "bonne manche"
+        ],
+        "es": [
+          "buena ronda"
+        ],
+        "tr": [
+          "güzel raund"
+        ]
+      },
+      "translations": {
+        "en": "good round",
+        "ru": "хороший раунд",
+        "uk": "гарний раунд",
+        "pl": "dobra runda",
+        "de": "gute runde",
+        "fr": "bonne manche",
+        "es": "buena ronda",
+        "tr": "güzel raund"
+      }
+    },
+    {
+      "id": "extra-058",
+      "forms": {
+        "en": [
+          "bad round"
+        ],
+        "ru": [
+          "плохой раунд"
+        ],
+        "uk": [
+          "поганий раунд"
+        ]
+      },
+      "translations": {
+        "en": "bad round",
+        "ru": "плохой раунд",
+        "uk": "поганий раунд"
+      }
+    },
+    {
+      "id": "extra-059",
+      "forms": {
+        "en": [
+          "try again"
+        ],
+        "ru": [
+          "попробуй ещё раз",
+          "попробуй еще раз"
+        ],
+        "uk": [
+          "спробуй ще раз"
+        ]
+      },
+      "translations": {
+        "en": "try again",
+        "ru": "попробуй ещё раз",
+        "uk": "спробуй ще раз"
+      }
+    },
+    {
+      "id": "extra-060",
+      "forms": {
+        "en": [
+          "don't give up",
+          "dont give up"
+        ],
+        "ru": [
+          "не сдавайся"
+        ],
+        "uk": [
+          "не здавайся"
+        ]
+      },
+      "translations": {
+        "en": "don't give up",
+        "ru": "не сдавайся",
+        "uk": "не здавайся"
+      }
+    },
+    {
+      "id": "extra-061",
+      "forms": {
+        "en": [
+          "don't worry",
+          "dont worry"
+        ],
+        "ru": [
+          "не переживай"
+        ],
+        "uk": [
+          "не хвилюйся"
+        ]
+      },
+      "translations": {
+        "en": "don't worry",
+        "ru": "не переживай",
+        "uk": "не хвилюйся"
+      }
+    },
+    {
+      "id": "extra-062",
+      "forms": {
+        "en": [
+          "calm down"
+        ],
+        "ru": [
+          "успокойся"
+        ],
+        "uk": [
+          "заспокойся"
+        ]
+      },
+      "translations": {
+        "en": "calm down",
+        "ru": "успокойся",
+        "uk": "заспокойся"
+      }
+    },
+    {
+      "id": "extra-063",
+      "forms": {
+        "en": [
+          "stop arguing"
+        ],
+        "ru": [
+          "хватит спорить"
+        ],
+        "uk": [
+          "припиніть сперечатися"
+        ]
+      },
+      "translations": {
+        "en": "stop arguing",
+        "ru": "хватит спорить",
+        "uk": "припиніть сперечатися"
+      }
+    },
+    {
+      "id": "extra-064",
+      "forms": {
+        "en": [
+          "play fair"
+        ],
+        "ru": [
+          "играй честно"
+        ],
+        "uk": [
+          "грай чесно"
+        ]
+      },
+      "translations": {
+        "en": "play fair",
+        "ru": "играй честно",
+        "uk": "грай чесно"
+      }
+    },
+    {
+      "id": "extra-065",
+      "forms": {
+        "en": [
+          "nice aim"
+        ],
+        "ru": [
+          "хороший аим",
+          "хорошо целишься"
+        ],
+        "uk": [
+          "добре цілишся"
+        ]
+      },
+      "translations": {
+        "en": "nice aim",
+        "ru": "хороший аим",
+        "uk": "добре цілишся"
+      }
+    },
+    {
+      "id": "extra-066",
+      "forms": {
+        "en": [
+          "what a shot!"
+        ],
+        "ru": [
+          "вот это выстрел!"
+        ],
+        "uk": [
+          "оце постріл!"
+        ]
+      },
+      "translations": {
+        "en": "what a shot!",
+        "ru": "вот это выстрел!",
+        "uk": "оце постріл!"
+      }
+    },
+    {
+      "id": "extra-067",
+      "forms": {
+        "en": [
+          "what happened?"
+        ],
+        "ru": [
+          "что произошло?",
+          "что случилось?"
+        ],
+        "uk": [
+          "що сталося?"
+        ]
+      },
+      "translations": {
+        "en": "what happened?",
+        "ru": "что произошло?",
+        "uk": "що сталося?"
+      }
+    },
+    {
+      "id": "extra-068",
+      "forms": {
+        "en": [
+          "what do you mean?",
+          "wdym?"
+        ],
+        "ru": [
+          "что ты имеешь в виду?"
+        ],
+        "uk": [
+          "що ти маєш на увазі?"
+        ]
+      },
+      "translations": {
+        "en": "what do you mean?",
+        "ru": "что ты имеешь в виду?",
+        "uk": "що ти маєш на увазі?"
+      }
+    },
+    {
+      "id": "extra-069",
+      "forms": {
+        "en": [
+          "say it in english"
+        ],
+        "ru": [
+          "скажи это по английски",
+          "скажи это по-английски"
+        ],
+        "uk": [
+          "скажи це англійською"
+        ]
+      },
+      "translations": {
+        "en": "say it in english",
+        "ru": "скажи это по английски",
+        "uk": "скажи це англійською"
+      }
+    },
+    {
+      "id": "extra-070",
+      "forms": {
+        "en": [
+          "i speak russian"
+        ],
+        "ru": [
+          "я говорю по русски",
+          "я говорю по-русски"
+        ],
+        "uk": [
+          "я розмовляю російською"
+        ]
+      },
+      "translations": {
+        "en": "i speak russian",
+        "ru": "я говорю по русски",
+        "uk": "я розмовляю російською"
+      }
+    },
+    {
+      "id": "extra-071",
+      "forms": {
+        "en": [
+          "i speak ukrainian"
+        ],
+        "ru": [
+          "я говорю по украински",
+          "я говорю по-украински"
+        ],
+        "uk": [
+          "я розмовляю українською"
+        ]
+      },
+      "translations": {
+        "en": "i speak ukrainian",
+        "ru": "я говорю по украински",
+        "uk": "я розмовляю українською"
+      }
+    },
+    {
+      "id": "extra-072",
+      "forms": {
+        "en": [
+          "i speak english"
+        ],
+        "ru": [
+          "я говорю по английски",
+          "я говорю по-английски"
+        ],
+        "uk": [
+          "я розмовляю англійською"
+        ]
+      },
+      "translations": {
+        "en": "i speak english",
+        "ru": "я говорю по английски",
+        "uk": "я розмовляю англійською"
+      }
+    },
+    {
+      "id": "extra-073",
+      "forms": {
+        "en": [
+          "i can't hear you",
+          "i cant hear you"
+        ],
+        "ru": [
+          "я тебя не слышу"
+        ],
+        "uk": [
+          "я тебе не чую"
+        ]
+      },
+      "translations": {
+        "en": "i can't hear you",
+        "ru": "я тебя не слышу",
+        "uk": "я тебе не чую"
+      }
+    },
+    {
+      "id": "extra-074",
+      "forms": {
+        "en": [
+          "can you hear me?"
+        ],
+        "ru": [
+          "ты меня слышишь?"
+        ],
+        "uk": [
+          "ти мене чуєш?"
+        ]
+      },
+      "translations": {
+        "en": "can you hear me?",
+        "ru": "ты меня слышишь?",
+        "uk": "ти мене чуєш?"
+      }
+    },
+    {
+      "id": "extra-075",
+      "forms": {
+        "en": [
+          "turn on your mic"
+        ],
+        "ru": [
+          "включи микрофон"
+        ],
+        "uk": [
+          "увімкни мікрофон"
+        ]
+      },
+      "translations": {
+        "en": "turn on your mic",
+        "ru": "включи микрофон",
+        "uk": "увімкни мікрофон"
+      }
+    },
+    {
+      "id": "extra-076",
+      "forms": {
+        "en": [
+          "my mic is not working"
+        ],
+        "ru": [
+          "у меня не работает микрофон"
+        ],
+        "uk": [
+          "у мене не працює мікрофон"
+        ]
+      },
+      "translations": {
+        "en": "my mic is not working",
+        "ru": "у меня не работает микрофон",
+        "uk": "у мене не працює мікрофон"
+      }
+    },
+    {
+      "id": "extra-077",
+      "forms": {
+        "en": [
+          "connection lost"
+        ],
+        "ru": [
+          "соединение потеряно"
+        ],
+        "uk": [
+          "з'єднання втрачено"
+        ]
+      },
+      "translations": {
+        "en": "connection lost",
+        "ru": "соединение потеряно",
+        "uk": "з'єднання втрачено"
+      }
+    },
+    {
+      "id": "extra-078",
+      "forms": {
+        "en": [
+          "server is lagging"
+        ],
+        "ru": [
+          "сервер лагает"
+        ],
+        "uk": [
+          "сервер лагає"
+        ]
+      },
+      "translations": {
+        "en": "server is lagging",
+        "ru": "сервер лагает",
+        "uk": "сервер лагає"
+      }
+    },
+    {
+      "id": "extra-079",
+      "forms": {
+        "en": [
+          "i have to go"
+        ],
+        "ru": [
+          "мне пора идти"
+        ],
+        "uk": [
+          "мені треба йти"
+        ]
+      },
+      "translations": {
+        "en": "i have to go",
+        "ru": "мне пора идти",
+        "uk": "мені треба йти"
+      }
+    },
+    {
+      "id": "extra-080",
+      "forms": {
+        "en": [
+          "see you tomorrow"
+        ],
+        "ru": [
+          "до завтра"
+        ],
+        "uk": [
+          "до завтра"
+        ]
+      },
+      "translations": {
+        "en": "see you tomorrow",
+        "ru": "до завтра",
+        "uk": "до завтра"
+      }
+    },
+    {
+      "id": "extra-081",
+      "forms": {
+        "en": [
+          "see you later"
+        ],
+        "ru": [
+          "увидимся позже"
+        ],
+        "uk": [
+          "побачимось пізніше"
+        ]
+      },
+      "translations": {
+        "en": "see you later",
+        "ru": "увидимся позже",
+        "uk": "побачимось пізніше"
+      }
+    },
+    {
+      "id": "extra-082",
+      "forms": {
+        "en": [
+          "have a nice day"
+        ],
+        "ru": [
+          "хорошего дня"
+        ],
+        "uk": [
+          "гарного дня"
+        ]
+      },
+      "translations": {
+        "en": "have a nice day",
+        "ru": "хорошего дня",
+        "uk": "гарного дня"
+      }
+    },
+    {
+      "id": "extra-083",
+      "forms": {
+        "en": [
+          "good morning"
+        ],
+        "ru": [
+          "доброе утро"
+        ],
+        "uk": [
+          "доброго ранку"
+        ],
+        "pl": [
+          "dzień dobry",
+          "dzien dobry"
+        ],
+        "de": [
+          "guten morgen"
+        ],
+        "fr": [
+          "bonjour"
+        ],
+        "es": [
+          "buenos días"
+        ],
+        "tr": [
+          "günaydın"
+        ]
+      },
+      "translations": {
+        "en": "good morning",
+        "ru": "доброе утро",
+        "uk": "доброго ранку",
+        "pl": "dzień dobry",
+        "de": "guten morgen",
+        "fr": "bonjour",
+        "es": "buenos días",
+        "tr": "günaydın"
+      }
+    },
+    {
+      "id": "extra-084",
+      "forms": {
+        "en": [
+          "good evening"
+        ],
+        "ru": [
+          "добрый вечер"
+        ],
+        "uk": [
+          "добрий вечір"
+        ],
+        "pl": [
+          "dobry wieczór"
+        ],
+        "de": [
+          "guten abend"
+        ],
+        "fr": [
+          "bonsoir"
+        ],
+        "es": [
+          "buenas tardes"
+        ],
+        "tr": [
+          "iyi akşamlar"
+        ]
+      },
+      "translations": {
+        "en": "good evening",
+        "ru": "добрый вечер",
+        "uk": "добрий вечір",
+        "pl": "dobry wieczór",
+        "de": "guten abend",
+        "fr": "bonsoir",
+        "es": "buenas tardes",
+        "tr": "iyi akşamlar"
+      }
+    },
+    {
+      "id": "extra-085",
+      "forms": {
+        "en": [
+          "good night"
+        ],
+        "ru": [
+          "спокойной ночи"
+        ],
+        "uk": [
+          "на добраніч"
+        ],
+        "pl": [
+          "dobranoc"
+        ],
+        "de": [
+          "gute nacht"
+        ],
+        "fr": [
+          "bonne nuit"
+        ],
+        "es": [
+          "buenas noches"
+        ],
+        "tr": [
+          "iyi geceler"
+        ]
+      },
+      "translations": {
+        "en": "good night",
+        "ru": "спокойной ночи",
+        "uk": "на добраніч",
+        "pl": "dobranoc",
+        "de": "gute nacht",
+        "fr": "bonne nuit",
+        "es": "buenas noches",
+        "tr": "iyi geceler"
+      }
+    },
+    {
+      "id": "v2fix-hi",
+      "forms": {
+        "en": [
+          "hi",
+          "hello",
+          "hey",
+          "hey there"
+        ]
+      },
+      "translations": {
+        "en": "hi",
+        "ru": "привет",
+        "uk": "привіт"
+      }
+    },
+    {
+      "id": "v2fix-sup",
+      "forms": {
+        "en": [
+          "sup",
+          "whats up",
+          "what's up"
+        ]
+      },
+      "translations": {
+        "en": "sup",
+        "ru": "как дела?",
+        "uk": "як справи?"
+      }
+    },
+    {
+      "id": "v2fix-ouch",
+      "forms": {
+        "en": [
+          "ouch",
+          "ow",
+          "oww"
+        ]
+      },
+      "translations": {
+        "en": "ouch",
+        "ru": "ай!",
+        "uk": "ой!"
+      }
+    },
+    {
+      "id": "v2fix-laugh",
+      "forms": {
+        "en": [
+          "xd",
+          "xD",
+          "XDD",
+          "hahaha",
+          "haha",
+          "lol xd",
+          "xd lol"
+        ]
+      },
+      "translations": {
+        "en": "xd",
+        "ru": "ахаха",
+        "uk": "ахаха"
+      }
+    },
+    {
+      "id": "v2fix-n1",
+      "forms": {
+        "en": [
+          "n1",
+          "nice1",
+          "nice one bro"
+        ]
+      },
+      "translations": {
+        "en": "n1",
+        "ru": "красавчик!",
+        "uk": "красавчик!"
+      }
+    },
+    {
+      "id": "v2fix-nooo",
+      "forms": {
+        "en": [
+          "nooo",
+          "nooooo"
+        ]
+      },
+      "translations": {
+        "en": "nooo",
+        "ru": "неее!",
+        "uk": "нііі!"
+      }
+    },
+    {
+      "id": "v2fix-go-go",
+      "forms": {
+        "en": [
+          "go go",
+          "go go go",
+          "goooo"
+        ]
+      },
+      "translations": {
+        "en": "go go",
+        "ru": "вперёд!",
+        "uk": "уперед!"
+      }
+    },
+    {
+      "id": "v2fix-yoo",
+      "forms": {
+        "en": [
+          "yoo",
+          "yo",
+          "yoow"
+        ]
+      },
+      "translations": {
+        "en": "yoo",
+        "ru": "йо!",
+        "uk": "йо!"
+      }
+    },
+    {
+      "id": "v2fix-yeah",
+      "forms": {
+        "en": [
+          "yeah",
+          "yea",
+          "yeap"
+        ]
+      },
+      "translations": {
+        "en": "yeah",
+        "ru": "да",
+        "uk": "так"
+      }
+    },
+    {
+      "id": "v2fix-lag-q",
+      "forms": {
+        "en": [
+          "lag?",
+          "lagging?"
+        ]
+      },
+      "translations": {
+        "en": "lag?",
+        "ru": "лагает?",
+        "uk": "лагає?"
+      }
+    },
+    {
+      "id": "v2fix-what-the-hell",
+      "forms": {
+        "en": [
+          "what the hell",
+          "wth man"
+        ]
+      },
+      "translations": {
+        "en": "what the hell",
+        "ru": "какого чёрта?",
+        "uk": "якого біса?"
+      }
+    },
+    {
+      "id": "v2fix-huh",
+      "forms": {
+        "en": [
+          "huh?",
+          "huh"
+        ]
+      },
+      "translations": {
+        "en": "huh?",
+        "ru": "а?",
+        "uk": "га?"
+      }
+    },
+    {
+      "id": "v2fix-insane",
+      "forms": {
+        "en": [
+          "insane",
+          "that's insane",
+          "thats insane"
+        ]
+      },
+      "translations": {
+        "en": "insane",
+        "ru": "жесть!",
+        "uk": "це жесть!"
+      }
+    },
+    {
+      "id": "v2fix-gg-girls",
+      "forms": {
+        "en": [
+          "gg girls",
+          "good game girls"
+        ]
+      },
+      "translations": {
+        "en": "gg girls",
+        "ru": "хорошая игра, девчонки!",
+        "uk": "гарна гра, дівчата!"
+      }
+    },
+    {
+      "id": "v2fix-gg-wp-girls",
+      "forms": {
+        "en": [
+          "gg wp girls"
+        ]
+      },
+      "translations": {
+        "en": "gg wp girls",
+        "ru": "хорошо сыграли, девчонки!",
+        "uk": "добре зіграли, дівчата!"
+      }
+    },
+    {
+      "id": "v2fix-nice-reaction",
+      "forms": {
+        "en": [
+          "nice",
+          "niceee",
+          "niice"
+        ]
+      },
+      "translations": {
+        "en": "nice",
+        "ru": "красиво!",
+        "uk": "гарно!"
+      }
+    },
+    {
+      "id": "v2fix-all-right",
+      "forms": {
+        "en": [
+          "all right",
+          "alright"
+        ]
+      },
+      "translations": {
+        "en": "all right",
+        "ru": "ладно",
+        "uk": "гаразд"
+      }
+    },
+    {
+      "id": "v2fix-lets-go",
+      "forms": {
+        "en": [
+          "let's go",
+          "lets go"
+        ]
+      },
+      "translations": {
+        "en": "let's go",
+        "ru": "погнали!",
+        "uk": "погнали!"
+      }
+    },
+    {
+      "id": "v2fix-stop-camping",
+      "forms": {
+        "en": [
+          "stop camping"
+        ]
+      },
+      "translations": {
+        "en": "stop camping",
+        "ru": "хватит кемпить!",
+        "uk": "досить кемпити!"
+      }
+    },
+    {
+      "id": "v2fix-no-scope",
+      "forms": {
+        "en": [
+          "no scope",
+          "noscope"
+        ]
+      },
+      "translations": {
+        "en": "no scope",
+        "ru": "без прицела",
+        "uk": "без прицілу"
+      }
+    },
+    {
+      "id": "v2fix-gg-wp",
+      "forms": {
+        "en": [
+          "gg wp",
+          "ggwp"
+        ]
+      },
+      "translations": {
+        "en": "good game, well played",
+        "ru": "хорошая игра, хорошо сыграно",
+        "uk": "гарна гра, добре зіграно"
+      }
+    },
+    {
+      "id": "v3-omg",
+      "forms": {
+        "en": [
+          "omg",
+          "omgg",
+          "omggg",
+          "oh my god",
+          "oh my gosh"
+        ],
+        "ru": [
+          "боже мой",
+          "о боже"
+        ],
+        "uk": [
+          "боже мій"
+        ]
+      },
+      "translations": {
+        "en": "Oh my God",
+        "ru": "Боже мой",
+        "uk": "Боже мій"
+      }
+    },
+    {
+      "id": "v3-omg-nice",
+      "forms": {
+        "en": [
+          "omg nice",
+          "omg nice shot"
+        ]
+      },
+      "translations": {
+        "en": "Oh my God, nice!",
+        "ru": "Офигеть, красиво!",
+        "uk": "Ого, красиво!"
+      }
+    }
+  ]
+}

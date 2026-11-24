@@ -33,3 +33,7 @@ secrets*
 *.backup
 *.old
 *.tmp
+
+# Opt-in game translation observations and exports are private local data
+translation_experience.sqlite3*
+CoD2-knowledge-*.zip
