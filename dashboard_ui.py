@@ -286,7 +286,7 @@ def card(parent, title=None, *, tone=CYAN, padding=5):
     shell=tk.Frame(border, bg="#100F0B", padx=2, pady=2)
     shell.pack(fill="both", expand=True)
     if title:
-        heading=tk.Canvas(shell, bg="#302B20", height=33,
+        heading=tk.Canvas(shell, bg="#302B20", height=30,
                           highlightthickness=0, borderwidth=0)
         heading.pack(fill="x")
         plate=ui_photo(parent, "premium_plate.png")
@@ -296,11 +296,11 @@ def card(parent, title=None, *, tone=CYAN, padding=5):
             for x in range(plate.width(),event.width+plate.width(),plate.width()):
                 heading.create_image(x,0,anchor="nw",image=plate,tags="repeat")
         heading.bind("<Configure>", adjust)
-        heading.create_text(17,16,text=title.upper(),anchor="w",
+        heading.create_text(17,15,text=title.upper(),anchor="w",
                             font=("Bahnschrift SemiCondensed",13,"bold"),
                             fill=TEXT)
-        heading.create_line(2,32,1152,32,fill="#B28B4B",width=1)
-    box=tk.Frame(shell, bg=CARD, padx=padding+2, pady=padding+2)
+        heading.create_line(2,29,1152,29,fill="#B28B4B",width=1)
+    box=tk.Frame(shell, bg=CARD, padx=padding, pady=padding)
     box.pack(fill="both",expand=True)
     return border,box
 

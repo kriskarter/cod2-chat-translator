@@ -209,7 +209,7 @@ class WWIIDashboard(Dashboard):
         for row,col,colspan,title,builder in blocks:
             frame,body=card(grid,title)
             frame.grid(row=row,column=col,columnspan=colspan,sticky="nsew",
-                       padx=4,pady=4)
+                       padx=4,pady=3)
             builder(body)
 
     def _home_server(self,p):
