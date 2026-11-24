@@ -33,6 +33,12 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## v1.21.2 RC — beginner-first Home
+
+Five compact, focused panels for everyday play; F8/F9 remain independent and saved settings are preserved. Expert settings remain in dedicated Translation/Overlay/Knowledge/Settings pages, while three daily actions and a native More menu simplify Home. All gameplay features and WWII design are retained. [Implementation and real Tk screenshot](docs/WWII_SIMPLE_HOME_RC4.md).
+
+![Real v1.21.2 RC beginner Home screen](docs/images/wwii_simple_home_rc4.png)
+
 ## v1.21.1 RC — compact WWII metal GUI and original branding
 
 Refinement of the approved cinematic concept: a newly illustrated metallic helmet wordmark, compact six-panel layout, native F8/F9 switches, six icon-bearing live actions, and a subtle historical backdrop for large windows. The tested 1318 × 678 interface fits without meaningful scrolling; all previous language, game and knowledge workflows are retained. [Actual GUI screenshots and validation](docs/WWII_REBRAND_RC3.md).

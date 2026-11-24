@@ -108,7 +108,7 @@ def main():
             ):
                 switch=next(
                     w for w in descendants(dashboard.pages["home"])
-                    if isinstance(w,tk.Checkbutton) and w.cget("text")==caption
+                    if isinstance(w,tk.Checkbutton) and w.cget("text").startswith(caption)
                 )
                 before=bool(variable.get())
                 switch.invoke()
@@ -198,6 +198,17 @@ def main():
                 assert content_height <= viewport_height+3, (
                     f"Home does not fit: {content_height} > {viewport_height}")
                 assert not has_bar, "Unexpected Home scrollbar"
+            # Beginner Home must stay compact, but expert tools must
+            # remain reachable through the existing dedicated pages.
+            assert app.dashboard.home_more_menu.index("end")==2
+            assert app.dashboard.home_more_button.winfo_exists()
+            home_widgets=list(descendants(app.dashboard.pages["home"]))
+            assert not any(isinstance(w,ttk.Scale) for w in home_widgets)
+            overlay_widgets=list(descendants(app.dashboard.pages["overlay"]))
+            assert sum(isinstance(w,ttk.Scale) for w in overlay_widgets)>=3
+            translate_widgets=list(descendants(app.dashboard.pages["translation"]))
+            assert any(isinstance(w,ttk.Combobox) for w in translate_widgets)
+
             # These are actual button extents after Tk layout, not
             # screenshots judged by a text detector.
             for widget in descendants(app.dashboard.pages["home"]):

@@ -155,7 +155,9 @@ class WWIIDashboard(Dashboard):
         footer.pack_propagate(False)
         first=tk.Frame(footer,bg="#15130D")
         first.pack(fill="x",padx=11,pady=5)
-        text(first,"●",color=GREEN,bg="#15130D",size=10).pack(side="left")
+        self.footer_ready_dot=text(first,"●",color=MUTED,
+                                   bg="#15130D",size=10)
+        self.footer_ready_dot.pack(side="left")
         self.footer_engine=text(first,"",bg="#15130D",color=AMBER,bold=True,size=9)
         self.footer_engine.pack(side="left",padx=(6,19))
         self.footer_base=text(first,"",bg="#15130D",color=TEXT,size=9)
@@ -168,9 +170,12 @@ class WWIIDashboard(Dashboard):
                  font=(FONT,9),anchor="e",width=40).pack(side="right")
         self.navigate("home")
 
-    def _home(self,page):
-        # Keep the approved six-zone composition. Scroll only when monitor
-        # height/DPI is insufficient; the status strip always stays visible.
+    def _home(self, page):
+        """Beginner-friendly home: five focused panels, advanced controls in tabs.
+
+        The loaded settings stay untouched. No preset reset or 'beginner'
+        override is applied when the Home page opens.
+        """
         scroll=tk.Canvas(page,bg=BG,highlightthickness=0,borderwidth=0)
         bar=ttk.Scrollbar(page,orient="vertical",command=scroll.yview)
         scroll.configure(yscrollcommand=bar.set)
@@ -184,7 +189,6 @@ class WWIIDashboard(Dashboard):
         self.home_scrollbar=bar
         item=scroll.create_window((0,0),window=content,anchor="nw")
         def adjust_scroll(_event=None):
-            # Exclude decorative background from scroll bounds.
             required=max(content.winfo_reqheight(),scroll.winfo_height())
             scroll.configure(scrollregion=(0,0,scroll.winfo_width(),required))
             needed=content.winfo_reqheight()>scroll.winfo_height()+2
@@ -193,311 +197,203 @@ class WWIIDashboard(Dashboard):
             elif not needed and bar.winfo_manager():
                 bar.pack_forget()
         content.bind("<Configure>",adjust_scroll)
-        scroll.bind("<Configure>",lambda e: (
+        scroll.bind("<Configure>",lambda e:(
             scroll.itemconfigure(item,width=e.width),adjust_scroll()))
         self.widgets.append(scroll)
+
         grid=tk.Frame(content,bg=BG)
-        grid.pack(fill="x",padx=7,pady=3)
-        grid.columnconfigure(0,weight=62,uniform="wwii")
-        grid.columnconfigure(1,weight=38,uniform="wwii")
-        blocks=[
-            (0,0,{"ru":"СЕРВЕР","uk":"СЕРВЕР","en":"SERVER"}.get(self.app.ui_language,"SERVER"),self._home_server),
-            (0,1,"SMART ENGINE V2",self._home_engine),
-            (1,0,tr(self.app,"translation").upper()+" · F8 / F9",self._home_translation),
-            (1,1,tr(self.app,"overlay_view").upper(),self._home_overlay),
-            (2,0,tr(self.app,"overlay_head").upper(),self._home_overlay_prefs),
-            (2,1,tr(self.app,"quick").upper(),self._home_quick),
-        ]
-        for row,col,title,builder in blocks:
+        grid.pack(fill="x",padx=7,pady=(4,2))
+        grid.columnconfigure(0,weight=60,uniform="wwii")
+        grid.columnconfigure(1,weight=40,uniform="wwii")
+
+        titles={
+            "ru":("СЕРВЕР","ПЕРЕВОД ЧАТА · F8 / F9","ОВЕРЛЕЙ В ИГРЕ","БЫСТРЫЕ ДЕЙСТВИЯ"),
+            "uk":("СЕРВЕР","ПЕРЕКЛАД ЧАТУ · F8 / F9","ОВЕРЛЕЙ У ГРІ","ШВИДКІ ДІЇ"),
+            "en":("SERVER","CHAT TRANSLATION · F8 / F9","IN-GAME OVERLAY","QUICK ACTIONS"),
+        }
+        server_title,translation_title,overlay_title,quick_title=titles.get(
+            self.app.ui_language,titles["en"])
+        blocks=(
+            (0,0,1,server_title,self._home_server),
+            (0,1,1,"SMART ENGINE",self._home_engine),
+            (1,0,1,translation_title,self._home_translation),
+            (1,1,1,overlay_title,self._home_overlay),
+            (2,0,2,quick_title,self._home_quick),
+        )
+        for row,col,colspan,title,builder in blocks:
             frame,body=card(grid,title)
-            frame.grid(row=row,column=col,sticky="nsew",padx=4,pady=2)
+            frame.grid(row=row,column=col,columnspan=colspan,sticky="nsew",
+                       padx=4,pady=4)
             builder(body)
 
     def _home_server(self,p):
         row=tk.Frame(p,bg=CARD)
-        row.pack(fill="x",expand=True)
-        art=tk.Label(row,image=ui_photo(p,"server_scene_thumb.png"),bg=CARD)
-        art.pack(side="left",padx=(0,11))
+        row.pack(fill="x")
+        tk.Label(row,image=ui_photo(p,"server_scene_thumb.png"),
+                 bg=CARD).pack(side="left",padx=(0,12))
         info=tk.Frame(row,bg=CARD)
         info.pack(side="left",fill="both",expand=True)
         tk.Label(info,text=FEATURED_SERVER.name,bg=CARD,fg=TEXT,
-                 font=(FONT,12,"bold"),anchor="w").pack(fill="x")
+                 font=(FONT,13,"bold"),anchor="w").pack(anchor="w")
         text(info,FEATURED_SERVER.subtitle,color=MUTED,size=9).pack(anchor="w",pady=(2,0))
-        text(info,FEATURED_SERVER.address,color=AMBER,size=9,bold=True).pack(anchor="w",pady=(2,0))
-        # A preset address does not prove that the game is connected.
+        text(info,FEATURED_SERVER.address,color=AMBER,size=10,bold=True).pack(anchor="w",pady=(4,0))
+        # The selected server profile is not the same as being connected.
         tk.Label(info,textvariable=self.server_var,bg=CARD,fg=MUTED,
-                 font=(FONT,9),anchor="w").pack(fill="x",pady=(2,2))
+                 font=(FONT,9),anchor="w").pack(anchor="w",pady=(2,4))
         actions=tk.Frame(info,bg=CARD)
-        actions.pack(fill="x")
+        actions.pack(anchor="w")
         tactical_action(actions,tr(self.app,"connect"),
-                        self.app._launch_featured_server,primary=True).pack(side="left",padx=(0,5))
+                        self.app._launch_featured_server,primary=True).pack(
+                            side="left",padx=(0,7))
         discord=tactical_action(actions,"Discord",self.app._open_featured_server_discord)
-        discord.pack(side="left",padx=(0,5))
+        discord.pack(side="left")
         if not FEATURED_SERVER.discord_url:discord.state(["disabled"])
-        tactical_action(actions,tr(self.app,"server_settings"),
-                        self.app.show_server_settings).pack(side="left")
+        # Server profiles are accessible in the real Settings page;
+        # no separate server settings button on beginner Home.
 
     def _home_engine(self,p):
+        # Real engine/pack status, no artificial green "healthy" lights.
         row=tk.Frame(p,bg=CARD)
         row.pack(fill="x")
-        status=tk.Frame(row,bg=CARD)
-        status.pack(side="left",fill="both",expand=True)
-        names=("engine","pack","cache","collect")
-        for key in names:
-            line=tk.Frame(status,bg=CARD)
-            line.pack(fill="x",pady=0)
-            bullet=tk.Label(line,text="●",bg=CARD,fg=MUTED,font=(FONT,10))
-            bullet.pack(side="left",padx=(0,6))
-            value=tk.Label(line,text="",bg=CARD,fg=TEXT,
-                           font=(FONT,9),anchor="w")
-            value.pack(side="left",fill="x")
-            setattr(self,"engine_"+key+"_label",value)
-            setattr(self,"engine_"+key+"_bullet",bullet)
-        # Compact HUD and real knowledge action share the same row;
-        # the right panel no longer forces an extra 30px of vertical height.
+        detail=tk.Frame(row,bg=CARD)
+        detail.pack(side="left",fill="x",expand=True)
+        line=tk.Frame(detail,bg=CARD)
+        line.pack(anchor="w")
+        self.engine_engine_bullet=tk.Label(line,text="●",bg=CARD,
+                                            fg=MUTED,font=(FONT,12))
+        self.engine_engine_bullet.pack(side="left",padx=(0,7))
+        self.engine_engine_label=tk.Label(line,text="",bg=CARD,fg=TEXT,
+                                           font=(FONT,12,"bold"),anchor="w")
+        self.engine_engine_label.pack(side="left")
+        self.engine_pack_label=tk.Label(detail,text="",bg=CARD,fg=MUTED,
+                                         font=(FONT,9),anchor="w")
+        self.engine_pack_label.pack(anchor="w",pady=(5,0))
         side=tk.Frame(row,bg=CARD)
-        side.pack(side="right",padx=(6,0))
-        hud=tk.Canvas(side,width=92,height=54,bg=CARD,
+        side.pack(side="right")
+        hud=tk.Canvas(side,width=75,height=62,bg=CARD,
                       highlightthickness=0,borderwidth=0)
         hud.pack(anchor="center")
-        hud.create_oval(26,1,76,51,outline="#776342",width=3)
-        hud.create_arc(26,1,76,51,start=45,extent=265,
-                       style="arc",outline="#C79B4C",width=3)
-        hud.create_oval(34,9,68,43,outline="#62533A",width=2)
-        hud.create_text(51,26,text="V2",font=(FONT,12,"bold"),fill=AMBER)
-        tactical_action(side,tr(self.app,"learn"),
-                        lambda:self.navigate("knowledge")).pack(anchor="e")
+        hud.create_oval(10,3,64,57,outline="#80653A",width=3)
+        hud.create_arc(10,3,64,57,start=60,extent=245,
+                       style="arc",outline="#CF9F45",width=3)
+        hud.create_text(37,30,text="AI",fill=AMBER,font=(FONT,15,"bold"))
+        tactical_action(p,tr(self.app,"learn"),
+                        lambda:self.navigate("knowledge")).pack(anchor="e",pady=(5,0))
 
     def _home_translation(self,p):
-        # Compact 3-column form: individual F8/F9 switches, both directions,
-        # style and slang flags, without conflating the F8 and F9 targets.
-        layout=tk.Frame(p,bg=CARD)
-        layout.pack(fill="x",expand=True)
-        layout.columnconfigure(0,weight=0)
-        layout.columnconfigure(1,weight=1)
-        layout.columnconfigure(2,weight=0)
-        modes=tk.Frame(layout,bg=CARD)
-        modes.grid(row=0,column=0,sticky="nw",padx=(0,11))
-        tactical_switch(modes,"F8",self.app.enabled_var,
-                        self.app.toggle_enabled).pack(anchor="w",pady=1)
-        tactical_switch(modes,"F9",self.app.outgoing_chat.enabled_var,
-                        self.app._outgoing_enabled_changed).pack(anchor="w",pady=2)
-        central=tk.Frame(layout,bg=CARD)
-        central.grid(row=0,column=1,sticky="ew")
-        languages=tk.Frame(central,bg=CARD)
-        languages.pack(fill="x",pady=(0,1))
-        text(languages,tr(self.app,"target")+":",color=MUTED,size=9).pack(side="left")
+        # F8 and F9 stay independent; all expert controls are in Translation.
+        left=tk.Frame(p,bg=CARD)
+        left.pack(fill="x",pady=(2,8))
+        flags=tk.Frame(left,bg=CARD)
+        flags.pack(side="left",padx=(0,20))
+        if self.app.ui_language=="ru":
+            incoming,outgoing="Входящий чат","Исходящий чат"
+        elif self.app.ui_language=="uk":
+            incoming,outgoing="Вхідний чат","Вихідний чат"
+        else:
+            incoming,outgoing="Incoming chat","Outgoing chat"
+        tactical_switch(flags,"F8  "+incoming,
+                        self.app.enabled_var,self.app.toggle_enabled).pack(
+                            anchor="w",pady=(1,5))
+        tactical_switch(flags,"F9  "+outgoing,
+                        self.app.outgoing_chat.enabled_var,
+                        self.app._outgoing_enabled_changed).pack(anchor="w")
+        routes=tk.Frame(left,bg=CARD)
+        routes.pack(side="left",fill="x",expand=True)
+        row=tk.Frame(routes,bg=CARD)
+        row.pack(fill="x",pady=(1,4))
+        text(row,tr(self.app,"target")+":",color=MUTED,size=9).pack(side="left")
         from app import TARGET_LANGUAGES
         available=list(TARGET_LANGUAGES.keys())
         custom=self.app._custom_language_label()
         if custom:available.append(custom)
         self.app.language_combo=ttk.Combobox(
-            languages,textvariable=self.app.target_name_var,values=available,
-            state="readonly",width=14)
-        self.app.language_combo.pack(side="left",padx=(5,6))
-        self.app.language_combo.bind(
-            "<<ComboboxSelected>>",lambda _e:self.app._persist_settings())
-        tactical_action(languages,tr(self.app,"other"),
-                        self.app.choose_custom_language).pack(side="left")
-        line=tk.Frame(central,bg=CARD)
-        line.pack(fill="x",pady=(1,0))
-        text(line,tr(self.app,"style")+":",color=MUTED,size=9).pack(side="left")
-        styles=[self.app._style_label(v) for v in ("clear","live","raw")]
-        self.app.slang_style_var.set(self.app._style_label(
-            self.app.config.get("slang_style","live")))
-        styles_input=ttk.Combobox(line,textvariable=self.app.slang_style_var,
-                                   values=styles,state="readonly",width=16)
-        styles_input.pack(side="left",padx=(5,0))
-        styles_input.bind("<<ComboboxSelected>>",
-                          lambda _e:self.app._persist_settings())
-        direction=tk.Frame(central,bg=CARD)
-        direction.pack(fill="x",pady=(2,0))
-        text(direction,"F9:",color=MUTED,size=9).pack(side="left")
-        tk.Label(direction,textvariable=self.app.outgoing_chat.route_var,
-                 bg=CARD,fg=AMBER,font=(FONT,9,"bold")).pack(side="left",padx=(6,0))
-        tactical_action(direction,tr(self.app,"translation")+" →",
-                        lambda:self.navigate("translation")).pack(side="right")
-        options=tk.Frame(layout,bg=CARD)
-        options.grid(row=0,column=2,sticky="ne",padx=(6,0))
-        flags=[]
-        for label,var,command in (
-            ("slang",self.app.slang_var,self.app._persist_settings),
-            ("dedupe",self.app.dedupe_var,self.app._persist_settings),
-            ("original",self.app.show_original_var,self.app.toggle_original),
-        ):
-            widget=check(options,tr(self.app,label),var,command)
-            widget.pack(anchor="w",pady=0)
-            flags.append(widget)
-
-        # High DPI + narrow windows: move the three flags BELOW the
-        # language selectors, instead of clipping the "Other language"
-        # button. This is a real rearrangement of native controls.
-        layout_mode=[False]
-        def fit_translation(event):
-            # Use real requested widths, not a hardcoded DPI/window cutoff.
-            # Keep the flags in a second row whenever all three columns
-            # would clip the Other-language or style controls.
-            required=(modes.winfo_reqwidth()+central.winfo_reqwidth()
-                      +max(w.winfo_reqwidth() for w in flags)+28)
-            narrow=event.width<required
-            if narrow==layout_mode[0]:
-                return
-            layout_mode[0]=narrow
-            options.grid_forget()
-            if narrow:
-                options.grid(row=1,column=0,columnspan=3,sticky="w",pady=(3,0))
-                for control in flags:
-                    control.pack_forget()
-                    control.pack(side="left",padx=(0,12))
-            else:
-                options.grid(row=0,column=2,sticky="ne",padx=(6,0))
-                for control in flags:
-                    control.pack_forget()
-                    control.pack(anchor="w",pady=0)
-        layout.bind("<Configure>",fit_translation)
+            row,textvariable=self.app.target_name_var,values=available,
+            state="readonly",width=16)
+        self.app.language_combo.pack(side="left",padx=(8,0))
+        self.app.language_combo.bind("<<ComboboxSelected>>",
+                                     lambda _e:self.app._persist_settings())
+        route=tk.Frame(routes,bg=CARD)
+        route.pack(fill="x")
+        text(route,"F9:",color=MUTED,size=9).pack(side="left")
+        tk.Label(route,textvariable=self.app.outgoing_chat.route_var,
+                 bg=CARD,fg=AMBER,font=(FONT,10,"bold")).pack(side="left",padx=8)
+        label={
+            "ru":"Расширенные настройки перевода",
+            "uk":"Розширені налаштування перекладу",
+            "en":"Advanced translation settings",
+        }.get(self.app.ui_language,"Advanced translation settings")
+        tactical_action(p,label,lambda:self.navigate("translation")).pack(
+            anchor="e",pady=(2,0))
 
     def _home_overlay(self,p):
+        # Only the basic enable control appears on Home. All advanced
+        # display options and the four presets live on the Overlay page.
         row=tk.Frame(p,bg=CARD)
-        row.pack(fill="x",expand=True)
+        row.pack(fill="x")
         left=tk.Frame(row,bg=CARD)
-        left.pack(side="left",fill="both",expand=True)
-        for label,var,command in (
-            ("enabled",self.app.enabled_var,self.app.toggle_enabled),
-            ("bg_only",self.app.bg_only_var,self.app._background_only_changed),
-            ("fade",self.app.fade_var,self.app._fade_changed),
-            ("compact_bg",self.app.compact_bg_var,self.app._compact_background_changed),
-        ):
-            check(left,tr(self.app,label),var,command).pack(anchor="w",pady=0)
-        scene=tk.Canvas(row,bg="#1A1813",height=77,width=97,
+        left.pack(side="left",fill="both",expand=True,pady=(10,0))
+        tactical_switch(left,tr(self.app,"enabled"),
+                        self.app.enabled_var,self.app.toggle_enabled).pack(anchor="w")
+        text(left,tr(self.app,"overlay_hint"),color=MUTED,size=9,
+             wraplength=240).pack(anchor="w",pady=(6,0))
+        scene=tk.Canvas(row,bg="#1A1813",height=72,width=94,
                         borderwidth=0,highlightthickness=0)
         scene.pack(side="right",padx=(8,0))
-        scene.create_rectangle(4,4,93,73,outline="#90734A",width=2)
+        scene.create_rectangle(4,4,90,68,outline="#90734A",width=2)
         for x1,y1,x2,y2 in ((11,18,11,11),(11,11,18,11),
-                             (79,11,87,11),(87,11,87,18),
-                             (11,59,11,67),(11,67,18,67),
-                             (79,67,87,67),(87,59,87,67)):
+                             (76,11,84,11),(84,11,84,18),
+                             (11,55,11,63),(11,63,18,63),
+                             (76,63,84,63),(84,55,84,63)):
             scene.create_line(x1,y1,x2,y2,fill="#D6A35E",width=2)
-        scene.create_line(48,21,48,58,fill=AMBER,width=2)
-        scene.create_line(30,39,66,39,fill=AMBER,width=2)
-        scene.create_oval(44,35,52,43,outline=AMBER,width=2)
-        tactical_action(p,tr(self.app,"overlay")+"  →",
-                        lambda:self.navigate("overlay")).pack(anchor="e")
-
-    def _home_overlay_prefs(self,p):
-        for label,var,label_var,minimum,maximum,callback in (
-            ("font_size",self.app.font_var,self.app.font_label_var,7,20,self.app._font_slider),
-            ("opacity",self.app.bg_var,self.app.bg_label_var,0,90,self.app._background_slider),
-            ("time",self.app.ttl_var,self.app.ttl_label_var,5,20,self.app._ttl_slider),
-        ):
-            row=tk.Frame(p,bg=CARD)
-            row.pack(fill="x",pady=0)
-            text(row,tr(self.app,label),color=MUTED,size=9).pack(side="left")
-            tk.Label(row,textvariable=label_var,bg=CARD,fg=AMBER,
-                     width=6,font=(FONT,9,"bold")).pack(side="right")
-            slider=ttk.Scale(row,from_=minimum,to=maximum,orient="horizontal",
-                             command=callback)
-            slider.set(var.get())
-            slider.pack(side="right",fill="x",expand=True,padx=(12,6))
-        options=tk.Frame(p,bg=CARD)
-        options.pack(fill="x",pady=(5,0))
-        count_group=tk.Frame(options,bg=CARD)
-        count_group.pack(side="left")
-        from app import MIN_OVERLAY_MESSAGES,MAX_OVERLAY_MESSAGES
-        text(count_group,tr(self.app,"messages")+":",color=MUTED,size=9).pack(side="left")
-        amount=ttk.Combobox(
-            count_group,values=list(range(MIN_OVERLAY_MESSAGES,MAX_OVERLAY_MESSAGES+1)),
-            textvariable=self.app.max_messages_var,width=3,state="readonly")
-        amount.pack(side="left",padx=(5,10))
-        amount.bind("<<ComboboxSelected>>",
-                    lambda _e:self.app._max_messages_changed())
-        presets_group=tk.Frame(options,bg=CARD)
-        presets_group.pack(side="left")
-        at_high_dpi=float(self.root.tk.call("tk","scaling"))>=1.85
-        short_standard={"ru":"Стандарт","uk":"Стандарт","en":"Default"}
-        short_text={"ru":"Только текст","uk":"Лише текст","en":"Text only"}
-        for label,callback in (
-            ("text_only",self.app.text_only_preset),
-            ("minimal",self.app.minimal_preset),
-            ("readable",self.app.readable_preset),
-            ("standard",self.app.reset_overlay_position),
-        ):
-            caption=tr(self.app,label)
-            if at_high_dpi and label=="standard":
-                caption=short_standard.get(self.app.ui_language,"Default")
-            if at_high_dpi and label=="text_only":
-                caption=short_text.get(self.app.ui_language,"Text only")
-            tactical_action(presets_group,caption,callback).pack(
-                side="left",padx=(0,4))
-
-        # On 150%-sized text at narrow widths, put all four presets on
-        # their own row instead of cropping the final preset at the edge.
-        appearance_stacked=[False]
-        def fit_presets(event):
-            total=count_group.winfo_reqwidth()+presets_group.winfo_reqwidth()+6
-            stacked=event.width<total
-            if stacked==appearance_stacked[0]:
-                return
-            appearance_stacked[0]=stacked
-            count_group.pack_forget()
-            presets_group.pack_forget()
-            if stacked:
-                count_group.pack(anchor="w")
-                presets_group.pack(anchor="w",pady=(4,0))
-            else:
-                count_group.pack(side="left")
-                presets_group.pack(side="left")
-        options.bind("<Configure>",fit_presets)
+        scene.create_line(47,19,47,53,fill=AMBER,width=2)
+        scene.create_line(30,36,64,36,fill=AMBER,width=2)
+        scene.create_oval(43,32,51,40,outline=AMBER,width=2)
+        label={
+            "ru":"Настроить оверлей →",
+            "uk":"Налаштувати оверлей →",
+            "en":"Overlay settings →",
+        }.get(self.app.ui_language,"Overlay settings →")
+        tactical_action(p,label,lambda:self.navigate("overlay")).pack(anchor="e",pady=(6,0))
 
     def _home_quick(self,p):
-        layout=tk.Frame(p,bg=CARD)
-        layout.pack(fill="both",expand=True)
-        for col in range(3):layout.columnconfigure(col,weight=1)
-        controls=(
-            ("test",self.app.test_overlay),
-            ("clear",self.app.clear_overlay),
-            ("configure",self.app.toggle_overlay_edit),
-            ("screenshot",self.app.capture_game_screenshot),
-            ("export",self.app._export_knowledge),
-            ("updates",lambda:self.app.check_updates(manual=True)),
-        )
-        # Short labels prevent clipping at 1366x768 and on 125% DPI.
-        short={
-            "ru":{"test":"Тест оверлея","clear":"Очистить",
-                  "configure":"Настроить","screenshot":"Снимок F10",
-                  "export":"Экспорт базы","updates":"Обновления"},
-            "uk":{"test":"Тест оверлею","clear":"Очистити",
-                  "configure":"Налаштувати","screenshot":"Знімок F10",
-                  "export":"Експорт бази","updates":"Оновлення"},
-            "en":{"test":"Test overlay","clear":"Clear",
-                  "configure":"Configure","screenshot":"Shot F10",
-                  "export":"Export data","updates":"Updates"},
+        # Exactly three actions on Home. Secondary actions are not removed,
+        # only discoverable via the native "More" menu.
+        row=tk.Frame(p,bg=CARD)
+        row.pack(fill="x")
+        labels={
+            "ru":("Тест оверлея","Снимок F10","Настроить","Ещё ▾",
+                  "Очистить оверлей","Экспорт базы","Проверить обновления"),
+            "uk":("Тест оверлею","Знімок F10","Налаштувати","Ще ▾",
+                  "Очистити оверлей","Експорт бази","Перевірити оновлення"),
+            "en":("Test overlay","Shot F10","Configure","More ▾",
+                  "Clear overlay","Export knowledge","Check updates"),
         }
-        labels=short.get(self.app.ui_language,short["en"])
-        quick_buttons=[]
-        for i,(name,callback) in enumerate(controls):
-            label=labels[name]
-            button=tactical_action(layout,label,callback,
-                                  primary=name=="test",icon=name)
-            button.grid(row=i//3,column=i%3,sticky="nsew",padx=3,pady=4,ipady=2)
-            quick_buttons.append(button)
-            if name=="configure":
-                self.app.overlay_edit_button=button
-
-        # 3x2 on normal displays; 2x3 when actual widget measurements
-        # show that high-DPI text cannot fit in the available panel.
-        layout_columns=[3]
-        def fit_actions(event):
-            width_required=3*(max(w.winfo_reqwidth() for w in quick_buttons)+8)
-            columns=3 if event.width>=width_required else 2
-            if columns==layout_columns[0]:
-                return
-            layout_columns[0]=columns
-            for column in range(3):
-                layout.columnconfigure(column,weight=1 if column<columns else 0)
-            for index,button in enumerate(quick_buttons):
-                button.grid_configure(row=index//columns,column=index%columns)
-
-        layout.bind("<Configure>",fit_actions)
+        test,shot,configure,more,clear,export,updates=labels.get(
+            self.app.ui_language,labels["en"])
+        tactical_action(row,test,self.app.test_overlay,
+                        primary=True,icon="test").pack(side="left",padx=(0,7))
+        tactical_action(row,shot,self.app.capture_game_screenshot,
+                        icon="screenshot").pack(side="left",padx=(0,7))
+        button=tactical_action(row,configure,self.app.toggle_overlay_edit,
+                               icon="configure")
+        button.pack(side="left")
+        self.app.overlay_edit_button=button
+        # All four controls share one row: no wasted bottom strip.
+        extra_menu=tk.Menu(row,tearoff=False,bg="#33281D",fg=TEXT,
+                           activebackground="#97510D",activeforeground="#FFFFFF",
+                           borderwidth=1)
+        extra_menu.add_command(label=clear,command=self.app.clear_overlay)
+        extra_menu.add_command(label=export,command=self.app._export_knowledge)
+        extra_menu.add_command(label=updates,
+                               command=lambda:self.app.check_updates(manual=True))
+        self.home_more_menu=extra_menu
+        more_button=tactical_action(
+            row,more,lambda:extra_menu.tk_popup(
+                more_button.winfo_rootx(),
+                more_button.winfo_rooty()+more_button.winfo_height()))
+        more_button.pack(side="right",padx=(12,0))
+        self.home_more_button=more_button
 
     def navigate(self,name):
         if name not in self.pages:return False
@@ -515,34 +411,29 @@ class WWIIDashboard(Dashboard):
 
     def refresh(self):
         super().refresh()
-        # Both engines and data flags are displayed from source variables.
-        if not hasattr(self,"engine_engine_label"):return
+        if not hasattr(self,"engine_engine_label"):
+            return
         app=self.app
         active=bool(app.smart_engine_var.get())
         runtime=getattr(app,"_knowledge_runtime",None)
-        kb=runtime.version if (runtime and runtime.enabled) else 0
-        labels={
-            "engine":("Smart V2" if active and kb else "Smart V1" if active else "Classic"),
-            "pack":f"{tr(app,'knowledge_state')}: v{kb}" if kb else tr(app,"knowledge_state")+": —",
-            "cache":({"ru":"Локальный кэш: ","uk":"Локальний кеш: ","en":"Local cache: "}.get(app.ui_language,"Local cache: ") + ("ON" if app.config.get("experience_cache") else "OFF")),
-            "collect":({"ru":"Сбор примеров: ","uk":"Збирання прикладів: ","en":"Example collection: "}.get(app.ui_language,"Example collection: ") + ("ON" if app.config.get("experience_collect") else "OFF")),
+        version=runtime.version if runtime and runtime.enabled else 0
+        self.engine_engine_label.configure(
+            text="Smart V2" if active and version else
+                 "Smart V1" if active else "Classic")
+        self.engine_engine_bullet.configure(fg=GREEN if active else MUTED)
+        self.footer_ready_dot.configure(
+            fg=GREEN if (app.enabled_var.get() or
+                         app.outgoing_chat.enabled_var.get()) else MUTED)
+        counts=runtime.pack.count if runtime and version else 0
+        desc={
+            "ru":f"База знаний: {counts} групп" if version else "База знаний: не загружена",
+            "uk":f"База знань: {counts} груп" if version else "База знань: не завантажена",
+            "en":f"Knowledge: {counts} groups" if version else "Knowledge: not loaded",
         }
-        for key,value in labels.items():
-            label=getattr(self,"engine_"+key+"_label",None)
-            bullet=getattr(self,"engine_"+key+"_bullet",None)
-            healthy={
-                "engine":active,
-                "pack":bool(kb),
-                "cache":bool(app.config.get("experience_cache")),
-                "collect":bool(app.config.get("experience_collect")),
-            }[key]
-            if label is not None and label.winfo_exists():
-                label.configure(text=value)
-            if bullet is not None and bullet.winfo_exists():
-                bullet.configure(fg=GREEN if healthy else MUTED)
-        runtime=getattr(app,"_knowledge_runtime",None)
-        self.footer_base.configure(text=(f"{runtime.pack.count} {tr(app,'base').lower()}" if kb and runtime else "Knowledge: —"))
-        self.footer_style.configure(text=tr(app,"style")+": "+str(app.slang_style_var.get()))
+        self.engine_pack_label.configure(text=desc.get(app.ui_language,desc["en"]))
+        self.footer_base.configure(
+            text="F9  "+str(app.outgoing_chat.route_var.get()))
+        self.footer_style.configure(text="")
 
 
 def build_dashboard(app):
