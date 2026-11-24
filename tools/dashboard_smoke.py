@@ -20,6 +20,8 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--screenshot", type=Path)
+    parser.add_argument("--screenshot-dir", type=Path,
+                        help="Capture the actual Tk Home and expert pages on X11")
     parser.add_argument("--preview-width",type=int,default=1320)
     parser.add_argument("--preview-height",type=int,default=840)
     parser.add_argument("--tk-scaling",type=float,default=None,
@@ -220,20 +222,29 @@ def main():
                     assert visible+5 >= natural, (
                         f"Clipped native action {widget.cget('text')!r}: "
                         f"{visible}px versus {natural}px required")
-            if args.screenshot:
+            if args.screenshot or args.screenshot_dir:
                 # Only take a screenshot when an X11 server and ffmpeg are
                 # explicitly provided. No screenshots are sent anywhere.
-                args.screenshot.parent.mkdir(parents=True, exist_ok=True)
                 if sys.platform != "linux":
                     print("Screenshot capture is only supported via X11 ffmpeg", file=sys.stderr)
                 else:
-                    subprocess.run([
-                        "ffmpeg","-hide_banner","-loglevel","error",
-                        "-f","x11grab","-draw_mouse","0","-video_size",
-                        f"{args.preview_width}x{args.preview_height}",
-                        "-i",os.environ["DISPLAY"],"-frames:v","1",
-                        "-update","1","-y",str(args.screenshot)
-                    ], check=True, timeout=15)
+                    pages = (("home",args.screenshot),) if not args.screenshot_dir else (
+                        (name,args.screenshot_dir/f"xvfb_{name}.png") for name in (
+                            "home", "translation", "overlay", "knowledge", "stats", "settings"))
+                    for name, target in pages:
+                        if target is None:
+                            continue
+                        app.dashboard.navigate(name)
+                        root.update_idletasks()
+                        root.update()
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        subprocess.run([
+                            "ffmpeg","-hide_banner","-loglevel","error",
+                            "-f","x11grab","-draw_mouse","0","-video_size",
+                            f"{args.preview_width}x{args.preview_height}",
+                            "-i",os.environ["DISPLAY"],"-frames:v","1",
+                            "-update","1","-y",str(target)
+                        ], check=True, timeout=15)
             print(f"DASHBOARD SMOKE PASS: v{APP_VERSION}, pages=6, nav=7,"
                   " settings callbacks, overlay state, RU/UK/EN, 1050px layout")
             return 0
