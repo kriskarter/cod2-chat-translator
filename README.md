@@ -33,6 +33,12 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## v1.21.1 RC — compact WWII metal GUI and original branding
+
+Refinement of the approved cinematic concept: a newly illustrated metallic helmet wordmark, compact six-panel layout, native F8/F9 switches, six icon-bearing live actions, and a subtle historical backdrop for large windows. The tested 1318 × 678 interface fits without meaningful scrolling; all previous language, game and knowledge workflows are retained. [Actual GUI screenshots and validation](docs/WWII_REBRAND_RC3.md).
+
+![Actual running Tk application v1.21.1 RC](docs/images/wwii_rebrand_rc3_compact.png)
+
 ## v1.21.0 RC — approved WWII metal GUI
 
 This RC implements the selected WWII/CoD2 tactical-metal concept, replacing the rejected graphite dashboard with archival sepia battle art, real metal-style panels/buttons, horizontal navigation and six live Home sections. F8/F9, overlay, knowledge/export and server callbacks remain operational; statuses are sourced from the app. [Design details](docs/WWII_REBRAND_RC2.md).

@@ -17,3 +17,18 @@ The reduced source copy is source_coutances.jpg. Generated overlays, other
 raster assets, metal textures and original menu glyphs are produced by
 tools/build_wwii_assets.py (Pillow at build-time only). Runtime loads
 raster files using tkinter.PhotoImage. No font files are bundled.
+
+
+## RC3 original product artwork
+
+The brand_logo.png and brand_logo_compact.png assets are original metallic
+wordmarks with an illustrated camouflage-net WWII helmet. The generator
+uses locally installed system fonts as raster sources: NO FONT FILE IS BUNDLED.
+switch_on.png and switch_off.png are state icons on real, keyboard-accessible
+Tk Checkbutton controls. quick_*.png decorate actual native buttons.
+version_plate.png is a blank badge with the real version drawn at runtime.
+body_backdrop.png is a dim archival photo treatment, never a live status.
+
+All generated assets can be rebuilt with:
+    python tools/build_wwii_assets.py
+Runtime Windows builds load PNGs using tkinter.PhotoImage (no Pillow dependency).

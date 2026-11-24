@@ -181,16 +181,16 @@ def setup_theme(root: tk.Tk):
     style.configure("TButton", background="#3D3528", foreground=TEXT,
                     font=(FONT, 10, "bold"), bordercolor="#99774C",
                     lightcolor="#94744C", darkcolor="#17130F",
-                    borderwidth=2, padding=(10, 7), relief="raised")
+                    borderwidth=2, padding=(8, 5), relief="raised")
     style.map("TButton", background=[("pressed", "#6A502E"), ("active", "#554027")],
               foreground=[("disabled", MUTED), ("active", TEXT)])
     style.configure("Accent.TButton", background="#9E4E0B", foreground="#FFFFFF",
                     font=(FONT, 10, "bold"), bordercolor="#F3AC52",
                     lightcolor="#EC9E40", darkcolor="#482002",
-                    padding=(13, 9), borderwidth=2, relief="raised")
+                    padding=(10, 5), borderwidth=2, relief="raised")
     style.map("Accent.TButton", background=[("active", "#C97212"), ("pressed", "#733804")])
     style.configure("Warm.TButton", background="#5E391A", foreground="#FFF1D5",
-                    bordercolor="#BC8546", padding=(12, 9))
+                    bordercolor="#BC8546", padding=(10, 5))
     style.map("Warm.TButton", background=[("active", "#BA681B"), ("pressed", "#4D2D0E")])
     style.configure("TCheckbutton", background=CARD, foreground=TEXT, padding=(2, 5))
     style.map("TCheckbutton", background=[("active", CARD)],
@@ -202,6 +202,22 @@ def setup_theme(root: tk.Tk):
     style.map("TCombobox", fieldbackground=[("readonly", "#DCCBAD")],
               foreground=[("readonly", "#21190F")])
     style.configure("TScale", background=CARD, troughcolor="#473725", borderwidth=0)
+    # Compact, metal-framed home actions. Advanced settings keep the
+    # larger touch targets from their existing styles.
+    style.configure("Tactical.TButton", background="#443728", foreground="#FFF0D3",
+                    font=(FONT, 9, "bold"), bordercolor="#A78657",
+                    lightcolor="#D0A16B", darkcolor="#18110A",
+                    padding=(6, 3), borderwidth=2, relief="raised")
+    style.map("Tactical.TButton",
+              background=[("active", "#6B4E2D"), ("pressed", "#352316")],
+              foreground=[("disabled", MUTED)])
+    style.configure("TacticalAccent.TButton", background="#9C4A09",
+                    foreground="#FFFFFF", font=(FONT, 9, "bold"),
+                    bordercolor="#FFC06B", lightcolor="#E89A42",
+                    darkcolor="#411C07", padding=(6, 3),
+                    borderwidth=2, relief="raised")
+    style.map("TacticalAccent.TButton",
+              background=[("active", "#BE6A16"), ("pressed", "#7B3102")])
     style.configure("TSeparator", background=BORDER)
 
 
@@ -231,12 +247,12 @@ def ui_photo(master, name):
     return photo
 
 
-def card(parent, title=None, *, tone=CYAN, padding=12):
-    border=tk.Frame(parent, bg="#8F7148", padx=2, pady=2)
+def card(parent, title=None, *, tone=CYAN, padding=5):
+    border=tk.Frame(parent, bg="#8F7148", padx=1, pady=1)
     shell=tk.Frame(border, bg="#15130D")
     shell.pack(fill="both", expand=True)
     if title:
-        heading=tk.Canvas(shell, bg="#3B3326", height=43,
+        heading=tk.Canvas(shell, bg="#3B3326", height=27,
                           highlightthickness=0, borderwidth=0)
         heading.pack(fill="x")
         plate=ui_photo(parent, "plate.png")
@@ -246,10 +262,10 @@ def card(parent, title=None, *, tone=CYAN, padding=12):
             for x in range(plate.width(),event.width+plate.width(),plate.width()):
                 heading.create_image(x,0,anchor="nw",image=plate,tags="repeat")
         heading.bind("<Configure>", adjust)
-        heading.create_text(20,21,text=title.upper(),anchor="w",
-                            font=("Bahnschrift SemiCondensed",15,"bold"),
+        heading.create_text(13,13,text=title.upper(),anchor="w",
+                            font=("Bahnschrift SemiCondensed",12,"bold"),
                             fill=TEXT)
-        heading.create_line(2,42,1152,42,fill="#B28B4B",width=1)
+        heading.create_line(2,26,1152,26,fill="#B28B4B",width=1)
     box=tk.Frame(shell, bg=CARD, padx=padding, pady=padding)
     box.pack(fill="both",expand=True)
     return border,box
