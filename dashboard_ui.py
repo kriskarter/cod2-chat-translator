@@ -259,13 +259,6 @@ def setup_theme(root: tk.Tk):
                         padding=(3, 2) if compact_dpi else (4, 3))
     for name in ("Tactical.TButton", "TacticalAccent.TButton"):
         style.configure(name, padding=(4, 2) if compact_dpi else (7, 3))
-    if "Premium.Card.surface" not in style.element_names():
-        style.element_create("Premium.Card.surface", "image",
-            ui_photo(root, "premium_card_frame.png"),
-            border=(9, 9, 9, 9), sticky="nsew")
-    style.layout("Premium.Card.TFrame", [
-        ("Premium.Card.surface", {"sticky": "nsew"})])
-    style.configure("Premium.Card.TFrame", padding=4)
     # Real readonly comboboxes and scales keep their native semantics.
     style.configure("TCombobox", fieldbackground="#252218", background="#382D20",
                     foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
@@ -303,8 +296,8 @@ def ui_photo(master, name):
 def card(parent, title=None, *, tone=CYAN, padding=5):
     compact_dpi = float(parent.tk.call("tk", "scaling")) >= 1.6
     heading_height = 27 if compact_dpi else 30
-    border=ttk.Frame(parent, style="Premium.Card.TFrame")
-    shell=tk.Frame(border, bg="#100F0B")
+    border=tk.Frame(parent, bg="#BC975D", padx=2, pady=2)
+    shell=tk.Frame(border, bg="#100F0B", padx=2, pady=2)
     shell.pack(fill="both", expand=True)
     if title:
         heading=tk.Canvas(shell, bg="#302B20", height=heading_height,
