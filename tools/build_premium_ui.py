@@ -76,6 +76,22 @@ def main():
     d.line((0, 45, 1024, 45), fill=(171, 132, 79, 195), width=1)
     plate.save(OUT / "premium_plate.png", optimize=True)
 
+    # Compact scalable bezel: corner lighting and edge wear are raster art,
+    # while ttk stretches only the neutral central strips and interior.
+    bezel = material(64, 64, start=251).convert("RGBA")
+    bezel = Image.alpha_composite(bezel, Image.new("RGBA", bezel.size,
+                                                  (15, 13, 9, 120)))
+    bd = ImageDraw.Draw(bezel, "RGBA")
+    bd.rounded_rectangle((0, 0, 63, 63), radius=6,
+                         outline=(19, 16, 10, 255), width=2)
+    bd.rounded_rectangle((2, 2, 61, 61), radius=5,
+                         outline=(207, 163, 92, 255), width=2)
+    bd.rounded_rectangle((5, 5, 58, 58), radius=3,
+                         outline=(73, 58, 37, 240), width=2)
+    bd.line((10, 6, 54, 6), fill=(255, 230, 172, 115), width=1)
+    bd.line((10, 57, 54, 57), fill=(0, 0, 0, 220), width=2)
+    bezel.save(OUT / "premium_card_frame.png", optimize=True)
+
     for group, amber in (("metal", False), ("amber", True)):
         for state in ("normal", "hover", "pressed", "disabled"):
             button(f"{group}_{state}", amber=amber, hover=state == "hover",
