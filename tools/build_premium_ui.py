@@ -68,6 +68,8 @@ def main():
     logo = logo.crop(logo.getbbox())
     logo.thumbnail((580, 110), Image.Resampling.LANCZOS)
     logo.save(OUT / "premium_logo.png", optimize=True)
+    logo.thumbnail((485, 88), Image.Resampling.LANCZOS)
+    logo.save(OUT / "premium_logo_compact.png", optimize=True)
 
     plate = material(1024, 46, start=172).convert("RGBA")
     plate = Image.alpha_composite(plate, Image.new("RGBA", plate.size, (35, 28, 17, 55)))

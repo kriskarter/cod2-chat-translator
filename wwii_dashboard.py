@@ -61,23 +61,29 @@ class WWIIDashboard(Dashboard):
 
     def _build(self):
         app=self.app
+        compact_dpi=float(self.root.tk.call("tk","scaling"))>=1.6
         outer=tk.Frame(self.root,bg=BG)
         outer.pack(fill="both",expand=True)
         self.outer=outer
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header=tk.Canvas(outer,height=126,bg="#17130E",
+        header_height=108 if compact_dpi else 126
+        header=tk.Canvas(outer,height=header_height,bg="#17130E",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
         hero=ui_photo(header,"premium_hero.png")
-        brand=ui_photo(header,"premium_logo.png")
+        brand=ui_photo(header,"premium_logo_compact.png" if compact_dpi
+                       else "premium_logo.png")
         plaque=ui_photo(header,"version_plate.png")
         header.create_image(0,0,anchor="nw",image=hero)
-        header.create_image(205,4,anchor="nw",image=brand)
-        header.create_text(229,113,text=tr(app,"tagline"),anchor="w",
+        header.create_image(180 if compact_dpi else 205,4,anchor="nw",image=brand)
+        header.create_text(202 if compact_dpi else 229,
+                           97 if compact_dpi else 113,
+                           text=tr(app,"tagline"),anchor="w",
                            fill="#EED6A7",font=(FONT,9,"bold"))
-        header.create_line(0,124,1600,124,fill="#BC8A46",width=2)
+        header.create_line(0,header_height-2,1600,header_height-2,
+                           fill="#BC8A46",width=2)
         self.version_plate=header.create_image(0,0,image=plaque,anchor="ne")
         self.banner_version=header.create_text(0,0,text="",
             font=(FONT,11,"bold"),fill="#F8E0AE",anchor="e")

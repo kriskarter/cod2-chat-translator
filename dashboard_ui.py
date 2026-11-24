@@ -168,6 +168,7 @@ I18N = {
 
 def setup_theme(root: tk.Tk):
     style = ttk.Style(root)
+    compact_dpi = float(root.tk.call("tk", "scaling")) >= 1.6
     if "clam" in style.theme_names():
         style.theme_use("clam")
     style.configure(".", font=(FONT, 10), background=BG, foreground=TEXT)
@@ -240,13 +241,15 @@ def setup_theme(root: tk.Tk):
         for name in names:
             style.layout(name, layout)
             style.configure(name, foreground="#FFF0D1", background=CARD,
-                            borderwidth=0, padding=(8, 4), relief="flat")
+                            borderwidth=0, padding=(5, 2) if compact_dpi else (8, 4),
+                            relief="flat")
             style.map(name, foreground=[("disabled", "#A4977E"),
                                          ("active", "#FFFFFF")])
     for name in ("PremiumNav.TButton", "PremiumNavActive.TButton"):
-        style.configure(name, font=(FONT, 10, "bold"), padding=(4, 3))
+        style.configure(name, font=(FONT, 9 if compact_dpi else 10, "bold"),
+                        padding=(3, 2) if compact_dpi else (4, 3))
     for name in ("Tactical.TButton", "TacticalAccent.TButton"):
-        style.configure(name, padding=(7, 3))
+        style.configure(name, padding=(4, 2) if compact_dpi else (7, 3))
     # Real readonly comboboxes and scales keep their native semantics.
     style.configure("TCombobox", fieldbackground="#252218", background="#382D20",
                     foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
@@ -282,11 +285,13 @@ def ui_photo(master, name):
 
 
 def card(parent, title=None, *, tone=CYAN, padding=5):
+    compact_dpi = float(parent.tk.call("tk", "scaling")) >= 1.6
+    heading_height = 27 if compact_dpi else 30
     border=tk.Frame(parent, bg="#BC975D", padx=2, pady=2)
     shell=tk.Frame(border, bg="#100F0B", padx=2, pady=2)
     shell.pack(fill="both", expand=True)
     if title:
-        heading=tk.Canvas(shell, bg="#302B20", height=30,
+        heading=tk.Canvas(shell, bg="#302B20", height=heading_height,
                           highlightthickness=0, borderwidth=0)
         heading.pack(fill="x")
         plate=ui_photo(parent, "premium_plate.png")
@@ -296,11 +301,14 @@ def card(parent, title=None, *, tone=CYAN, padding=5):
             for x in range(plate.width(),event.width+plate.width(),plate.width()):
                 heading.create_image(x,0,anchor="nw",image=plate,tags="repeat")
         heading.bind("<Configure>", adjust)
-        heading.create_text(17,15,text=title.upper(),anchor="w",
-                            font=("Bahnschrift SemiCondensed",13,"bold"),
+        heading.create_text(17,heading_height//2,text=title.upper(),anchor="w",
+                            font=("Bahnschrift SemiCondensed",11 if compact_dpi else 13,"bold"),
                             fill=TEXT)
-        heading.create_line(2,29,1152,29,fill="#B28B4B",width=1)
-    box=tk.Frame(shell, bg=CARD, padx=padding, pady=padding)
+        heading.create_line(2,heading_height-1,1152,heading_height-1,
+                            fill="#B28B4B",width=1)
+    box=tk.Frame(shell, bg=CARD,
+                 padx=2 if compact_dpi else padding,
+                 pady=2 if compact_dpi else padding)
     box.pack(fill="both",expand=True)
     return border,box
 
