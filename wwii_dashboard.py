@@ -225,7 +225,13 @@ class WWIIDashboard(Dashboard):
         style_combo.bind("<<ComboboxSelected>>",lambda _e:self.app._persist_settings())
         check(bottom,tr(self.app,"dedupe"),self.app.dedupe_var,self.app._persist_settings).pack(side="left",padx=5)
         check(bottom,tr(self.app,"original"),self.app.show_original_var,self.app.toggle_original).pack(side="left",padx=5)
-        action(p,tr(self.app,"translation")+"  →",lambda:self.navigate("translation")).pack(anchor="e",pady=(6,0))
+        direction=tk.Frame(p,bg=CARD)
+        direction.pack(fill="x",pady=(3,0))
+        text(direction,"F9:",color=MUTED,size=9).pack(side="left")
+        tk.Label(direction,textvariable=self.app.outgoing_chat.route_var,
+                 bg=CARD,fg=AMBER,font=(FONT,10,"bold")).pack(side="left",padx=8)
+        action(direction,tr(self.app,"translation")+"  →",
+               lambda:self.navigate("translation")).pack(side="right")
 
     def _home_overlay(self,p):
         for key,var,command in (
@@ -253,6 +259,12 @@ class WWIIDashboard(Dashboard):
             scale.pack(side="right",fill="x",expand=True,padx=(12,8))
         presets=tk.Frame(p,bg=CARD)
         presets.pack(fill="x",pady=(7,0))
+        from app import MIN_OVERLAY_MESSAGES,MAX_OVERLAY_MESSAGES
+        text(presets,tr(self.app,"messages")+":",color=MUTED,size=9).pack(side="left",padx=(0,6))
+        count=ttk.Combobox(presets,values=list(range(MIN_OVERLAY_MESSAGES,MAX_OVERLAY_MESSAGES+1)),
+                           textvariable=self.app.max_messages_var,state="readonly",width=3)
+        count.pack(side="left",padx=(0,10))
+        count.bind("<<ComboboxSelected>>",lambda _e:self.app._max_messages_changed())
         for label,command in (
             ("text_only",self.app.text_only_preset),("minimal",self.app.minimal_preset),
             ("readable",self.app.readable_preset),("standard",self.app.reset_overlay_position),

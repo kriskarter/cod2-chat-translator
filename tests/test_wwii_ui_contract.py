@@ -27,6 +27,7 @@ class WWIIContractTests(unittest.TestCase):
                        "toggle_enabled","_outgoing_enabled_changed",
                        "_persist_settings","toggle_original",
                        "_font_slider","_background_slider","_ttl_slider",
+                       "_max_messages_changed",
                        "_background_only_changed","_compact_background_changed",
                        "_fade_changed","minimal_preset","readable_preset",
                        "text_only_preset","reset_overlay_position","test_overlay",
@@ -35,6 +36,8 @@ class WWIIContractTests(unittest.TestCase):
             self.assertIn(method,UI)
         self.assertIn('self.app.language_combo.bind("<<ComboboxSelected>>"',UI)
         self.assertIn('style_combo.bind("<<ComboboxSelected>>"',UI)
+        self.assertIn("textvariable=self.app.outgoing_chat.route_var",UI)
+        self.assertIn("textvariable=self.app.max_messages_var",UI)
 
     def test_texture_and_header_photos_bundled_as_data(self):
         for name,w,h in (("hero.png",1500,166),("server_scene.png",255,120),
