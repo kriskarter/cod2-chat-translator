@@ -33,6 +33,12 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## v1.20.0 RC — Modern Esports Utility
+
+The approved Modern Esports Utility redesign now runs as a real Tk/ttk desktop UI, not a screenshot. Dark graphite and cyan/amber styling, original lightweight HUD, a real sidebar, six pages (Home, Translation, Overlay, Knowledge, Statistics, Settings) and all original F8/F9, server, overlay, knowledge and localization controls preserved. Live status/latency comes only from actual program values. [Implementation details and validation](docs/DASHBOARD_V1200.md).
+
+![Actual v1.20.0 RC desktop UI running in an isolated Tk session](docs/images/dashboard_v1200.png)
+
 ## v1.19.2 RC — OMG semantic correction
 
 The old RU mapping collapsed OMG into weak ого, and nickname-reaction detection confused omg nice with a player name. New code offers literal Clear and emotional Live/Raw (no added profanity); data-only knowledge pack v3 provides a neutral correction to already installed V2 clients through Knowledge → Update knowledge.

@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.19.2"
+APP_VERSION = "1.20.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -3671,8 +3671,8 @@ class ControlApp:
         self.ttl_label_var = tk.StringVar(value=f"{self.ttl_var.get()} {'с' if self.ui_language in {'ru', 'uk'} else 's'}")
 
         root.title(f"{APP_NAME} v{APP_VERSION}")
-        root.geometry("1080x700")
-        root.minsize(900, 560)
+        root.geometry("1320x840")
+        root.minsize(1050, 690)
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._set_window_icon()
 
@@ -3863,253 +3863,9 @@ class ControlApp:
         threading.Thread(target=work,daemon=True,name="KnowledgeUpdate").start()
 
     def _build_ui(self) -> None:
-        outer = ttk.Frame(self.root, padding=14)
-        outer.pack(fill="both", expand=True)
-
-        header = ttk.Frame(outer)
-        header.pack(fill="x")
-        try:
-            logo = tk.PhotoImage(file=str(resource_path("assets/app_48.png")))
-            self._logo_image = logo
-            ttk.Label(header, image=logo).pack(side="left", padx=(0, 10))
-        except Exception:
-            pass
-        title_box = ttk.Frame(header)
-        title_box.pack(side="left", fill="x", expand=True)
-        ttk.Label(title_box, text="CoD2 Chat Translator", font=("Segoe UI", 16, "bold")).pack(anchor="w")
-        ttk.Label(title_box, text=self.t("subtitle")).pack(anchor="w", pady=(2, 0))
-        ttk.Label(header, text=f"v{APP_VERSION}", foreground="#666666").pack(side="right", anchor="n")
-        ttk.Button(header,text=self._knowledge_text("База знаний","База знань","Knowledge"),command=self._show_knowledge_dialog).pack(side="right",padx=(0,10))
-
-        server_frame = ttk.Frame(outer)
-        server_frame.pack(fill="x", pady=(14, 0))
-        ttk.Label(server_frame, text=self.t("server"), width=15).pack(side="left")
-        ttk.Label(server_frame, textvariable=self.server_summary_var, font=("Segoe UI", 10, "bold")).pack(side="left")
-        ttk.Button(server_frame, text=self.t("server_settings"), command=self.show_server_settings).pack(side="right")
-
-        self._build_quick_connect_card(outer)
-
-        lang_frame = ttk.Frame(outer)
-        lang_frame.pack(fill="x", pady=(10, 0))
-        ttk.Label(lang_frame, text=self.t("translate_to"), width=15).pack(side="left")
-        custom_label = self._custom_language_label()
-        language_values = list(TARGET_LANGUAGES.keys()) + ([custom_label] if custom_label else [])
-        self.language_combo = ttk.Combobox(lang_frame, state="readonly", values=language_values, textvariable=self.target_name_var, width=20)
-        self.language_combo.pack(side="left")
-        self.language_combo.bind("<<ComboboxSelected>>", lambda _e: self._persist_settings())
-        ttk.Button(lang_frame, text=self.t("other"), command=self.choose_custom_language).pack(side="left", padx=(6, 0))
-        ttk.Checkbutton(lang_frame, text=self.t("show_original"), variable=self.show_original_var, command=self.toggle_original).pack(side="left", padx=(14, 0))
-        ttk.Checkbutton(lang_frame, text=self.t("hide_same"), variable=self.hide_same_var, command=self._persist_settings).pack(side="left", padx=(14, 0))
-
-        smart = ttk.Frame(outer)
-        smart.pack(fill="x", pady=(8, 0))
-        ttk.Label(smart, text=self.t("smart_chat"), width=15).pack(side="left")
-        ttk.Checkbutton(smart, text=self.t("smart_engine"), variable=self.smart_engine_var, command=self._persist_settings).pack(side="left", padx=(0, 8))
-        ttk.Checkbutton(smart, text=self.t("gaming_slang"), variable=self.slang_var, command=self._persist_settings).pack(side="left")
-        ttk.Label(smart, text=self.t("style")).pack(side="left", padx=(10, 4))
-        style_values = [self._style_label(code) for code in ("clear", "live", "raw")]
-        self.slang_style_var.set(self._style_label(str(self.config.get("slang_style", "live"))))
-        slang_combo = ttk.Combobox(smart, state="readonly", values=style_values, textvariable=self.slang_style_var, width=14)
-        slang_combo.pack(side="left")
-        slang_combo.bind("<<ComboboxSelected>>", lambda _e: self._persist_settings())
-        ttk.Checkbutton(smart, text=self.t("dedupe"), variable=self.dedupe_var, command=self._persist_settings).pack(side="left", padx=(12, 0))
-        self._update_overlay_hotkey_status()
-        ttk.Label(
-            smart,
-            textvariable=self.overlay_hotkey_status_var,
-            foreground="#666666",
-        ).pack(side="left", padx=(12, 0))
-
-        outgoing_title = {
-            "ru": "Исходящий чат · F9",
-            "uk": "Вихідний чат · F9",
-            "en": "Outgoing chat · F9",
-        }.get(
-            self.ui_language,
-            "Исходящий чат · F9",
-        )
-
-        source_label = {
-            "ru": "Мой язык:",
-            "uk": "Моя мова:",
-            "en": "My language:",
-        }.get(
-            self.ui_language,
-            "Мой язык:",
-        )
-
-        target_label = {
-            "ru": "Отправлять на:",
-            "uk": "Надсилати:",
-            "en": "Send as:",
-        }.get(
-            self.ui_language,
-            "Отправлять на:",
-        )
-
-        game_hint = {
-            "ru": "F9 — написать прямо в игре",
-            "uk": "F9 — написати прямо в грі",
-            "en": "F9 — write directly in game",
-        }.get(
-            self.ui_language,
-            "F9 — написать прямо в игре",
-        )
-
-        outgoing_enabled_text = {
-            "ru": "Включён",
-            "uk": "Увімкнено",
-            "en": "Enabled",
-        }.get(
-            self.ui_language,
-            "Включён",
-        )
-
-        outgoing = ttk.LabelFrame(
-            outer,
-            text=outgoing_title,
-            padding=(10, 8),
-        )
-        outgoing.pack(fill="x", pady=(8, 0))
-
-        ttk.Checkbutton(
-            outgoing,
-            text=outgoing_enabled_text,
-            variable=self.outgoing_chat.enabled_var,
-            command=self._outgoing_enabled_changed,
-        ).pack(
-            side="left",
-            padx=(0, 12),
-        )
-
-        ttk.Label(
-            outgoing,
-            text=game_hint,
-            foreground="#666666",
-        ).pack(side="left", padx=(0, 14))
-
-        ttk.Label(
-            outgoing,
-            text=source_label,
-        ).pack(side="left")
-
-        outgoing_source_combo = ttk.Combobox(
-            outgoing,
-            state="readonly",
-            values=list(LANGUAGES.keys()),
-            textvariable=self.outgoing_chat.source_name_var,
-            width=15,
-        )
-        outgoing_source_combo.pack(
-            side="left",
-            padx=(5, 12),
-        )
-        outgoing_source_combo.bind(
-            "<<ComboboxSelected>>",
-            self.outgoing_chat._languages_changed,
-        )
-
-        ttk.Label(
-            outgoing,
-            text=target_label,
-        ).pack(side="left")
-
-        outgoing_target_combo = ttk.Combobox(
-            outgoing,
-            state="readonly",
-            values=list(LANGUAGES.keys()),
-            textvariable=self.outgoing_chat.target_name_var,
-            width=15,
-        )
-        outgoing_target_combo.pack(
-            side="left",
-            padx=(5, 12),
-        )
-        outgoing_target_combo.bind(
-            "<<ComboboxSelected>>",
-            self.outgoing_chat._languages_changed,
-        )
-
-        ttk.Label(
-            outgoing,
-            textvariable=self.outgoing_chat.route_var,
-            font=("Segoe UI", 10, "bold"),
-        ).pack(side="left")
-
-        controls = ttk.Frame(outer)
-        controls.pack(fill="x", pady=(12, 0))
-        ttk.Checkbutton(controls, text=self.t("enabled"), variable=self.enabled_var, command=self.toggle_enabled).pack(side="left")
-        ttk.Button(controls, text=self.t("test"), command=self.test_overlay).pack(side="left", padx=(12, 0))
-        ttk.Button(controls, text=self.t("clear"), command=self.clear_overlay).pack(side="left", padx=(6, 0))
-        self.overlay_edit_button = ttk.Button(controls, text=self.t("configure_overlay"), command=self.toggle_overlay_edit)
-        self.overlay_edit_button.pack(side="left", padx=(12, 0))
-        ttk.Button(controls, text=self.t("cod2_top"), command=self.enable_cod2_borderless).pack(side="left", padx=(12, 0))
-
-        screenshot_text = {
-            "ru": "Скриншот · F10",
-            "uk": "Скріншот · F10",
-            "en": "Screenshot · F10",
-        }.get(
-            self.ui_language,
-            "Скриншот · F10",
-        )
-
-        ttk.Button(
-            controls,
-            text=screenshot_text,
-            command=self.capture_game_screenshot,
-        ).pack(
-            side="left",
-            padx=(12, 0),
-        )
-
-        box = ttk.LabelFrame(outer, text=self.t("overlay_view"), padding=(10, 8))
-        box.pack(fill="x", pady=(12, 0))
-
-        row1 = ttk.Frame(box); row1.pack(fill="x")
-        ttk.Label(row1, text=self.t("font_size"), width=18).pack(side="left")
-        font_scale = ttk.Scale(row1, from_=7, to=20, orient="horizontal", command=self._font_slider); font_scale.set(self.font_var.get())
-        font_scale.pack(side="left", fill="x", expand=True)
-        ttk.Label(row1, textvariable=self.font_label_var, width=5, anchor="e").pack(side="left", padx=(8, 0))
-
-        row2 = ttk.Frame(box); row2.pack(fill="x", pady=(6, 0))
-        ttk.Label(row2, text=self.t("background"), width=18).pack(side="left")
-        bg_scale = ttk.Scale(row2, from_=0, to=90, orient="horizontal", command=self._background_slider); bg_scale.set(self.bg_var.get())
-        bg_scale.pack(side="left", fill="x", expand=True)
-        ttk.Label(row2, textvariable=self.bg_label_var, width=5, anchor="e").pack(side="left", padx=(8, 0))
-        ttk.Checkbutton(row2, text=self.t("bg_only"), variable=self.bg_only_var, command=self._background_only_changed).pack(side="left", padx=(12, 0))
-        ttk.Checkbutton(row2, text=self.t("compact_bg"), variable=self.compact_bg_var, command=self._compact_background_changed).pack(side="left", padx=(10, 0))
-
-        row3 = ttk.Frame(box); row3.pack(fill="x", pady=(6, 0))
-        ttk.Label(row3, text=self.t("show_for"), width=18).pack(side="left")
-        ttl_scale = ttk.Scale(row3, from_=5, to=20, orient="horizontal", command=self._ttl_slider); ttl_scale.set(self.ttl_var.get())
-        ttl_scale.pack(side="left", fill="x", expand=True)
-        ttk.Label(row3, textvariable=self.ttl_label_var, width=5, anchor="e").pack(side="left", padx=(8, 0))
-        ttk.Checkbutton(row3, text=self.t("fade"), variable=self.fade_var, command=self._fade_changed).pack(side="left", padx=(12, 0))
-
-        row4 = ttk.Frame(box); row4.pack(fill="x", pady=(6, 0))
-        ttk.Label(row4, text=self.t("messages"), width=18).pack(side="left")
-        msg_combo = ttk.Combobox(row4, state="readonly", values=list(range(MIN_OVERLAY_MESSAGES, MAX_OVERLAY_MESSAGES + 1)), textvariable=self.max_messages_var, width=5)
-        msg_combo.pack(side="left"); msg_combo.bind("<<ComboboxSelected>>", lambda _e: self._max_messages_changed())
-        ttk.Button(row4, text=self.t("text_only"), command=self.text_only_preset).pack(side="left", padx=(18, 0))
-        ttk.Button(row4, text=self.t("minimal"), command=self.minimal_preset).pack(side="left", padx=(6, 0))
-        ttk.Button(row4, text=self.t("readable"), command=self.readable_preset).pack(side="left", padx=(6, 0))
-        ttk.Button(row4, text=self.t("standard_place"), command=self.reset_overlay_position).pack(side="left", padx=(10, 0))
-        ttk.Label(row4, text=self.t("wheel"), foreground="#666666").pack(side="left", padx=(10, 0))
-
-        ttk.Separator(outer).pack(fill="x", pady=12)
-        footer_controls = ttk.Frame(outer); footer_controls.pack(fill="x")
-        ttk.Label(footer_controls, text=self.t("interface")).pack(side="left")
-        ui_combo = ttk.Combobox(footer_controls, state="readonly", values=["Русский", "Українська", "English"], textvariable=self.ui_language_var, width=12)
-        ui_combo.pack(side="left", padx=(6, 14)); ui_combo.bind("<<ComboboxSelected>>", lambda _e: self.change_ui_language())
-        ttk.Button(footer_controls, text=self.t("check_updates"), command=lambda: self.check_updates(manual=True)).pack(side="left")
-        ttk.Label(footer_controls, text=f"{self.t('updates')}: stable", foreground="#666666").pack(side="left", padx=(10, 0))
-        ttk.Button(footer_controls, text=self.t("about"), command=self.show_about).pack(side="right")
-        ttk.Label(footer_controls, text=f"v{APP_VERSION} · by {PROJECT_AUTHOR}", foreground="#666666").pack(side="right", padx=(0, 10))
-
-        ttk.Label(outer, textvariable=self.status_var).pack(anchor="w", pady=(10, 0))
-        ttk.Label(outer, textvariable=self.last_var).pack(anchor="w", pady=(5, 0))
-        ttk.Label(outer, text=self.t("privacy"), foreground="#555555", wraplength=850).pack(anchor="w", pady=(12, 0))
+        """Build the approved Modern Esports Utility dashboard."""
+        from dashboard_ui import build_dashboard
+        build_dashboard(self)
 
     def _quick_connect_game_roots(self) -> list[Path]:
         roots: list[Path | str] = []
@@ -4384,6 +4140,9 @@ class ControlApp:
         except Exception:
             pass
         # Rebuild is simplest and keeps every control consistently translated.
+        # Keep the user's current section and window size across a language
+        # change rather than unexpectedly jumping back to the home page.
+        current_page = getattr(getattr(self, "dashboard", None), "page", "home")
         for child in list(self.root.winfo_children()):
             if child is not getattr(self, "overlay", None):
                 try:
@@ -4397,6 +4156,8 @@ class ControlApp:
         self.last_var.set(self.t("last"))
         self._build_ui()
         self._rebuild_profile_combo()
+        if hasattr(self, "dashboard"):
+            self.dashboard.navigate(current_page)
 
     def _custom_language_label(self) -> str:
         code = str(self.config.get("target_language", "ru"))
@@ -5102,11 +4863,15 @@ class ControlApp:
         self.overlay.set_edit_mode(self.overlay_editing)
         if self.overlay_editing:
             self.overlay_edit_button.configure(text=self.t("lock_overlay"))
+            if hasattr(self, "overlay_edit_button_alt"):
+                self.overlay_edit_button_alt.configure(text=self.t("lock_overlay"))
             self.status_var.set(self.t("overlay_edit_status"))
             if not self.overlay.items:
                 self.test_overlay()
         else:
             self.overlay_edit_button.configure(text=self.t("configure_overlay"))
+            if hasattr(self, "overlay_edit_button_alt"):
+                self.overlay_edit_button_alt.configure(text=self.t("configure_overlay"))
             self._persist_settings()
             self.status_var.set(self.t("overlay_locked_status"))
 
@@ -5477,6 +5242,11 @@ class ControlApp:
                     _, msg, error = item
                     self.status_var.set(self.t("translation_unavailable").format(error=error))
                     self.overlay.add(OverlayItem(nickname=msg.nickname, original=msg.text, translated=msg.text, created_at=msg.enqueued_at or time.monotonic()))
+                elif event == "dashboard_stats":
+                    _, success, data = item
+                    dashboard = getattr(self, "dashboard", None)
+                    if dashboard and dashboard.outer.winfo_exists():
+                        dashboard.update_stats(success, data)
                 elif event == "knowledge_update":
                     _,manual,ok,data=item
                     self._knowledge_updating=False
