@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.20.0"
+APP_VERSION = "1.21.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -3671,8 +3671,13 @@ class ControlApp:
         self.ttl_label_var = tk.StringVar(value=f"{self.ttl_var.get()} {'с' if self.ui_language in {'ru', 'uk'} else 's'}")
 
         root.title(f"{APP_NAME} v{APP_VERSION}")
-        root.geometry("1320x840")
-        root.minsize(1050, 690)
+        # Keep the entire native window within the user's work area as far
+        # as possible; smaller monitors retain a scrollable home screen.
+        screen_w,screen_h=root.winfo_screenwidth(),root.winfo_screenheight()
+        preferred_w=max(1050,min(1490,screen_w-48))
+        preferred_h=max(650,min(950,screen_h-90))
+        root.geometry(f"{preferred_w}x{preferred_h}")
+        root.minsize(1050, 650)
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._set_window_icon()
 
@@ -3864,7 +3869,7 @@ class ControlApp:
 
     def _build_ui(self) -> None:
         """Build the approved Modern Esports Utility dashboard."""
-        from dashboard_ui import build_dashboard
+        from wwii_dashboard import build_dashboard
         build_dashboard(self)
 
     def _quick_connect_game_roots(self) -> list[Path]:

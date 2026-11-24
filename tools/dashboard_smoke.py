@@ -20,7 +20,11 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--screenshot", type=Path)
+    parser.add_argument("--preview-width",type=int,default=1320)
+    parser.add_argument("--preview-height",type=int,default=840)
     args = parser.parse_args()
+    if not 1050 <= args.preview_width <= 2500 or not 650 <= args.preview_height <= 1600:
+        parser.error("Preview geometry is outside supported bounds")
     with tempfile.TemporaryDirectory(prefix="cod2-dashboard-test-") as temp:
         os.environ["APPDATA"] = temp
         os.environ["XDG_CONFIG_HOME"] = temp
@@ -46,6 +50,18 @@ def main():
             assert app.overlay_edit_button.winfo_exists()
             assert app.overlay_edit_button_alt.winfo_exists()
 
+            # Click actual horizontal buttons, not only the internal
+            # page-switch method. Auxiliary actions remain wired but are
+            # not invoked because server/Discord/update are external.
+            for key,expected_page in (
+                ("knowledge","knowledge"),("stats","stats"),
+                ("settings","settings"),("home","home"),
+            ):
+                dashboard.nav_buttons[key].invoke()
+                root.update_idletasks()
+                root.update()
+                assert dashboard.page == expected_page
+
             for page in expected:
                 assert dashboard.navigate(page), page
                 root.update_idletasks()
@@ -62,7 +78,7 @@ def main():
                     yield from descendants(child)
             collection = next(
                 w for w in descendants(dashboard.pages["knowledge"])
-                if isinstance(w, ttk.Checkbutton) and any(
+                if isinstance(w, (tk.Checkbutton,ttk.Checkbutton)) and any(
                     phrase in w.cget("text").casefold()
                     for phrase in ("собирать примеры", "collect local examples")
                 )
@@ -133,7 +149,7 @@ def main():
             assert app.dashboard.navigate("overlay")
             assert app.dashboard.navigate("home")
 
-            root.geometry("1320x840")
+            root.geometry(f"{args.preview_width}x{args.preview_height}")
             root.update_idletasks()
             root.update()
             app.overlay.set_visible(False)
@@ -148,7 +164,8 @@ def main():
                 else:
                     subprocess.run([
                         "ffmpeg","-hide_banner","-loglevel","error",
-                        "-f","x11grab","-draw_mouse","0","-video_size","1320x840",
+                        "-f","x11grab","-draw_mouse","0","-video_size",
+                        f"{args.preview_width}x{args.preview_height}",
                         "-i",os.environ["DISPLAY"],"-frames:v","1",
                         "-update","1","-y",str(args.screenshot)
                     ], check=True, timeout=15)

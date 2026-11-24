@@ -1,4 +1,4 @@
-"""Contract checks for the Modern Esports Tk dashboard without requiring X11."""
+"""Contract checks for live tactical WWII Tk dashboard without requiring X11."""
 import ast
 import pathlib
 import unittest
@@ -25,7 +25,14 @@ class DashboardContractTests(unittest.TestCase):
         self.assertIn("ttk.Combobox", SOURCE)
         self.assertIn("def build_dashboard(app):", SOURCE)
         self.assertNotIn("Screenshot mockup", SOURCE)
-        self.assertIn("from dashboard_ui import build_dashboard", (ROOT / "app.py").read_text(encoding="utf-8"))
+        self.assertIn("from wwii_dashboard import build_dashboard", (ROOT / "app.py").read_text(encoding="utf-8"))
+        tactical=(ROOT/"wwii_dashboard.py").read_text(encoding="utf-8")
+        self.assertIn("class WWIIDashboard(Dashboard):", tactical)
+        self.assertIn("ui_photo(header,\"hero.png\")", tactical)
+        self.assertIn('nav=tk.Frame(nav_shell,bg=SIDEBAR)', tactical)
+        self.assertNotIn("sidebar.pack(side=\"left\"", tactical)
+        self.assertIn('self._home_overlay_prefs', tactical)
+        self.assertIn('self._home_quick', tactical)
 
     def test_all_localizations_cover_the_same_pages_and_labels(self):
         i18n = static_i18n()

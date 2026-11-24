@@ -33,6 +33,12 @@ COD 2 Chat Translator reads chat from `console_mp.log`, translates new messages 
 
 No DLL injection and no game-memory modification.
 
+## v1.21.0 RC — approved WWII metal GUI
+
+This RC implements the selected WWII/CoD2 tactical-metal concept, replacing the rejected graphite dashboard with archival sepia battle art, real metal-style panels/buttons, horizontal navigation and six live Home sections. F8/F9, overlay, knowledge/export and server callbacks remain operational; statuses are sourced from the app. [Design details](docs/WWII_REBRAND_RC2.md).
+
+![Actual running Tk UI v1.21.0 RC](docs/images/wwii_rebrand_rc2_live.png)
+
 ## v1.20.0 RC — Modern Esports Utility
 
 The approved Modern Esports Utility redesign now runs as a real Tk/ttk desktop UI, not a screenshot. Dark graphite and cyan/amber styling, original lightweight HUD, a real sidebar, six pages (Home, Translation, Overlay, Knowledge, Statistics, Settings) and all original F8/F9, server, overlay, knowledge and localization controls preserved. Live status/latency comes only from actual program values. [Implementation details and validation](docs/DASHBOARD_V1200.md).
