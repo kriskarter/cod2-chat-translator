@@ -22,6 +22,10 @@ def main():
     parser.add_argument("--screenshot", type=Path)
     parser.add_argument("--preview-width",type=int,default=1320)
     parser.add_argument("--preview-height",type=int,default=840)
+    parser.add_argument("--tk-scaling",type=float,default=None,
+                        help="Optional Tk font/UI scale probe (not native Windows DPI)")
+    parser.add_argument("--require-fit",action="store_true",
+                        help="Assert all Home controls fit viewport without vertical scrolling")
     args = parser.parse_args()
     if not 1050 <= args.preview_width <= 2500 or not 650 <= args.preview_height <= 1600:
         parser.error("Preview geometry is outside supported bounds")
@@ -35,6 +39,10 @@ def main():
         from app import ControlApp, APP_VERSION, TARGET_LANGUAGES
 
         root = tk.Tk()
+        if args.tk_scaling is not None:
+            if not 1.0 <= args.tk_scaling <= 2.5:
+                parser.error("tk-scaling must be between 1.0 and 2.5")
+            root.tk.call("tk", "scaling", args.tk_scaling)
         app = None
         try:
             app = ControlApp(root)
@@ -90,6 +98,25 @@ def main():
             collection.invoke()
             root.update()
             assert app.experience.collect == old_value
+
+            # Exercise the actual image-backed F8/F9 native switches,
+            # not just the shared BooleanVar in Python.
+            assert dashboard.navigate("home")
+            for caption,variable in (
+                ("F8",app.enabled_var),
+                ("F9",app.outgoing_chat.enabled_var),
+            ):
+                switch=next(
+                    w for w in descendants(dashboard.pages["home"])
+                    if isinstance(w,tk.Checkbutton) and w.cget("text")==caption
+                )
+                before=bool(variable.get())
+                switch.invoke()
+                root.update()
+                assert bool(variable.get())!=before,caption
+                switch.invoke()
+                root.update()
+                assert bool(variable.get())==before,caption
 
             app.smart_engine_var.set(False)
             app._persist_settings()
@@ -155,6 +182,22 @@ def main():
             app.overlay.set_visible(False)
             app.dashboard.navigate("home")
             root.update()
+            content_height=app.dashboard.home_content.winfo_reqheight()
+            viewport_height=app.dashboard.home_canvas.winfo_height()
+            has_bar=bool(app.dashboard.home_scrollbar.winfo_manager())
+            print(
+                "HOME_LAYOUT",
+                f"{root.winfo_width()}x{root.winfo_height()}",
+                "content",content_height,
+                "viewport",viewport_height,
+                "scrollbar",has_bar,
+                "scaling",root.tk.call("tk","scaling"),
+                flush=True
+            )
+            if args.require_fit:
+                assert content_height <= viewport_height+3, (
+                    f"Home does not fit: {content_height} > {viewport_height}")
+                assert not has_bar, "Unexpected Home scrollbar"
             if args.screenshot:
                 # Only take a screenshot when an X11 server and ffmpeg are
                 # explicitly provided. No screenshots are sent anywhere.

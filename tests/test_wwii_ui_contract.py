@@ -34,8 +34,9 @@ class WWIIContractTests(unittest.TestCase):
                        "clear_overlay","toggle_overlay_edit","_export_knowledge",
                        "capture_game_screenshot","check_updates"):
             self.assertIn(method,UI)
-        self.assertIn('self.app.language_combo.bind("<<ComboboxSelected>>"',UI)
-        self.assertIn('style_combo.bind("<<ComboboxSelected>>"',UI)
+        self.assertIn("self.app.language_combo.bind(",UI)
+        self.assertIn("styles_input.bind(",UI)
+        self.assertIn("<<ComboboxSelected>>",UI)
         self.assertIn("textvariable=self.app.outgoing_chat.route_var",UI)
         self.assertIn("textvariable=self.app.max_messages_var",UI)
 
@@ -52,6 +53,33 @@ class WWIIContractTests(unittest.TestCase):
         self.assertIn("Wikimedia Commons",credit)
         self.assertIn("PhotoImage",(ROOT/"dashboard_ui.py").read_text(encoding="utf-8"))
 
+    def test_rc3_cinematic_brand_icons_and_compact_controls(self):
+        for name,size in (
+            ("brand_logo.png",(790,134)),
+            ("brand_logo_compact.png",(708,120)),
+            ("server_scene_thumb.png",(190,86)),
+            ("version_plate.png",(125,45)),
+            ("switch_on.png",(52,24)),
+            ("switch_off.png",(52,24)),
+            ("body_backdrop.png",(1500,780)),
+        ):
+            data=(ASSETS/name).read_bytes()
+            self.assertEqual(data[:8],b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(struct.unpack(">II",data[16:24]),size)
+        for icon in ("test","clear","configure","screenshot","export","updates"):
+            self.assertTrue((ASSETS/("quick_"+icon+".png")).exists())
+        self.assertIn('image=ui_photo(parent,"switch_off.png")',UI)
+        self.assertIn('selectimage=ui_photo(parent,"switch_on.png")',UI)
+        self.assertIn("self._nav_font_size",UI)
+        self.assertIn("self.home_scrollbar=bar",UI)
+        self.assertIn("content.winfo_reqheight()",UI)
+        self.assertIn('"brand_logo_compact.png"',UI)
+        self.assertIn('"body_backdrop.png"',UI)
+        self.assertIn("root.tk.call",UI)
+        # The original game message parser and translation engine remain
+        # separate; the design module must not issue new network requests.
+        self.assertNotIn("requests.get(",UI)
+
     def test_no_fabricated_connection_state(self):
         for claim in ('"Подключено"','"Online"',"24 мс","FPS:"):
             self.assertNotIn(claim,UI)
@@ -61,5 +89,5 @@ class WWIIContractTests(unittest.TestCase):
         self.assertIn("runtime.pack.count",(ROOT/"dashboard_ui.py").read_text(encoding="utf-8"))
 
     def test_version_increment_without_translation_rewrite(self):
-        self.assertIn('APP_VERSION = "1.21.0"',APP)
-        self.assertIn('MyAppVersion "1.21.0"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))
+        self.assertIn('APP_VERSION = "1.21.1"',APP)
+        self.assertIn('MyAppVersion "1.21.1"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))
