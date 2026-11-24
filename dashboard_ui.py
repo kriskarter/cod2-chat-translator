@@ -240,13 +240,13 @@ def setup_theme(root: tk.Tk):
         for name in names:
             style.layout(name, layout)
             style.configure(name, foreground="#FFF0D1", background=CARD,
-                            borderwidth=0, padding=(12, 8), relief="flat")
+                            borderwidth=0, padding=(8, 4), relief="flat")
             style.map(name, foreground=[("disabled", "#A4977E"),
                                          ("active", "#FFFFFF")])
     for name in ("PremiumNav.TButton", "PremiumNavActive.TButton"):
-        style.configure(name, font=(FONT, 10, "bold"), padding=(7, 10))
+        style.configure(name, font=(FONT, 10, "bold"), padding=(4, 3))
     for name in ("Tactical.TButton", "TacticalAccent.TButton"):
-        style.configure(name, padding=(9, 6))
+        style.configure(name, padding=(7, 3))
     # Real readonly comboboxes and scales keep their native semantics.
     style.configure("TCombobox", fieldbackground="#252218", background="#382D20",
                     foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
@@ -286,7 +286,7 @@ def card(parent, title=None, *, tone=CYAN, padding=5):
     shell=tk.Frame(border, bg="#100F0B", padx=2, pady=2)
     shell.pack(fill="both", expand=True)
     if title:
-        heading=tk.Canvas(shell, bg="#302B20", height=37,
+        heading=tk.Canvas(shell, bg="#302B20", height=33,
                           highlightthickness=0, borderwidth=0)
         heading.pack(fill="x")
         plate=ui_photo(parent, "premium_plate.png")
@@ -296,11 +296,11 @@ def card(parent, title=None, *, tone=CYAN, padding=5):
             for x in range(plate.width(),event.width+plate.width(),plate.width()):
                 heading.create_image(x,0,anchor="nw",image=plate,tags="repeat")
         heading.bind("<Configure>", adjust)
-        heading.create_text(17,19,text=title.upper(),anchor="w",
+        heading.create_text(17,16,text=title.upper(),anchor="w",
                             font=("Bahnschrift SemiCondensed",13,"bold"),
                             fill=TEXT)
-        heading.create_line(2,36,1152,36,fill="#B28B4B",width=1)
-    box=tk.Frame(shell, bg=CARD, padx=padding+5, pady=padding+5)
+        heading.create_line(2,32,1152,32,fill="#B28B4B",width=1)
+    box=tk.Frame(shell, bg=CARD, padx=padding+2, pady=padding+2)
     box.pack(fill="both",expand=True)
     return border,box
 

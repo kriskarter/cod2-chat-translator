@@ -67,7 +67,7 @@ class WWIIDashboard(Dashboard):
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header=tk.Canvas(outer,height=137,bg="#17130E",
+        header=tk.Canvas(outer,height=126,bg="#17130E",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
         hero=ui_photo(header,"premium_hero.png")
@@ -75,9 +75,9 @@ class WWIIDashboard(Dashboard):
         plaque=ui_photo(header,"version_plate.png")
         header.create_image(0,0,anchor="nw",image=hero)
         header.create_image(205,4,anchor="nw",image=brand)
-        header.create_text(229,120,text=tr(app,"tagline"),anchor="w",
+        header.create_text(229,113,text=tr(app,"tagline"),anchor="w",
                            fill="#EED6A7",font=(FONT,9,"bold"))
-        header.create_line(0,135,1600,135,fill="#BC8A46",width=2)
+        header.create_line(0,124,1600,124,fill="#BC8A46",width=2)
         self.version_plate=header.create_image(0,0,image=plaque,anchor="ne")
         self.banner_version=header.create_text(0,0,text="",
             font=(FONT,11,"bold"),fill="#F8E0AE",anchor="e")

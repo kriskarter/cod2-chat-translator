@@ -24,7 +24,9 @@ def material(width, height, *, start=0):
 
 
 def button(name, *, amber=False, hover=False, pressed=False, disabled=False):
-    w, h = 240, 58
+    # A small source tile is essential: ttk must size controls from their
+    # actual caption, not inherit a giant bitmap's natural width/height.
+    w, h = 64, 36
     im = material(w, h, start=37).convert("RGBA")
     if amber:
         wash = (138, 55, 5, 175 if not hover else 205)
