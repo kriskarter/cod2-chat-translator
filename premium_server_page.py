@@ -16,6 +16,7 @@ class ServerPage:
         self.dashboard,self.app,self.page=dashboard,dashboard.app,page
         self.filter=tk.StringVar()
         self.player_filter=tk.StringVar()
+        self.sort_labels=("Score","Ping","Name")
         self.player_sort=tk.StringVar(value="Score")
         self._build()
 
@@ -23,7 +24,7 @@ class ServerPage:
         a=self.app
         from wwii_dashboard import tactical_action
         canvas=tk.Canvas(self.page,bg=BG,highlightthickness=0,borderwidth=0)
-        scrollbar=ttk.Scrollbar(self.page,orient="vertical",command=canvas.yview)
+        scrollbar=ttk.Scrollbar(self.page,orient="vertical",style="Premium.Vertical.TScrollbar",command=canvas.yview)
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.pack(side="left",fill="both",expand=True)
         scrollbar.pack(side="right",fill="y")
@@ -63,7 +64,7 @@ class ServerPage:
         right_shell.grid(row=0,column=1,sticky="nsew",padx=(7,0))
         body.rowconfigure(0,weight=1)
         txt(left,local(a,"Отслеживаемые серверы","Відстежувані сервери","Tracked servers"),13,AMBER,True).pack(anchor="w",padx=10,pady=8)
-        self.listbox=tk.Listbox(left,bg="#191815",fg=TEXT,selectbackground="#7B5026",
+        self.listbox=tk.Listbox(left,bg="#1C2022",fg=TEXT,selectbackground="#67543C",
                                 selectforeground="#FFF0D4",bd=0,highlightthickness=0,
                                 font=(FONT,11),height=5,activestyle="none")
         self.listbox.pack(fill="x",padx=9,pady=(0,8))
@@ -82,8 +83,12 @@ class ServerPage:
         txt(search_row,local(a,"Игроки","Гравці","Players"),11,AMBER,True).pack(side="left")
         ttk.Entry(search_row,textvariable=self.player_filter,width=17).pack(side="left",padx=8)
         self.player_filter.trace_add("write",lambda *_:self.details())
-        sort=ttk.Combobox(search_row,textvariable=self.player_sort,values=("Score","Ping","Name"),
-                          state="readonly",width=7)
+        self.sort_labels=(local(a,"Счёт","Рахунок","Score"),
+                          local(a,"Пинг","Пінг","Ping"),
+                          local(a,"Имя","Ім’я","Name"))
+        self.player_sort.set(self.sort_labels[0])
+        sort=ttk.Combobox(search_row,textvariable=self.player_sort,values=self.sort_labels,
+                          state="readonly",width=9)
         sort.pack(side="right")
         sort.bind("<<ComboboxSelected>>",lambda _e:self.details())
         self.roster=PlayerRoster(roster,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
@@ -94,7 +99,7 @@ class ServerPage:
         self.info.configure(justify="left",anchor="nw",wraplength=380)
         self.info.pack(fill="x",padx=10,pady=(0,12))
         txt(right,local(a,"Избранные игроки","Обрані гравці","Favorite players"),13,AMBER,True).pack(anchor="w",padx=10,pady=5)
-        self.friends=tk.Listbox(right,bg="#191815",fg=GREEN,selectbackground="#7B5026",
+        self.friends=tk.Listbox(right,bg="#1C2022",fg=GREEN,selectbackground="#67543C",
                                 selectforeground="#FFF0D4",bd=0,highlightthickness=0,
                                 font=(FONT,10),height=4,activestyle="none")
         self.friends.pack(fill="x",padx=9,pady=5)
@@ -188,9 +193,9 @@ class ServerPage:
         if snap and snap.state=="online":
             term=normalized_name(self.player_filter.get())
             players=[p for p in snap.players if term in normalized_name(p.name)]
-            if self.player_sort.get()=="Ping":
+            if self.player_sort.get()==self.sort_labels[1]:
                 players.sort(key=lambda p:(p.ping is None,p.ping or 0,p.name.casefold()))
-            elif self.player_sort.get()=="Name":
+            elif self.player_sort.get()==self.sort_labels[2]:
                 players.sort(key=lambda p:p.name.casefold())
             else:
                 players.sort(key=lambda p:(-(p.score or 0),p.name.casefold()))

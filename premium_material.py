@@ -15,7 +15,9 @@ def panel_image(width: int, height: int, scene: str = "") -> Image.Image:
     from app import resource_path
     width, height = max(80, width), max(60, height)
     source = Image.open(resource_path("assets/ui_premium/generic_panel.png")).convert("RGBA")
-    result = Image.new("RGBA", (width, height), (19, 17, 14, 255))
+    source = ImageEnhance.Color(source).enhance(.55)
+    source = ImageEnhance.Brightness(source).enhance(.86)
+    result = Image.new("RGBA", (width, height), (23, 26, 29, 255))
     inset = 17
     if scene:
         artwork = Image.open(resource_path(scene)).convert("RGB")
@@ -63,7 +65,7 @@ class MetalCanvas(tk.Canvas):
     """Canvas with a responsive nine-slice illustration underneath live widgets."""
 
     def __init__(self, parent, *, scene="", **kwargs):
-        super().__init__(parent, bg="#17150F", highlightthickness=0, bd=0, **kwargs)
+        super().__init__(parent, bg="#171A1D", highlightthickness=0, bd=0, **kwargs)
         self._scene = scene
         self._photo = None
         self._size = None

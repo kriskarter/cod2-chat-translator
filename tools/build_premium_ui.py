@@ -29,11 +29,11 @@ def button(name, *, amber=False, hover=False, pressed=False, disabled=False):
     w, h = 64, 36
     im = material(w, h, start=37).convert("RGBA")
     if amber:
-        wash = (138, 55, 5, 175 if not hover else 205)
+        wash = (120, 67, 26, 155 if not hover else 180)
     elif hover:
-        wash = (92, 66, 36, 105)
+        wash = (71, 77, 74, 95)
     else:
-        wash = (24, 21, 17, 78)
+        wash = (26, 32, 36, 115)
     tint = Image.new("RGBA", im.size, wash)
     im = Image.alpha_composite(im, tint)
     if disabled:
@@ -43,9 +43,9 @@ def button(name, *, amber=False, hover=False, pressed=False, disabled=False):
     if pressed:
         rim = (155, 96, 37, 210)
     draw.rounded_rectangle((1, 1, w - 2, h - 2), radius=7,
-                           outline=(9, 8, 6, 255), width=2)
+                           outline=(9, 12, 13, 240), width=1)
     draw.rounded_rectangle((3, 3, w - 4, h - 4), radius=6,
-                           outline=rim, width=2)
+                           outline=rim, width=1)
     draw.line((11, 7, w - 12, 7), fill=(255, 226, 167, 95 if not pressed else 30), width=2)
     draw.line((11, h - 8, w - 12, h - 8), fill=(0, 0, 0, 190), width=3)
     im.save(OUT / f"premium_{name}.png", optimize=True)
@@ -91,15 +91,31 @@ def main():
     # no enclosing button outline; selection is a soft amber wash.
     for state in ("normal", "hover", "active", "pressed"):
         nav = material(64, 40, start=84).convert("RGBA")
-        glow = {"normal": (12, 12, 12, 150), "hover": (91, 57, 21, 120),
-                "active": (140, 74, 14, 155), "pressed": (102, 51, 8, 185)}[state]
+        glow = {"normal": (17, 22, 24, 158), "hover": (66, 52, 35, 123),
+                "active": (73, 53, 30, 128), "pressed": (80, 54, 28, 163)}[state]
         nav = Image.alpha_composite(nav, Image.new("RGBA", nav.size, glow))
+        if state != "normal":
+            sheen=Image.new("RGBA",nav.size)
+            bands=ImageDraw.Draw(sheen,"RGBA")
+            for y in range(40):
+                alpha=round((34 if state=="hover" else 74)*max(0,1-abs(y-17)/23))
+                bands.line((0,y,64,y),fill=(229,149,62,alpha))
+            nav=Image.alpha_composite(nav,sheen)
         d = ImageDraw.Draw(nav, "RGBA")
         d.line((0, 0, 64, 0), fill=(192, 155, 103, 140), width=1)
         d.line((0, 39, 64, 39), fill=(15, 12, 8, 255), width=2)
         if state != "normal":
             d.line((5, 36, 59, 36), fill=(247, 177, 68, 175 if state=="active" else 95), width=2)
         nav.save(OUT / f"premium_nav_{state}.png", optimize=True)
+
+    # Distinct plus pictogram for the actual add-server action.
+    add = Image.new("RGBA", (22, 22))
+    add_draw = ImageDraw.Draw(add)
+    add_draw.rounded_rectangle((2, 2, 19, 19), radius=4,
+                               outline=(210, 176, 116, 235), width=2)
+    add_draw.line((11, 6, 11, 15), fill=(250, 221, 161, 255), width=2)
+    add_draw.line((6, 11, 15, 11), fill=(250, 221, 161, 255), width=2)
+    add.save(OUT / "quick_add.png", optimize=True)
 
     for name in ("servers", "history"):
         icon = Image.new("RGBA", (28, 28))
@@ -145,12 +161,12 @@ def main():
     for on in (False, True):
         im = material(52, 24, start=71).convert("RGBA")
         im = Image.alpha_composite(im, Image.new("RGBA", im.size,
-                                    (107, 53, 5, 173) if on else (10, 10, 8, 180)))
+                                    (29, 89, 48, 176) if on else (18, 22, 22, 185)))
         d = ImageDraw.Draw(im, "RGBA")
         d.rounded_rectangle((0, 1, 51, 23), radius=11,
-                            outline=(242, 162, 56, 255) if on else (144, 118, 77, 255), width=2)
+                            outline=(126, 223, 127, 255) if on else (116, 122, 113, 255), width=1)
         x = 36 if on else 12
-        d.ellipse((x - 9, 3, x + 9, 21), fill=(230, 210, 165, 255),
+        d.ellipse((x - 9, 3, x + 9, 21), fill=(211, 234, 192, 255) if on else (190, 191, 177, 255),
                   outline=(69, 44, 19, 255), width=2)
         im.save(OUT / f"premium_switch_{'on' if on else 'off'}.png", optimize=True)
         check = material(22, 22, start=43).convert("RGBA")

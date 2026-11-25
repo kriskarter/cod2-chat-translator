@@ -4129,7 +4129,7 @@ class ControlApp:
         head = tk.Frame(body, bg=BG)
         head.pack(fill="x", pady=(5, 10))
         try:
-            source = Image.open(resource_path("assets/ui_premium/logo_source.png"))
+            source = Image.open(resource_path("assets/ui_premium/monitor_logo.png"))
             source.thumbnail((310, 92), Image.Resampling.LANCZOS)
             logo = ImageTk.PhotoImage(source, master=win)
             win._about_logo = logo

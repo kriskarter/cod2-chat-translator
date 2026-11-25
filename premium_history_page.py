@@ -1,6 +1,7 @@
 """Recent in-memory application events; never expose raw console_mp.log."""
 from __future__ import annotations
 import tkinter as tk
+from tkinter import ttk
 from dashboard_ui import BG,CARD,TEXT,MUTED,AMBER,FONT
 from premium_home import local,txt
 
@@ -20,7 +21,7 @@ def build_history_page(dashboard,page):
     history=tk.Text(frame,bg=CARD,fg=TEXT,bd=0,highlightthickness=0,
                     state="disabled",font=(FONT,11),wrap="word",padx=14,pady=10)
     history.pack(side="left",fill="both",expand=True)
-    bar=tk.Scrollbar(frame,command=history.yview)
+    bar=ttk.Scrollbar(frame,orient="vertical",style="Premium.Vertical.TScrollbar",command=history.yview)
     bar.pack(side="right",fill="y")
     history.configure(yscrollcommand=bar.set)
     dashboard.history_text=history

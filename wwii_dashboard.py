@@ -93,60 +93,43 @@ class WWIIDashboard(Dashboard):
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header_height=158 if self.root.winfo_screenheight()<=800 else 184
-        header=tk.Canvas(outer,height=header_height,bg="#17130E",
+        header_height=185 if self.root.winfo_screenheight()<=800 else 198
+        header=tk.Canvas(outer,height=header_height,bg="#171A1D",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
+        self.header_widget=header
         from PIL import Image,ImageTk
         from app import resource_path
-        try:
-            panorama=Image.open(resource_path("assets/ui_premium/header_panorama.jpg")).convert("RGB")
-        except FileNotFoundError:
-            panorama=Image.open(resource_path("assets/ui_premium/monitor_hero.png")).convert("RGB")
+        from premium_banner import compose_banner
+        # The original panorama is retained as a packaged fallback/resource;
+        # compose_banner uses it and a separate full church cutout.
+        fallback="assets/ui_premium/monitor_hero.png"
         brand_source=Image.open(resource_path("assets/ui_premium/monitor_logo.png")).convert("RGBA")
         self._header_photos={}
         hero_item=header.create_image(0,0,anchor="nw")
         logo_item=header.create_image(0,0,anchor="nw")
-        tagline_item=header.create_text(0,0,text="Intelligent Gaming Companion",
-                            anchor="w",fill="#F2DEB4",font=(FONT,10,"italic"))
-        header.create_line(0,header_height-2,1600,header_height-2,
-                           fill="#BC8A46",width=2)
+        subtitle="Intelligent Gaming Companion"
+        tagline_shadow=header.create_text(0,0,text=subtitle,anchor="center",
+            fill="#080B0B",font=(FONT,11,"italic"))
+        tagline_item=header.create_text(0,0,text=subtitle,anchor="center",
+            fill="#F2DFB6",font=(FONT,11,"italic"))
         self.banner_version=header.create_text(0,0,text="",
             font=(FONT,9,"bold"),fill="#F8E0AE",anchor="e")
         def resize_header(event):
             width=max(1,event.width)
-            # Cover the header with one original panoramic asset, without
-            # baking live labels or hit targets into the image.
-            # Exclude the portrait from the cover layer; the same soldier is
-            # composited once at a scale that exposes helmet and backpack.
-            backdrop=panorama.crop((min(610,panorama.width//3),0,panorama.width,panorama.height))
-            scale=max(width/backdrop.width,header_height/backdrop.height)
-            scaled=backdrop.resize((round(backdrop.width*scale),round(backdrop.height*scale)),Image.Resampling.LANCZOS)
-            x=max(0,(scaled.width-width)//2)
-            y=max(0,(scaled.height-header_height)//2)
-            picture=scaled.crop((x,y,x+width,y+header_height)).convert("RGBA")
-            # The base panorama must cover a very shallow window. Layer an
-            # independently scaled portion of the same artwork so helmet,
-            # shoulder and backpack all remain visible without distortion.
-            portrait=panorama.crop((0,0,710,710))
-            portrait_height=header_height+12
-            portrait_width=round(portrait.width*portrait_height/portrait.height)
-            portrait=portrait.resize((portrait_width,portrait_height),Image.Resampling.LANCZOS).convert("RGBA")
-            fade=Image.new("L",(portrait_width,1))
-            fade.putdata([min(255,max(0,int((portrait_width-i)*255/max(1,portrait_width*.46))))
-                          for i in range(portrait_width)])
-            portrait.putalpha(fade.resize(portrait.size))
-            picture.alpha_composite(portrait,(0,0))
+            height=max(120,event.height)
+            picture=compose_banner(width,height)
             self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
             header.itemconfigure(hero_item,image=self._header_photos["scene"])
-            logo_width=min(510,round(width*.38),round(header_height*2.55))
+            logo_width=min(505,round(width*.38),round(height*2.75))
             logo_height=round(brand_source.height*logo_width/brand_source.width)
             logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
             self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
             header.itemconfigure(logo_item,image=self._header_photos["logo"])
-            header.coords(logo_item,round(width*.37),3)
-            header.coords(tagline_item,round(width*.43),header_height-12)
-            header.coords(self.banner_version,width-13,header_height-16)
+            header.coords(logo_item,round(width*.36),-3)
+            header.coords(tagline_shadow,round(width*.55)+1,height-12)
+            header.coords(tagline_item,round(width*.55),height-13)
+            header.coords(self.banner_version,width-13,height-16)
             header.itemconfigure(self.banner_version,
                                  text="v"+__import__("app").APP_VERSION)
         header.bind("<Configure>",resize_header)
@@ -174,11 +157,13 @@ class WWIIDashboard(Dashboard):
             photo=ui_photo(nav,"nav_"+name+".png")
             button=ttk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
                 command=callback,style="PremiumNav.TButton",cursor="hand2")
+            button.configure(takefocus=True)
             button.grid(row=0,column=index,sticky="nsew",padx=0,pady=0)
             if index:
-                # A thin etched divider keeps the bar visually continuous.
-                tk.Frame(nav,bg="#9F8259",width=1).grid(row=0,column=index,
-                    sticky="ns",padx=0)
+                # Place the divider at the actual column boundary. Gridding
+                # it in the same cell centered it over the tab's caption.
+                tk.Frame(nav,bg="#756B5C",width=1).place(
+                    relx=index/5,rely=.18,relheight=.64)
             self.nav_buttons[name]=button
         service=tk.Menu(nav,tearoff=False,bg="#2A241A",fg=TEXT,
                         activebackground="#9E540D",activeforeground=TEXT)
@@ -264,6 +249,8 @@ class WWIIDashboard(Dashboard):
         if name not in self.pages:return False
         self.page=name
         self.pages[name].tkraise()
+        self.header_widget.configure(height=185 if name=="home" and self.root.winfo_screenheight()<=800
+                                     else 198 if name=="home" else 155)
         if name=="stats":self.request_stats()
         if name=="servers" and add:self.root.after_idle(self.server_page.add)
         for key,button in self.nav_buttons.items():

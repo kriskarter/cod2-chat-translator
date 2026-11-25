@@ -4,7 +4,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from dashboard_ui import TEXT, MUTED, AMBER, GREEN, FONT
+from dashboard_ui import BG, CARD, CARD_ALT, TEXT, MUTED, AMBER, GREEN, FONT
 from server_monitor import color_runs, normalized_name
 
 
@@ -12,21 +12,21 @@ class PlayerRoster(tk.Frame):
     """Keep color runs in nicknames; line up scores and ping without spaces."""
 
     def __init__(self, parent, *, labels, rows=4, **kwargs):
-        super().__init__(parent, bg="#171613", **kwargs)
+        super().__init__(parent, bg="#1C2022", **kwargs)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, minsize=68)
         self.grid_columnconfigure(2, minsize=85)
         for index, title in enumerate(labels):
-            tk.Label(self, text=title, bg="#393126", fg="#E8C58A",
+            tk.Label(self, text=title, bg="#343A3C", fg="#E8C58A",
                      font=(FONT, 9, "bold"), anchor="w",
                      padx=9 if index == 0 else 4).grid(row=0, column=index, sticky="ew")
-        tk.Label(self, bg="#393126").grid(row=0, column=3, sticky="ew")
+        tk.Label(self, bg="#343A3C").grid(row=0, column=3, sticky="ew")
         self.fields = []
         for column, width in enumerate((20, 7, 9)):
             widget = tk.Text(self, width=width, height=rows, wrap="none", state="disabled",
-                             font=(FONT, 10), bd=0, bg="#171613", fg=TEXT,
+                             font=(FONT, 10), bd=0, bg="#1C2022", fg=TEXT,
                              padx=9 if column == 0 else 4, pady=4,
-                             selectbackground="#7E562F", highlightthickness=0,
+                             selectbackground="#65523B", highlightthickness=0,
                              spacing1=2, spacing3=2, cursor="arrow")
             widget.grid(row=1, column=column, sticky="nsew")
             widget.bind("<MouseWheel>", self._wheel)

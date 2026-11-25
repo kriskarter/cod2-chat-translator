@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
-from dashboard_ui import BG, CARD, TEXT, MUTED, AMBER, GREEN, FONT
+from dashboard_ui import BG, CARD, CARD_ALT, TEXT, MUTED, AMBER, GREEN, FONT
 from server_monitor import color_runs, normalized_name
 from premium_material import MetalCanvas, CanvasKeycap
 from premium_roster import PlayerRoster
@@ -139,29 +139,29 @@ class PremiumHome:
         from wwii_dashboard import tactical_action
         border=MetalCanvas(parent)
         border.pack(fill="both",expand=True)
-        box=tk.Frame(border,bg="#24221D",height=318 if self.compact else 492 if self.large_dpi else 390)
-        box.pack(fill="both",expand=True,padx=12,pady=12)
+        box=tk.Frame(border,bg=CARD,height=348 if self.compact else 492 if self.large_dpi else 390)
+        box.pack(fill="both",expand=True,padx=10,pady=10)
         box.pack_propagate(False)
-        head=tk.Frame(box,bg="#29261F",height=46)
+        head=tk.Frame(box,bg=CARD,height=40)
         head.pack(fill="x")
         head.pack_propagate(False)
         from dashboard_ui import ui_photo
-        tk.Label(head,image=ui_photo(head,"premium_radio.png"),bg="#29261F").pack(side="left",padx=(9,3))
-        txt(head,local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),16,bold=True,bg="#29261F").pack(side="left",padx=4)
+        tk.Label(head,image=ui_photo(head,"premium_radio.png"),bg=CARD).pack(side="left",padx=(9,3))
+        txt(head,local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),16,bold=True,bg=CARD).pack(side="left",padx=4)
         self.friends_badge=txt(head,"",10,GREEN,bold=True)
         self.friends_badge.pack(side="right",padx=12)
         style=ttk.Style()
-        style.configure("Monitor.Treeview",background="#191713",foreground=TEXT,
-                        fieldbackground="#191713",rowheight=29,font=(FONT,10),borderwidth=0,
+        style.configure("Monitor.Treeview",background="#1C2022",foreground=TEXT,
+                        fieldbackground="#1C2022",rowheight=29,font=(FONT,10),borderwidth=0,
                         relief="flat")
-        style.configure("Monitor.Treeview.Heading",background="#413326",foreground="#F4D49A",
-                        bordercolor="#B48C52",lightcolor="#A9834F",darkcolor="#241A14",
+        style.configure("Monitor.Treeview.Heading",background="#343A3C",foreground="#F4D49A",
+                        bordercolor="#665C4B",lightcolor="#44494A",darkcolor="#202325",
                         font=(FONT,9,"bold"),padding=(3,5))
-        style.map("Monitor.Treeview.Heading",background=[("active","#715032")])
-        style.map("Monitor.Treeview",background=[("selected","#865A30")],
+        style.map("Monitor.Treeview.Heading",background=[("active","#565148")])
+        style.map("Monitor.Treeview",background=[("selected","#65523B")],
                   foreground=[("selected","#FFF0CF")])
-        area=tk.Frame(box,bg="#161511")
-        area.pack(fill="x",padx=8,pady=(2,5))
+        area=tk.Frame(box,bg=BG)
+        area.pack(fill="x",padx=8,pady=(1,2))
         columns=("star","name","map","players","ping","status")
         self.tree=ttk.Treeview(area,columns=columns,show="headings",height=2 if self.compact else 3,
                                style="Monitor.Treeview",selectmode="browse")
@@ -181,7 +181,7 @@ class PremiumHome:
         self.tree.bind("<Double-1>",lambda _e:self.connect_selected())
         self.tree.bind("<Motion>",self._show_truncated_cell)
         self.tree.bind("<Leave>",lambda _e:self._hide_tip())
-        heading=tk.Frame(box,bg="#302B23",height=29)
+        heading=tk.Frame(box,bg=CARD_ALT,height=29)
         heading.pack(fill="x",padx=8)
         self.player_title=txt(heading,"",10,AMBER,bold=True)
         self.player_title.pack(side="left",padx=7)
@@ -189,13 +189,13 @@ class PremiumHome:
         self.last_update.pack(side="right",padx=7)
         self.players=PlayerRoster(box,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
                     local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),
-                    rows=2 if self.compact and self.dpi>=1.65 else 3 if self.compact or self.dpi>=1.6 else 4)
+                    rows=2 if self.compact and self.dpi>=1.65 else 5 if self.compact else 4)
         self.players.pack(fill="both",expand=True,padx=8,pady=(0,4))
-        actions=tk.Frame(box,bg="#24221D")
-        actions.pack(fill="x",padx=7,pady=(0,7))
+        actions=tk.Frame(box,bg=CARD)
+        actions.pack(fill="x",padx=7,pady=(0,3))
         for title,command,primary,icon in (
             (local(a,"Добавить сервер","Додати сервер","Add server"),
-             lambda:self.dashboard.navigate("servers",add=True),False,"configure"),
+             lambda:self.dashboard.navigate("servers",add=True),False,"add"),
             (local(a,"Обновить","Оновити","Refresh"),a.monitor.refresh,False,"updates"),
             (local(a,"Подключиться","Підключитися","Connect"),self.connect_selected,True,"test"),
         ):
@@ -217,8 +217,7 @@ class PremiumHome:
                          fill=TEXT,font=(FONT,12,"bold"),tags="overlay_title")
         rail.create_text(0,0,text="Smart Engine",anchor="w",
                          fill=TEXT,font=(FONT,12,"bold"),tags="engine_title")
-        rail.create_text(0,0,text="◉",anchor="w",
-                         fill=GREEN,font=(FONT,18,"bold"),tags="status_icon")
+        rail.create_oval(0,0,0,0,outline="#4A7953",fill="#93DF87",width=2,tags="status_icon")
         rail.create_text(0,0,text=local(a,"Состояние системы","Стан системи","System status"),
                          anchor="w",fill=TEXT,font=(FONT,12,"bold"),tags="status_title")
         separators=[rail.create_line(0,0,0,0,fill="#86643B",width=1) for _ in range(2)]
@@ -252,16 +251,16 @@ class PremiumHome:
                 rail.coords(item,x,13,x,event.height-13)
             rail.coords(overlay_icon,34,24)
             rail.coords("overlay_title",52,23)
-            rail.coords(overlay_switch,round(third-73),10)
+            rail.coords(overlay_switch,round(third-88),27)
             rail.coords(overlay_edit,25,48)
             rail.coords(overlay_config,156,48)
             rail.coords(engine_icon,round(third+34),24)
             rail.coords("engine_title",round(third+52),23)
-            rail.coords(engine_control,round(third*2-73),10)
+            rail.coords(engine_control,round(third*2-88),27)
             rail.coords(self.dashboard.engine_engine_bullet.item,round(third+28),58)
             rail.coords(self.dashboard.engine_engine_label.item,round(third+48),58)
             rail.coords(self.dashboard.engine_pack_label.item,round(third+135),58)
-            rail.coords("status_icon",round(third*2+26),25)
+            rail.coords("status_icon",round(third*2+24),19,round(third*2+39),34)
             rail.coords("status_title",round(third*2+54),23)
             rail.coords(self.system_status.item,round(third*2+50),58)
         rail.bind("<Configure>",layout,add="+")
@@ -364,10 +363,19 @@ class PremiumHome:
                 if normalized_name(p.name) in names}
         self.friends_badge.configure(text=local(self.app,"Друзья в игре: ","Друзі у грі: ","Friends online: ")+str(len(online)))
         enabled=bool(self.app.enabled_var.get() or self.app.outgoing_chat.enabled_var.get())
-        self.system_status.configure(
-            text=local(self.app,"Переводчик готов","Перекладач готовий","Translator ready") if enabled else
-                 local(self.app,"Перевод выключен","Переклад вимкнено","Translation off"),
-            fg=GREEN if enabled else MUTED)
+        log=self.app.current_log_path()
+        log_available=bool(log and log.is_file())
+        if not enabled:
+            status=local(self.app,"Перевод выключен","Переклад вимкнено","Translation off")
+        elif not log_available:
+            status=local(self.app,"Движок готов · журнал не найден",
+                         "Рушій готовий · журнал не знайдено",
+                         "Engine ready · game log missing")
+        else:
+            status=local(self.app,"Журнал доступен · перевод активен",
+                         "Журнал доступний · переклад активний",
+                         "Game log found · translation active")
+        self.system_status.configure(text=status, fg=GREEN if enabled and log_available else AMBER if enabled else MUTED)
         self.f8_detail.configure(text="Auto → "+self.app.target_name_var.get())
         self.f9_detail.configure(text=self.app.outgoing_chat.route_var.get())
 
