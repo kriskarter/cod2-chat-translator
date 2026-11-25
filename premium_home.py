@@ -29,6 +29,8 @@ class CanvasText:
         self.canvas, self.item = canvas, item
 
     def configure(self, **kwargs):
+        if "fg" in kwargs:
+            kwargs["fill"]=kwargs.pop("fg")
         self.canvas.itemconfigure(self.item, **kwargs)
 
     def cget(self, name):
@@ -205,49 +207,64 @@ class PremiumHome:
         a=self.app
         from wwii_dashboard import tactical_action, tactical_switch
         from dashboard_ui import ui_photo
-        border=MetalCanvas(self.content,height=91 if self.large_dpi else 85 if self.compact else 88)
-        border.pack(fill="x",padx=14,pady=(0,6))
-        frame=tk.Frame(border,bg="#24211B",height=69 if self.compact else 73 if self.large_dpi else 72)
-        frame.pack(fill="both",expand=True,padx=12,pady=8)
-        frame.pack_propagate(False)
-        for col in range(3):frame.columnconfigure(col,weight=1,uniform="rail")
-        cells=[tk.Frame(frame,bg="#24211B") for _ in range(3)]
-        for col,cell in enumerate(cells):
-            cell.grid(row=0,column=col,sticky="nsew",padx=9,pady=4)
-            if col:
-                tk.Frame(frame,bg="#735A3B",width=1).grid(row=0,column=col,sticky="ns")
-        overlay_head=tk.Frame(cells[0],bg="#24211B")
-        overlay_head.pack(fill="x")
-        tk.Label(overlay_head,image=ui_photo(frame,"quick_screenshot.png"),bg="#24211B").pack(side="left",padx=(0,5))
-        txt(overlay_head,local(a,"Оверлей","Оверлей","Overlay"),12,bold=True).pack(side="left")
+        rail=MetalCanvas(self.content,height=110 if self.compact else 112)
+        rail.pack(fill="x",padx=14,pady=(0,6))
+        # One textured surface carries the three sections. Only the actual
+        # controls are Tk child windows; captions and separators do not hide it.
+        overlay_icon=rail.create_image(0,0,image=ui_photo(rail,"quick_screenshot.png"),anchor="center")
+        engine_icon=rail.create_image(0,0,image=ui_photo(rail,"nav_settings.png"),anchor="center")
+        rail.create_text(0,0,text=local(a,"Оверлей","Оверлей","Overlay"),anchor="w",
+                         fill=TEXT,font=(FONT,12,"bold"),tags="overlay_title")
+        rail.create_text(0,0,text="Smart Engine",anchor="w",
+                         fill=TEXT,font=(FONT,12,"bold"),tags="engine_title")
+        rail.create_text(0,0,text="◉",anchor="w",
+                         fill=GREEN,font=(FONT,18,"bold"),tags="status_icon")
+        rail.create_text(0,0,text=local(a,"Состояние системы","Стан системи","System status"),
+                         anchor="w",fill=TEXT,font=(FONT,12,"bold"),tags="status_title")
+        separators=[rail.create_line(0,0,0,0,fill="#86643B",width=1) for _ in range(2)]
         self.overlay_var=tk.BooleanVar(value=a.overlay_hotkey_visible)
         def toggle_overlay():
             if self.overlay_var.get()!=a.overlay_hotkey_visible:
                 a.toggle_overlay_hotkey_visibility()
-        self.overlay_switch=tactical_switch(overlay_head,"",self.overlay_var,toggle_overlay)
-        self.overlay_switch.pack(side="right")
-        actions=tk.Frame(cells[0],bg="#24211B")
-        actions.pack(anchor="w")
-        a.overlay_edit_button=tactical_action(actions,local(a,"Место","Місце","Position"),a.toggle_overlay_edit)
-        a.overlay_edit_button.pack(side="left",padx=(0,4))
-        tactical_action(actions,local(a,"Настроить →","Налаштувати →","Configure →"),
-                        lambda:self.dashboard.navigate("overlay")).pack(side="left")
-        engine_head=tk.Frame(cells[1],bg="#24211B")
-        engine_head.pack(fill="x")
-        tk.Label(engine_head,image=ui_photo(frame,"nav_settings.png"),bg="#24211B").pack(side="left",padx=(0,5))
-        txt(engine_head,"Smart Engine",12,bold=True).pack(side="left")
-        self.dashboard.engine_engine_bullet=txt(cells[1],"●",10,GREEN)
-        self.dashboard.engine_engine_bullet.pack(side="left")
-        self.dashboard.engine_engine_label=txt(cells[1],"",10)
-        self.dashboard.engine_engine_label.pack(side="left")
-        self.dashboard.engine_pack_label=txt(cells[1],"",9,MUTED)
-        self.dashboard.engine_pack_label.pack(side="left",padx=5)
-        status_head=tk.Frame(cells[2],bg="#24211B")
-        status_head.pack(fill="x")
-        txt(status_head,"◉",17,GREEN,bold=True).pack(side="left",padx=(0,5))
-        txt(status_head,local(a,"Состояние системы","Стан системи","System status"),12,bold=True).pack(side="left")
-        self.system_status=txt(cells[2],"",10,GREEN)
-        self.system_status.pack(anchor="w")
+        self.overlay_switch=tactical_switch(rail,"",self.overlay_var,toggle_overlay)
+        overlay_switch=rail.create_window(0,0,window=self.overlay_switch,anchor="nw")
+        a.overlay_edit_button=tactical_action(
+            rail,local(a,"Место","Місце","Position"),a.toggle_overlay_edit)
+        overlay_edit=rail.create_window(0,0,window=a.overlay_edit_button,anchor="nw")
+        config=tactical_action(rail,local(a,"Настроить →","Налаштувати →","Configure →"),
+                               lambda:self.dashboard.navigate("overlay"))
+        overlay_config=rail.create_window(0,0,window=config,anchor="nw")
+        engine_switch=tactical_switch(rail,"",a.smart_engine_var,a._persist_settings)
+        engine_control=rail.create_window(0,0,window=engine_switch,anchor="nw")
+        self.dashboard.engine_engine_bullet=CanvasText(rail,rail.create_text(
+            0,0,text="●",anchor="w",fill=GREEN,font=(FONT,10)))
+        self.dashboard.engine_engine_label=CanvasText(rail,rail.create_text(
+            0,0,text="",anchor="w",fill=TEXT,font=(FONT,10)))
+        self.dashboard.engine_pack_label=CanvasText(rail,rail.create_text(
+            0,0,text="",anchor="w",fill=MUTED,font=(FONT,9)))
+        self.system_status=CanvasText(rail,rail.create_text(
+            0,0,text="",anchor="w",fill=GREEN,font=(FONT,10)))
+        def layout(event):
+            width=event.width
+            third=width/3
+            for index,item in enumerate(separators,1):
+                x=round(third*index)
+                rail.coords(item,x,13,x,event.height-13)
+            rail.coords(overlay_icon,34,24)
+            rail.coords("overlay_title",52,23)
+            rail.coords(overlay_switch,round(third-73),10)
+            rail.coords(overlay_edit,25,48)
+            rail.coords(overlay_config,156,48)
+            rail.coords(engine_icon,round(third+34),24)
+            rail.coords("engine_title",round(third+52),23)
+            rail.coords(engine_control,round(third*2-73),10)
+            rail.coords(self.dashboard.engine_engine_bullet.item,round(third+28),58)
+            rail.coords(self.dashboard.engine_engine_label.item,round(third+48),58)
+            rail.coords(self.dashboard.engine_pack_label.item,round(third+135),58)
+            rail.coords("status_icon",round(third*2+26),25)
+            rail.coords("status_title",round(third*2+54),23)
+            rail.coords(self.system_status.item,round(third*2+50),58)
+        rail.bind("<Configure>",layout,add="+")
 
     def _hide_tip(self):
         tip=getattr(self,"_tip",None)
