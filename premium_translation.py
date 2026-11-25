@@ -100,7 +100,7 @@ class TranslationConsole:
         c.itemconfigure(self.back, image=self.photo)
         labels = {
             "heading": (.035, .07), "incoming": (.19, .285),
-            "outgoing": (.19, .69), "f8_note": (.19, .375),
+            "outgoing": (.19, .69), "f8_note": (.19, .34),
             "f9_note": (.19, .755), "target": (.585, .265),
             "style": (.77, .265), "source": (.585, .65),
             "send": (.77, .65),
