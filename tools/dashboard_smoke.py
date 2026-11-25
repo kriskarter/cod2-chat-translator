@@ -117,6 +117,13 @@ def main():
                 switch.invoke()
                 root.update()
                 assert bool(variable.get())==before,key
+                # The illustrated F8/F9 key is itself an actual button.
+                getattr(dashboard.premium_home,key+"_key").invoke()
+                root.update()
+                assert bool(variable.get())!=before,key
+                getattr(dashboard.premium_home,key+"_key").invoke()
+                root.update()
+                assert bool(variable.get())==before,key
 
             app.smart_engine_var.set(False)
             app._persist_settings()
@@ -272,7 +279,7 @@ def main():
                             ], check=True, timeout=15)
                             win.destroy()
                             root.update()
-            print(f"DASHBOARD SMOKE PASS: v{APP_VERSION}, pages=6, nav=7,"
+            print(f"DASHBOARD SMOKE PASS: v{APP_VERSION}, pages={len(app.dashboard.pages)}, nav={len(app.dashboard.nav_buttons)},"
                   " settings callbacks, overlay state, RU/UK/EN, 1050px layout")
             return 0
         finally:

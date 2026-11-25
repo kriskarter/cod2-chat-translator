@@ -60,7 +60,8 @@ class DashboardContractTests(unittest.TestCase):
             self.assertIn(f'self._{name}(self.pages["{name}"])', SOURCE)
         navigation = (ROOT/"wwii_dashboard.py").read_text(encoding="utf-8")
         self.assertIn('lambda:self.navigate("knowledge")', SOURCE+navigation)
-        self.assertIn('lambda:self.navigate("stats")', SOURCE+navigation)
+        self.assertIn('for key in ("translation","overlay","knowledge","stats","settings")', navigation)
+        self.assertIn('lambda destination=key:self.navigate(destination)', navigation)
         for callback in (
             "test_overlay", "clear_overlay", "toggle_overlay_edit",
             "enable_cod2_borderless", "capture_game_screenshot",

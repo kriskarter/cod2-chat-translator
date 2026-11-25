@@ -30,6 +30,12 @@ def record(dashboard,message):
     widget=getattr(dashboard,"history_text",None)
     if widget is None or not widget.winfo_exists():return
     from datetime import datetime
+    from time import monotonic
+    stamp=monotonic()
+    previous=getattr(dashboard,"_history_last",None)
+    if previous and previous[0]==str(message) and stamp-previous[1]<30:
+        return
+    dashboard._history_last=(str(message),stamp)
     widget.configure(state="normal")
     widget.insert("end",datetime.now().strftime("%H:%M:%S")+"   "+str(message)[:240]+"\n")
     if int(widget.index("end-1c").split(".")[0])>250:

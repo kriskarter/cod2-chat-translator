@@ -1,4 +1,4 @@
-"""Modern Esports Utility: real Tk/ttk desktop dashboard, no static screenshot.
+"""Shared premium metal controls and expert pages for the CoD2 command center.
 
 The UI only binds to existing ControlApp variables and callback methods.
 No translation, network, log scanning or game control runs in this module.
@@ -272,6 +272,11 @@ def setup_theme(root: tk.Tk):
                     selectbackground="#A75B11", selectforeground="#FFFFFF")
     style.map("TCombobox", fieldbackground=[("readonly", "#29251B")],
               foreground=[("readonly", TEXT)])
+    style.configure("TEntry",fieldbackground="#29251B",foreground=TEXT,
+                    insertcolor=TEXT,bordercolor="#9C7950",lightcolor="#9C7950",
+                    darkcolor="#18140F",padding=(6,4))
+    style.map("TEntry",fieldbackground=[("disabled","#211F1B")],
+              bordercolor=[("focus",AMBER)])
 
 
 def tr(app, key):

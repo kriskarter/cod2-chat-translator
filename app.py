@@ -3620,6 +3620,7 @@ class ControlApp:
                                lambda snapshot: self.ui_queue.put(("server_snapshot", snapshot)))
         self._friend_presence: dict[str, set[str]] = {}
         self._friend_notice_at: dict[tuple[str, str], float] = {}
+        self._server_state_last: dict[str, str] = {}
         self._friend_notifier = None
         self.enabled = True
 
@@ -3682,8 +3683,8 @@ class ControlApp:
         # Keep the entire native window within the user's work area as far
         # as possible; smaller monitors retain a scrollable home screen.
         screen_w,screen_h=root.winfo_screenwidth(),root.winfo_screenheight()
-        preferred_w=max(1050,min(1490,screen_w-48))
-        preferred_h=max(650,min(780,screen_h-50))
+        preferred_w=max(1050,min(1680,screen_w-24))
+        preferred_h=max(650,min(920,screen_h-28))
         root.geometry(f"{preferred_w}x{preferred_h}")
         root.minsize(1050, 650)
         root.protocol("WM_DELETE_WINDOW", self.close)
@@ -5252,8 +5253,8 @@ class ControlApp:
             detail = f"{favorites[nickname]} · {server.label or snapshot.name or snapshot.address if server else snapshot.address}"
             if self._friend_notifier:
                 self._friend_notifier.show(title, detail)
-            from premium_history_page import record
             if hasattr(self, "dashboard"):
+                from premium_history_page import record
                 record(self.dashboard, f"{title}: {detail}")
 
     def process_ui_queue(self) -> None:
@@ -5281,6 +5282,13 @@ class ControlApp:
                         from premium_history_page import record
                         record(self.dashboard, item[1])
                 elif event == "server_snapshot":
+                    snap=item[1]
+                    if self._server_state_last.get(snap.address)!=snap.state:
+                        self._server_state_last[snap.address]=snap.state
+                        if hasattr(self,"dashboard"):
+                            from premium_history_page import record
+                            record(self.dashboard,f"{snap.address} · {snap.state}"
+                                   +(f" · {snap.map_name}" if snap.map_name else ""))
                     self._server_friend_update(item[1])
                     if hasattr(self, "dashboard") and hasattr(self.dashboard, "premium_home"):
                         self.dashboard.premium_home.update_snapshot(item[1])

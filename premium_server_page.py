@@ -20,7 +20,17 @@ class ServerPage:
     def _build(self):
         a=self.app
         from wwii_dashboard import tactical_action
-        outer=tk.Frame(self.page,bg=BG)
+        canvas=tk.Canvas(self.page,bg=BG,highlightthickness=0,borderwidth=0)
+        scrollbar=ttk.Scrollbar(self.page,orient="vertical",command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left",fill="both",expand=True)
+        scrollbar.pack(side="right",fill="y")
+        content=tk.Frame(canvas,bg=BG)
+        window=canvas.create_window((0,0),window=content,anchor="nw")
+        content.bind("<Configure>",lambda _e:canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",lambda e:canvas.itemconfigure(window,width=e.width))
+        self.scroll_canvas=canvas
+        outer=tk.Frame(content,bg=BG)
         outer.pack(fill="both",expand=True,padx=16,pady=12)
         txt(outer,local(a,"СЕРВЕРЫ И ИГРОКИ","СЕРВЕРИ ТА ГРАВЦІ","SERVERS AND PLAYERS"),19,AMBER,True,bg=BG).pack(anchor="w",pady=(0,10))
         toolbar=tk.Frame(outer,bg=BG)
@@ -49,8 +59,8 @@ class ServerPage:
         txt(left,local(a,"Отслеживаемые серверы","Відстежувані сервери","Tracked servers"),13,AMBER,True).pack(anchor="w",padx=10,pady=8)
         self.listbox=tk.Listbox(left,bg="#191815",fg=TEXT,selectbackground="#7B5026",
                                 selectforeground="#FFF0D4",bd=0,highlightthickness=0,
-                                font=(FONT,11),activestyle="none")
-        self.listbox.pack(fill="both",expand=True,padx=9,pady=(0,8))
+                                font=(FONT,11),height=5,activestyle="none")
+        self.listbox.pack(fill="x",padx=9,pady=(0,8))
         self.listbox.bind("<<ListboxSelect>>",lambda _e:self.details())
         self.listbox.bind("<Double-1>",lambda _e:self.connect())
         bottom=tk.Frame(left,bg=CARD)
@@ -80,8 +90,8 @@ class ServerPage:
         txt(right,local(a,"Избранные игроки","Обрані гравці","Favorite players"),13,AMBER,True).pack(anchor="w",padx=10,pady=5)
         self.friends=tk.Listbox(right,bg="#191815",fg=GREEN,selectbackground="#7B5026",
                                 selectforeground="#FFF0D4",bd=0,highlightthickness=0,
-                                font=(FONT,10),height=6,activestyle="none")
-        self.friends.pack(fill="both",expand=True,padx=9,pady=5)
+                                font=(FONT,10),height=4,activestyle="none")
+        self.friends.pack(fill="x",padx=9,pady=5)
         buttons=tk.Frame(right,bg=CARD)
         buttons.pack(fill="x",padx=8,pady=(0,7))
         tactical_action(buttons,local(a,"＋ Игрок","＋ Гравець","＋ Player"),self.add_friend).pack(side="left",padx=2)
@@ -263,10 +273,29 @@ class ServerPage:
             self.app.status_var.set(selected.address)
     def add_friend(self):
         a=self.app
-        from tkinter.simpledialog import askstring
-        value=askstring(local(a,"Игрок","Гравець","Player"),
-                        local(a,"Никнейм игрока:","Нікнейм гравця:","Player nickname:"),
-                        parent=a.root)
+        from wwii_dashboard import tactical_action
+        dialog=tk.Toplevel(a.root)
+        dialog.title(local(a,"Избранный игрок","Обраний гравець","Favorite player"))
+        dialog.configure(bg=CARD)
+        dialog.transient(a.root)
+        dialog.grab_set()
+        dialog.resizable(False,False)
+        txt(dialog,local(a,"Никнейм игрока","Нікнейм гравця","Player nickname"),
+            13,AMBER,True,bg=CARD).pack(anchor="w",padx=18,pady=(15,6))
+        field=ttk.Entry(dialog,width=38)
+        field.pack(fill="x",padx=18)
+        value=None
+        def save():
+            nonlocal value
+            value=field.get().strip()
+            dialog.destroy()
+        tactical_action(dialog,local(a,"Сохранить","Зберегти","Save"),save,primary=True).pack(
+            fill="x",padx=18,pady=(12,16))
+        dialog.bind("<Return>",lambda _e:save())
+        dialog.bind("<Escape>",lambda _e:dialog.destroy())
+        dialog.geometry(f"+{a.root.winfo_rootx()+170}+{a.root.winfo_rooty()+130}")
+        field.focus_set()
+        dialog.wait_window()
         if value is None:return
         name=plain_name(value)[:48]
         if name and normalized_name(name) not in {normalized_name(f) for f in a.monitor_settings["friends"]}:

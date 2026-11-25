@@ -22,6 +22,15 @@ DEFAULT_PORT = 28960
 _COLOR = re.compile(r"\^[0-9A-Za-z]")
 _PLAYER = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+"(.*)"\s*$')
 _HOST = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
+_MOJIBAKE = re.compile(r"[À-ÿ]{3,}")
+
+
+def _legacy_name(value: str) -> str:
+    # CoD2 has no encoding marker. Cyrillic community servers often send
+    # Windows-1251 names; retain Western names with only isolated accents.
+    if _MOJIBAKE.search(value):
+        return value.encode("cp1252", errors="replace").decode("cp1251", errors="replace")
+    return value
 
 
 def plain_name(value: str) -> str:
@@ -151,7 +160,7 @@ def parse_response(address: str, payload: bytes, elapsed_ms: int) -> Snapshot:
         for line in player_lines.splitlines()[:128]:
             match = _PLAYER.fullmatch(line.rstrip("\r"))
             if match:
-                players.append(Player(match[3], int(match[1]), int(match[2])))
+                players.append(Player(_legacy_name(match[3]), int(match[1]), int(match[2])))
     def number(key):
         try:
             return max(0, int(info[key]))
@@ -159,7 +168,7 @@ def parse_response(address: str, payload: bytes, elapsed_ms: int) -> Snapshot:
             return None
     return Snapshot(
         address=address, state="online" if header == "statusResponse" else "limited",
-        name=plain_name(info.get("sv_hostname", "")),
+        name=plain_name(_legacy_name(info.get("sv_hostname", ""))),
         map_name=info.get("mapname", ""),
         game_type=info.get("g_gametype", info.get("gametype", "")),
         clients=len(players) if header == "statusResponse" else number("clients"),
@@ -171,10 +180,13 @@ def parse_response(address: str, payload: bytes, elapsed_ms: int) -> Snapshot:
 def query_server(address: str, *, timeout: float = 1.5) -> Snapshot:
     host, port = parse_address(address)
     error = "No response"
+    try:
+        peers = socket.getaddrinfo(host, port, type=socket.SOCK_DGRAM)[:4]
+    except OSError as exc:
+        return Snapshot(address=address,state="offline",error=type(exc).__name__)
     for command in (b"getstatus", b"getinfo"):
-        try:
-            infos = socket.getaddrinfo(host, port, type=socket.SOCK_DGRAM)
-            for family, socktype, proto, _, peer in infos[:4]:
+        for family, socktype, proto, _, peer in peers:
+            try:
                 with socket.socket(family, socktype, proto) as sock:
                     sock.settimeout(timeout)
                     sock.connect(peer)
@@ -184,8 +196,8 @@ def query_server(address: str, *, timeout: float = 1.5) -> Snapshot:
                     result = parse_response(address, payload, round((time.monotonic()-start)*1000))
                     # A getstatus request may yield infoResponse on certain mods.
                     return result
-        except (OSError, ValueError) as exc:
-            error = type(exc).__name__ if isinstance(exc, OSError) else str(exc)
+            except (OSError, ValueError) as exc:
+                error = type(exc).__name__ if isinstance(exc, OSError) else str(exc)
     return Snapshot(address=address, state="offline", error=error)
 
 

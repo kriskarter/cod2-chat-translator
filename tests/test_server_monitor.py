@@ -25,6 +25,10 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(normalized_name("^1Kri^7S"),"kris")
         self.assertEqual(color_runs("^1Kri^7S"),(("Kri","#E56A61"),("S","#F0E8D3")))
 
+    def test_cp1251_nickname_from_game(self):
+        payload=STATUS+b'5 88 "^3'+ "Петрик".encode("cp1251") + b'"\n'
+        self.assertEqual(parse_response("a:28960",payload,10).players[-1].name,"Петрик")
+
     def test_info_is_partial_not_empty_player_list(self):
         snapshot=parse_response("example.org:28960",INFO,47)
         self.assertEqual(snapshot.state,"limited")

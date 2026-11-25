@@ -1,8 +1,4 @@
-"""Approved WWII metal/tactical interface, using real existing CoD2 controls.
-
-Style is derived from the user's confirmed second concept. The hero and
-plate graphics contain NO UI state; all labels and actions are real Tk widgets.
-"""
+"""Approved server-monitor command center, with live metal/Tk controls."""
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
@@ -83,7 +79,7 @@ class WWIIDashboard(Dashboard):
         hero_item=header.create_image(0,0,anchor="nw")
         logo_item=header.create_image(0,0,anchor="nw")
         tagline_item=header.create_text(0,0,text="Intelligent Gaming Companion",
-                            anchor="w",fill="#F2DEB4",font=(FONT,12,"italic"))
+                            anchor="w",fill="#F2DEB4",font=(FONT,10,"italic"))
         header.create_line(0,header_height-2,1600,header_height-2,
                            fill="#BC8A46",width=2)
         self.banner_version=header.create_text(0,0,text="",
@@ -99,13 +95,13 @@ class WWIIDashboard(Dashboard):
             picture=picture.crop((x,y,x+width,y+header_height))
             self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
             header.itemconfigure(hero_item,image=self._header_photos["scene"])
-            logo_width=min(560,round(width*.40),round(header_height*2.85))
+            logo_width=min(510,round(width*.38),round(header_height*2.55))
             logo_height=round(brand_source.height*logo_width/brand_source.width)
             logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
             self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
             header.itemconfigure(logo_item,image=self._header_photos["logo"])
-            header.coords(logo_item,round(width*.35),3)
-            header.coords(tagline_item,round(width*.39),header_height-16)
+            header.coords(logo_item,round(width*.37),3)
+            header.coords(tagline_item,round(width*.43),header_height-12)
             header.coords(self.banner_version,width-13,header_height-16)
             header.itemconfigure(self.banner_version,
                                  text="v"+__import__("app").APP_VERSION)
@@ -136,7 +132,6 @@ class WWIIDashboard(Dashboard):
                 command=callback,style="PremiumNav.TButton",cursor="hand2")
             button.grid(row=0,column=index,sticky="nsew",padx=1,pady=1)
             self.nav_buttons[name]=button
-        nav.columnconfigure(5,weight=1,uniform="nav")
         service=tk.Menu(nav,tearoff=False,bg="#2A241A",fg=TEXT,
                         activebackground="#9E540D",activeforeground=TEXT)
         service.add_command(label=nav_name(app,"updates"),
@@ -144,18 +139,7 @@ class WWIIDashboard(Dashboard):
         if FEATURED_SERVER.discord_url:
             service.add_command(label=nav_name(app,"discord"),
                                 command=app._open_featured_server_discord)
-        for section in ("translation","overlay","knowledge","stats"):
-            service.add_command(label=nav_name(app,section),command=lambda key=section:self.navigate(key))
         self.service_menu=service
-        caption={"ru":"Справка и сервис ▾","uk":"Довідка і сервіс ▾",
-                 "en":"Help and service ▾"}.get(app.ui_language,"Help and service ▾")
-        def show_service():
-            service.tk_popup(service_button.winfo_rootx(),
-                             service_button.winfo_rooty()+service_button.winfo_height())
-        service_button=ttk.Button(nav,text=caption,style="PremiumNav.TButton",
-                                  command=show_service,cursor="hand2")
-        service_button.grid(row=0,column=5,sticky="nsew",padx=1,pady=1)
-        self.service_button=service_button
 
         stack=tk.Frame(outer,bg=BG)
         stack.pack(fill="both",expand=True)
@@ -175,6 +159,14 @@ class WWIIDashboard(Dashboard):
         from premium_history_page import build_history_page
         build_history_page(self,self.pages["history"])
         self._expert_links()
+        caption={"ru":"Сервис ▾","uk":"Сервіс ▾","en":"Service ▾"}.get(app.ui_language,"Service ▾")
+        def show_service():
+            service.tk_popup(service_button.winfo_rootx(),
+                             service_button.winfo_rooty()+service_button.winfo_height())
+        service_button=ttk.Button(self.settings_expert_row,text=caption,
+                                  style="Tactical.TButton",command=show_service)
+        service_button.pack(side="right",padx=5,pady=2)
+        self.service_button=service_button
         if app.overlay_editing:
             for key in ("overlay_edit_button","overlay_edit_button_alt"):
                 widget=getattr(app,key,None)
@@ -216,6 +208,7 @@ class WWIIDashboard(Dashboard):
         for page_name in ("settings","translation","overlay","knowledge","stats"):
             row=tk.Frame(self.pages[page_name],bg="#29241D",height=38)
             row.pack(fill="x",side="top",before=self.pages[page_name].winfo_children()[0])
+            if page_name=="settings":self.settings_expert_row=row
             for key in ("translation","overlay","knowledge","stats","settings"):
                 tactical_action(row,nav_name(self.app,key),lambda destination=key:self.navigate(destination)).pack(
                     side="left",padx=5,pady=2)

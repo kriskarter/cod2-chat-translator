@@ -12,6 +12,8 @@ from server_monitor import color_runs, normalized_name
 def local(app, ru, uk, en):
     return {"ru":ru,"uk":uk,"en":en}.get(app.ui_language,en)
 
+localized=local  # Existing expert translation page imports this helper.
+
 
 def txt(parent, value, size=10, color=TEXT, bold=False, bg=None):
     return tk.Label(parent,text=value,font=(FONT,size,"bold" if bold else "normal"),
@@ -24,6 +26,9 @@ class PremiumHome:
         self.selected=None
         self.sort_key="favorite"
         self.reverse=False
+        self.dpi=float(self.app.root.tk.call("tk","scaling"))
+        self.compact=self.app.root.winfo_screenheight()<=800 and self.dpi<1.85
+        self.large_dpi=self.dpi>=1.95
         self.photos={}
         from app import resource_path
         self.scene=Image.open(resource_path("assets/ui_premium/monitor_hero.png")).convert("RGB")
@@ -47,7 +52,7 @@ class PremiumHome:
         self.content.bind("<Configure>",measure)
         self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(item,width=e.width),measure()))
         columns=tk.Frame(self.content,bg=BG)
-        columns.pack(fill="both",expand=True,padx=14,pady=(11,7))
+        columns.pack(fill="both",expand=True,padx=14,pady=(8,4 if self.compact else 5))
         columns.columnconfigure(0,weight=44,uniform="command",minsize=380)
         columns.columnconfigure(1,weight=56,uniform="command",minsize=520)
         left=tk.Frame(columns,bg=BG)
@@ -64,8 +69,8 @@ class PremiumHome:
         a=self.app
         from wwii_dashboard import tactical_action,tactical_switch
         border=tk.Frame(parent,bg="#A6783D",padx=2,pady=2)
-        border.pack(fill="x",pady=(0,12))
-        card=tk.Frame(border,bg="#1F1C17",height=188)
+        border.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
+        card=tk.Frame(border,bg="#1F1C17",height=164 if self.compact else 244 if self.large_dpi else 205)
         card.pack(fill="both",expand=True)
         card.pack_propagate(False)
         art=tk.Canvas(card,bg="#1F1C17",highlightthickness=0)
@@ -79,17 +84,21 @@ class PremiumHome:
             art.delete("scene")
             art.create_image(0,0,image=photo,anchor="nw",tags="scene")
         art.bind("<Configure>",resize)
-        key=tk.Label(card,text=kind.upper(),bg="#29251D",fg="#FFCD80",font=(FONT,30,"bold"),
-                     relief="ridge",bd=3,highlightbackground="#C19050",highlightthickness=2)
-        key.place(x=13,y=26,width=104,height=108)
+        key=tk.Button(card,text=kind.upper(),bg="#29251D",fg="#FFCD80",font=(FONT,30,"bold"),
+                      relief="raised",bd=3,highlightbackground="#C19050",highlightthickness=2,
+                      activebackground="#765027",activeforeground="#FFE1A0",
+                      cursor="hand2",takefocus=True,command=lambda:switch.invoke())
+        key.place(x=13,y=25,width=94 if self.compact else 104,height=96 if self.compact else 108)
+        setattr(self,kind+"_key",key)
         foreground=tk.Frame(card,bg="#211E19",highlightbackground="#806040",highlightthickness=1)
-        foreground.place(relx=.24,relwidth=.74,y=14,height=159)
+        foreground.place(relx=.24,relwidth=.74,y=7 if self.compact else 14,
+                         height=151 if self.compact else 215 if self.large_dpi else 175)
         title=local(a,"Входящий перевод","Вхідний переклад","Incoming translation") if kind=="f8" else local(a,"Исходящий перевод","Вихідний переклад","Outgoing translation")
-        txt(foreground,title,16,bold=True).pack(fill="x",padx=10,pady=(8,0))
+        txt(foreground,title,14 if self.compact else 17,bold=True).pack(fill="x",padx=10,pady=(5 if self.compact else 8,0))
         note=local(a,"Перевод чата игроков","Переклад чату гравців","Translate player chat") if kind=="f8" else local(a,"Перевод ваших сообщений","Переклад ваших повідомлень","Translate your messages")
         txt(foreground,note,10,MUTED).pack(fill="x",padx=10)
         row=tk.Frame(foreground,bg="#211E19")
-        row.pack(fill="x",padx=8,pady=(10,2))
+        row.pack(fill="x",padx=8,pady=(5 if self.compact else 12,1))
         var,callback=(a.enabled_var,a.toggle_enabled) if kind=="f8" else (a.outgoing_chat.enabled_var,a._outgoing_enabled_changed)
         switch=tactical_switch(row,local(a,"Вкл","Увімк","On"),var,callback)
         switch.pack(side="left")
@@ -111,15 +120,14 @@ class PremiumHome:
         detail=txt(foreground,"",10,MUTED)
         detail.pack(fill="x",padx=10)
         setattr(self,kind+"_detail",detail)
-        tactical_action(foreground,local(a,"Параметры →","Параметри →","Settings →"),
-                        lambda:self.dashboard.navigate("translation")).pack(anchor="e",padx=8,pady=(0,3))
+        # Full translation controls live in the Settings/Translation section.
 
     def _monitor(self,parent):
         a=self.app
         from wwii_dashboard import tactical_action
         border=tk.Frame(parent,bg="#A6783D",padx=2,pady=2)
         border.pack(fill="both",expand=True)
-        box=tk.Frame(border,bg="#24221D",height=388)
+        box=tk.Frame(border,bg="#24221D",height=350 if self.compact else 492 if self.large_dpi else 420)
         box.pack(fill="both",expand=True)
         box.pack_propagate(False)
         head=tk.Frame(box,bg="#29261F",height=46)
@@ -143,7 +151,7 @@ class PremiumHome:
         names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
                local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
                local(a,"Статус","Стан","Status"))
-        for key,title,width in zip(columns,names,(34,178,80,60,59,90)):
+        for key,title,width in zip(columns,names,(34,178,90,82,64,98)):
             self.tree.heading(key,text=title,command=lambda k=key:self._sort(k))
             self.tree.column(key,width=width,minwidth=width,stretch=key=="name",
                              anchor="w" if key=="name" else "center")
@@ -163,7 +171,8 @@ class PremiumHome:
         players=tk.Frame(box,bg="#171613")
         players.pack(fill="both",expand=True,padx=8,pady=(0,4))
         self.players=tk.Text(players,bg="#171613",fg=TEXT,bd=0,highlightthickness=0,
-                             height=4,wrap="none",font=(FONT,10),state="disabled",
+                             height=2 if self.compact and self.dpi>=1.65 else 4,
+                             wrap="none",font=(FONT,10),state="disabled",
                              cursor="arrow",spacing1=2,spacing3=2)
         self.players.pack(side="left",fill="both",expand=True,padx=5)
         ps=ttk.Scrollbar(players,orient="vertical",command=self.players.yview)
@@ -184,7 +193,7 @@ class PremiumHome:
         from wwii_dashboard import tactical_action
         border=tk.Frame(self.content,bg="#9A7140",padx=2,pady=2)
         border.pack(fill="x",padx=14,pady=(0,6))
-        frame=tk.Frame(border,bg="#24211B",height=67)
+        frame=tk.Frame(border,bg="#24211B",height=61 if self.compact else 74 if self.large_dpi else 63)
         frame.pack(fill="x")
         frame.pack_propagate(False)
         for col in range(3):frame.columnconfigure(col,weight=1,uniform="rail")
