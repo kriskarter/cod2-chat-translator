@@ -223,6 +223,9 @@ def main():
                     assert visible+5 >= natural, (
                         f"Clipped native action {widget.cget('text')!r}: "
                         f"{visible}px versus {natural}px required")
+                    assert widget.winfo_height()+5 >= widget.winfo_reqheight(), (
+                        f"Vertically clipped action {widget.cget('text')!r}: "
+                        f"{widget.winfo_height()}px versus {widget.winfo_reqheight()}px required")
             if args.screenshot or args.screenshot_dir:
                 # Only take a screenshot when an X11 server and ffmpeg are
                 # explicitly provided. No screenshots are sent anywhere.

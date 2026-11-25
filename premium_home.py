@@ -206,12 +206,13 @@ class PremiumHome:
             "f8": (.48, .32, .055, 33), "f9": (.455, .70, .055, 33),
             "target": (.553, .32, .16, 34),
             "source": (.50, .71, .105, 34), "send": (.615, .71, .105, 34),
-            "test": (.735, .75, .12, 32), "prefs": (.86, .75, .125, 32),
-            "position": (.75, .865, .225, 32),
+            "test": (.735, .72, .12, 40), "prefs": (.86, .72, .125, 40),
+            "position": (.75, .85, .225, 40),
         }
         for key, (x, y, width, height) in controls.items():
-            if key in ("test", "prefs"):
+            if key in ("test", "prefs", "position"):
                 native = c.nametowidget(c.itemcget(self.controls[key], "window"))
+                height = max(height, native.winfo_reqheight())
                 width = max(width, (native.winfo_reqwidth()+4)/w)
                 if key == "prefs":
                     x = .985-width
