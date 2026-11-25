@@ -70,7 +70,7 @@ class PremiumHome:
     def _translator(self,parent,kind):
         a=self.app
         from wwii_dashboard import tactical_switch
-        height=164 if self.compact else 244 if self.large_dpi else 205
+        height=164 if self.compact else 244 if self.large_dpi else 190
         card=MetalCanvas(parent,scene="assets/ui_premium/translation_card_source.jpg",height=height)
         card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
@@ -114,7 +114,7 @@ class PremiumHome:
         from wwii_dashboard import tactical_action
         border=MetalCanvas(parent)
         border.pack(fill="both",expand=True)
-        box=tk.Frame(border,bg="#24221D",height=350 if self.compact else 492 if self.large_dpi else 420)
+        box=tk.Frame(border,bg="#24221D",height=350 if self.compact else 492 if self.large_dpi else 390)
         box.pack(fill="both",expand=True,padx=12,pady=12)
         box.pack_propagate(False)
         head=tk.Frame(box,bg="#29261F",height=46)
@@ -166,13 +166,13 @@ class PremiumHome:
         self.players.pack(fill="both",expand=True,padx=8,pady=(0,4))
         actions=tk.Frame(box,bg="#24221D")
         actions.pack(fill="x",padx=7,pady=(0,7))
-        for title,command,primary in (
-            (local(a,"＋ Добавить сервер","＋ Додати сервер","＋ Add server"),
-             lambda:self.dashboard.navigate("servers",add=True),False),
-            (local(a,"⟳ Обновить","⟳ Оновити","⟳ Refresh"),a.monitor.refresh,False),
-            (local(a,"▶ Подключиться","▶ Підключитися","▶ Connect"),self.connect_selected,True),
+        for title,command,primary,icon in (
+            (local(a,"Добавить сервер","Додати сервер","Add server"),
+             lambda:self.dashboard.navigate("servers",add=True),False,"configure"),
+            (local(a,"Обновить","Оновити","Refresh"),a.monitor.refresh,False,"updates"),
+            (local(a,"Подключиться","Підключитися","Connect"),self.connect_selected,True,"test"),
         ):
-            tactical_action(actions,title,command,primary=primary).pack(side="left",fill="x",expand=True,padx=3)
+            tactical_action(actions,title,command,primary=primary,icon=icon).pack(side="left",fill="x",expand=True,padx=3)
 
     def _rail(self):
         a=self.app

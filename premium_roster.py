@@ -16,13 +16,11 @@ class PlayerRoster(tk.Frame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, minsize=68)
         self.grid_columnconfigure(2, minsize=85)
-        header = tk.Frame(self, bg="#393126", height=24)
-        header.grid(row=0, column=0, columnspan=4, sticky="ew")
-        for index, (title, width) in enumerate(zip(labels, (0, 8, 10))):
-            header.grid_columnconfigure(index, weight=1 if index == 0 else 0, minsize=width * 8)
-            tk.Label(header, text=title, bg="#393126", fg="#E8C58A",
-                     font=(FONT, 9, "bold"), anchor="w" if index == 0 else "center",
-                     padx=9).grid(row=0, column=index, sticky="ew")
+        for index, title in enumerate(labels):
+            tk.Label(self, text=title, bg="#393126", fg="#E8C58A",
+                     font=(FONT, 9, "bold"), anchor="w",
+                     padx=9 if index == 0 else 4).grid(row=0, column=index, sticky="ew")
+        tk.Label(self, bg="#393126").grid(row=0, column=3, sticky="ew")
         self.fields = []
         for column, width in enumerate((20, 7, 9)):
             widget = tk.Text(self, width=width, height=rows, wrap="none", state="disabled",

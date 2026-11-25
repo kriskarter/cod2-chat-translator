@@ -42,11 +42,11 @@ class ServerPage:
         entry.pack(side="left",padx=(0,12))
         self.filter.trace_add("write",lambda *_:self.render())
         for caption,command,primary in (
-            (local(a,"＋ Добавить","＋ Додати","＋ Add"),self.add,True),
+            (local(a,"Добавить","Додати","Add"),self.add,True),
             (local(a,"Изменить","Змінити","Edit"),self.edit,False),
             (local(a,"Удалить","Видалити","Remove"),self.remove,False),
             (local(a,"★ Избранное","★ Обране","★ Favorite"),self.favorite,False),
-            (local(a,"⟳ Обновить","⟳ Оновити","⟳ Refresh"),a.monitor.refresh,False),
+            (local(a,"Обновить","Оновити","Refresh"),a.monitor.refresh,False),
         ):
             tactical_action(toolbar,caption,command,primary=primary).pack(side="left",padx=3)
         body=tk.Frame(outer,bg=BG)
@@ -71,7 +71,7 @@ class ServerPage:
         self.listbox.bind("<Double-1>",lambda _e:self.connect())
         bottom=tk.Frame(left,bg=CARD)
         bottom.pack(fill="x",padx=9,pady=(0,8))
-        tactical_action(bottom,local(a,"▶ Подключиться","▶ Підключитися","▶ Connect"),self.connect,primary=True).pack(side="left",padx=3)
+        tactical_action(bottom,local(a,"Подключиться","Підключитися","Connect"),self.connect,primary=True,icon="test").pack(side="left",padx=3)
         tactical_action(bottom,local(a,"Копировать адрес","Копіювати адресу","Copy address"),self.copy).pack(side="left",padx=3)
         self.summary=txt(bottom,"",9,MUTED)
         self.summary.pack(side="right",padx=4)
