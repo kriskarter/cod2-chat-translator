@@ -676,8 +676,8 @@ class Dashboard:
         action(row, tr(self.app, "export"), self.app._export_knowledge).pack(side="left", padx=(7, 0))
 
     def _translation(self, page):
-        from premium_pages import translation_page
-        translation_page(self, page)
+        from premium_translation import translation_canvas_page
+        translation_canvas_page(self, page)
 
     def _overlay(self, page):
         from premium_pages import overlay_page

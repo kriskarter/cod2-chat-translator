@@ -27,6 +27,12 @@ places actual Tk controls above the chassis and scales it with the window.
 These authored assets are distinct from the old v1.21.3 screenshots and do
 not incorporate stock photography or a third-party font.
 
+`translation_chassis.png` is another blank graphic generated from the same
+approved direction for the expert F8/F9 screen. It has two illustrated bays,
+no baked UI text or state. `premium_translation.py` binds live controls above
+it. `premium_generic_frame.png` is the 160×160 nine-slice export from the
+generic source with 42px borders for expandable expert panels and dialogs.
+
 Illustrated output must be reviewed on actual Windows DPI settings in
 addition to the automated Linux Tk layout checks; neither test stands in
 for an in-game CoD2 interaction test.

@@ -8,6 +8,7 @@ import app
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / "dashboard_ui.py").read_text(encoding="utf-8")
 PREMIUM = (ROOT / "premium_pages.py").read_text(encoding="utf-8")
+TRANSLATION = (ROOT / "premium_translation.py").read_text(encoding="utf-8")
 MODULE = ast.parse(SOURCE)
 
 def static_i18n():
@@ -69,7 +70,7 @@ class DashboardContractTests(unittest.TestCase):
             "_max_messages_changed", "_background_only_changed",
             "_compact_background_changed", "_fade_changed",
         ):
-            self.assertIn(callback, SOURCE+PREMIUM, callback)
+            self.assertIn(callback, SOURCE+PREMIUM+TRANSLATION, callback)
 
     def test_no_invented_ping_fps_or_service_connected_claim(self):
         self.assertNotIn("24 мс", SOURCE)
