@@ -3784,7 +3784,7 @@ class ControlApp:
         return {"ru":ru,"uk":uk,"en":en}.get(self.ui_language,en)
 
     def _show_knowledge_dialog(self):
-        from premium_dialogs import dialog_body
+        from premium_dialogs import dialog_body, dialog_check
         tr=self._knowledge_text
         previous=getattr(self,"_knowledge_window",None)
         if previous is not None and previous.winfo_exists():
@@ -3819,7 +3819,7 @@ class ControlApp:
             "experience_cache":tr("Сохранять временный кэш переводов на диске (7 дней)","Зберігати тимчасовий кеш перекладів на диску (7 днів)","Keep temporary translation cache on disk (7 days)"),
         }
         for k,v in options.items():
-            ttk.Checkbutton(body,text=labels[k],variable=v,command=change).pack(anchor="w",pady=3)
+            dialog_check(body,labels[k],v,change).pack(anchor="w",pady=3)
         ttk.Label(body,wraplength=570,justify="left",text=tr(
             "Экспорт ZIP содержит текст примеров и переводы, без полей никнеймов, серверов или путей. Фильтр удаляет очевидные идентификаторы, но свободный текст может содержать личные сведения. Проверь архив перед передачей. Автоотправки нет.",
             "Експорт ZIP містить текст прикладів і переклади, без полів нікнеймів, серверів чи шляхів. Фільтр відсіює очевидні ідентифікатори, але текст може містити особисті відомості. Перевір архів перед передаванням. Автонадсилання немає.",
@@ -3830,6 +3830,10 @@ class ControlApp:
         ttk.Button(actions,text=tr("Статистика","Статистика","Statistics"),command=self._knowledge_stats).pack(side="left",padx=6)
         ttk.Button(actions,text=tr("Очистить опыт","Очистити досвід","Clear experience"),command=self._clear_knowledge).pack(side="left",padx=6)
         ttk.Button(body,text=tr("Закрыть","Закрити","Close"),command=win.destroy).pack(anchor="e",pady=(8,0))
+        win.update_idletasks()
+        x=self.root.winfo_rootx()+max(16,(self.root.winfo_width()-win.winfo_width())//2)
+        y=self.root.winfo_rooty()+max(16,(self.root.winfo_height()-win.winfo_height())//2)
+        win.geometry(f"+{x}+{y}")
 
     def _knowledge_stats(self):
         if not self.experience.stats(lambda ok,data:self.ui_queue.put(("knowledge_action","stats",ok,data))):
@@ -4367,7 +4371,7 @@ class ControlApp:
         self._persist_settings()
 
     def show_server_settings(self) -> None:
-        from premium_dialogs import dialog_body
+        from premium_dialogs import dialog_body, dialog_check
         win = tk.Toplevel(self.root)
         win.title(self.t("server_settings_title"))
         win.transient(self.root)
@@ -4382,11 +4386,11 @@ class ControlApp:
 
         body = dialog_body(win, self.t("server_settings_title"),
                            self.t("server_settings_hint"), width=680)
-        ttk.Checkbutton(
+        dialog_check(
             body,
-            text=self.t("auto_profile"),
-            variable=self.auto_profile_var,
-            command=self._auto_profile_changed,
+            self.t("auto_profile"),
+            self.auto_profile_var,
+            self._auto_profile_changed,
         ).pack(anchor="w")
         ttk.Label(
             body,

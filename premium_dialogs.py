@@ -4,7 +4,7 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from dashboard_ui import BG, CARD, TEXT, MUTED, FONT, card
+from dashboard_ui import BG, CARD, MUTED, FONT, card, check
 
 
 def dialog_body(win, title: str, subtitle: str = "", *, width: int = 580):
@@ -22,3 +22,7 @@ def dialog_body(win, title: str, subtitle: str = "", *, width: int = 580):
     content = ttk.Frame(outer, padding=(10, 12, 10, 5))
     content.pack(fill="both", expand=True)
     return content
+
+
+def dialog_check(parent, caption, variable, callback):
+    return check(parent, caption, variable, callback, surface=BG)

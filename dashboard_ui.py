@@ -329,16 +329,16 @@ def card(parent, title=None, *, tone=CYAN, padding=5):
     return border,box
 
 
-def check(parent, caption, var, fn):
+def check(parent, caption, var, fn, *, surface=CARD):
     # The visual states are illustrated; Tk owns the value and the callback.
     return tk.Checkbutton(
         parent,text=caption,variable=var,command=fn,
         indicatoron=0,image=ui_photo(parent,"premium_check_off.png"),
         selectimage=ui_photo(parent,"premium_check_on.png"),
         compound="left",
-        bg=CARD,fg=TEXT,activebackground=CARD,activeforeground=TEXT,
-        selectcolor=CARD,font=(FONT,10),cursor="hand2",
-        highlightcolor=AMBER,highlightbackground=CARD,highlightthickness=1,
+        bg=surface,fg=TEXT,activebackground=surface,activeforeground=TEXT,
+        selectcolor=surface,font=(FONT,10),cursor="hand2",
+        highlightcolor=AMBER,highlightbackground=surface,highlightthickness=1,
         borderwidth=0,padx=4,pady=2,takefocus=True,
     )
 
