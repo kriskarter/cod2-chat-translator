@@ -52,6 +52,12 @@ class PlayerRoster(tk.Frame):
 
     def render(self, players, *, friends=(), empty=""):
         names = {normalized_name(friend) for friend in friends}
+        signature = (tuple((p.raw_name, p.score, p.ping, normalized_name(p.name) in names)
+                           for p in players), empty)
+        if signature == getattr(self, "_signature", None):
+            return
+        self._signature = signature
+        position = self.fields[0].yview()[0]
         for field in self.fields:
             field.configure(state="normal")
             field.delete("1.0", "end")
@@ -71,4 +77,4 @@ class PlayerRoster(tk.Frame):
         self.fields[0].tag_configure("friend", foreground=AMBER)
         for field in self.fields:
             field.configure(state="disabled")
-            field.yview_moveto(0)
+            field.yview_moveto(position)

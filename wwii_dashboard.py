@@ -56,11 +56,36 @@ def tactical_switch(parent, caption, var, command):
     )
 
 
+def request_dark_native_titlebar(root):
+    """Ask DWM for dark title chrome while retaining native window controls."""
+    import os
+    if os.name != "nt":
+        return
+    def apply():
+        try:
+            import ctypes
+            parent=ctypes.windll.user32.GetParent
+            parent.argtypes=[ctypes.c_void_p]
+            parent.restype=ctypes.c_void_p
+            hwnd=parent(root.winfo_id()) or root.winfo_id()
+            dwm=ctypes.windll.dwmapi.DwmSetWindowAttribute
+            dwm.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_void_p,ctypes.c_uint]
+            dwm.restype=ctypes.c_long
+            value=ctypes.c_int(1)
+            for attribute in (20, 19):
+                if dwm(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
+                    break
+        except (AttributeError, OSError, RuntimeError):
+            pass  # Older Windows keeps the normal system titlebar.
+    root.after_idle(apply)
+
+
 class WWIIDashboard(Dashboard):
     """Horizontal navigation / original illustrated header / metal controls."""
 
     def _build(self):
         app=self.app
+        request_dark_native_titlebar(self.root)
         compact_dpi=float(self.root.tk.call("tk","scaling"))>=1.6
         outer=tk.Frame(self.root,bg=BG)
         outer.pack(fill="both",expand=True)
@@ -146,7 +171,7 @@ class WWIIDashboard(Dashboard):
         self._nav_font_size=9 if dpi_scale>=1.85 else 10 if dpi_scale>=1.6 else 11
         for index,(name,callback) in enumerate(buttons):
             nav.columnconfigure(index,weight=1,uniform="nav")
-            photo=ui_photo(nav,"nav_"+name+".png") if name in {"home","settings","about"} else None
+            photo=ui_photo(nav,"nav_"+name+".png")
             button=ttk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
                 command=callback,style="PremiumNav.TButton",cursor="hand2")
             button.grid(row=0,column=index,sticky="nsew",padx=0,pady=0)

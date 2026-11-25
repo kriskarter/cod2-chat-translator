@@ -177,6 +177,8 @@ class PremiumHome:
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.bind("<<TreeviewSelect>>",lambda _e:self._select())
         self.tree.bind("<Double-1>",lambda _e:self.connect_selected())
+        self.tree.bind("<Motion>",self._show_truncated_cell)
+        self.tree.bind("<Leave>",lambda _e:self._hide_tip())
         heading=tk.Frame(box,bg="#302B23",height=29)
         heading.pack(fill="x",padx=8)
         self.player_title=txt(heading,"",10,AMBER,bold=True)
@@ -247,6 +249,43 @@ class PremiumHome:
         self.system_status=txt(cells[2],"",10,GREEN)
         self.system_status.pack(anchor="w")
 
+    def _hide_tip(self):
+        tip=getattr(self,"_tip",None)
+        if tip is not None:
+            tip.destroy()
+            self._tip=None
+        self._tip_value=None
+
+    def _show_truncated_cell(self,event):
+        column=self.tree.identify_column(event.x)
+        row=self.tree.identify_row(event.y)
+        if not row or column not in ("#2","#3"):
+            self._hide_tip()
+            return
+        value=str(self.tree.set(row,"name" if column=="#2" else "map"))
+        bbox=self.tree.bbox(row,column)
+        if not bbox:
+            self._hide_tip()
+            return
+        from tkinter import font as tkfont
+        if not hasattr(self,"_cell_font"):
+            self._cell_font=tkfont.Font(font=(FONT,10))
+        if self._cell_font.measure(value)<=bbox[2]-12:
+            self._hide_tip()
+            return
+        identity=(row,column,value)
+        if identity==getattr(self,"_tip_value",None):return
+        self._hide_tip()
+        tip=tk.Toplevel(self.tree)
+        tip.withdraw()
+        tip.overrideredirect(True)
+        tk.Label(tip,text=value,bg="#29221A",fg="#FFF1D4",
+                 font=(FONT,10),padx=9,pady=5,
+                 highlightthickness=1,highlightbackground="#A9783C").pack()
+        tip.geometry(f"+{event.x_root+12}+{event.y_root+14}")
+        tip.deiconify()
+        self._tip,self._tip_value=tip,identity
+
     def _rows(self):
         rows=[]
         for s in self.app.monitor_settings["servers"]:
@@ -284,13 +323,22 @@ class PremiumHome:
         if hasattr(self,"overlay_var"):
             self.overlay_var.set(self.app.overlay_hotkey_visible)
         previous=self.selected
-        for item in self.tree.get_children():self.tree.delete(item)
-        for address,values,state in self._rows():
-            self.tree.insert("","end",iid=address,values=values,
-                             tags=("offline",) if state not in ("online","limited") else ())
+        position=self.tree.yview()[0]
+        rows=self._rows()
+        expected={address for address,_values,_state in rows}
+        for item in self.tree.get_children():
+            if item not in expected:self.tree.delete(item)
+        for index,(address,values,state) in enumerate(rows):
+            tags=("offline",) if state not in ("online","limited") else ()
+            if self.tree.exists(address):
+                if tuple(str(v) for v in self.tree.item(address,"values"))!=tuple(str(v) for v in values) or self.tree.item(address,"tags")!=tags:
+                    self.tree.item(address,values=values,tags=tags)
+                if self.tree.index(address)!=index:self.tree.move(address,"",index)
+            else:self.tree.insert("",index,iid=address,values=values,tags=tags)
         if previous not in self.tree.get_children():
             previous=self.tree.get_children()[0] if self.tree.get_children() else None
         if previous:self.tree.selection_set(previous);self.selected=previous
+        self.tree.yview_moveto(position)
         self._render_players()
         names={normalized_name(f) for f in self.app.monitor_settings["friends"]}
         online={(normalized_name(p.name),s.address) for s in self.app.monitor_settings["servers"]

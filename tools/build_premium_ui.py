@@ -101,6 +101,21 @@ def main():
             d.line((5, 36, 59, 36), fill=(247, 177, 68, 175 if state=="active" else 95), width=2)
         nav.save(OUT / f"premium_nav_{state}.png", optimize=True)
 
+    for name in ("servers", "history"):
+        icon = Image.new("RGBA", (28, 28))
+        i = ImageDraw.Draw(icon, "RGBA")
+        gold=(228, 189, 116, 255)
+        if name == "servers":
+            for top in (5, 13):
+                i.rounded_rectangle((3, top, 24, top+6), radius=2,
+                                    outline=gold, width=2)
+                i.ellipse((6, top+2, 8, top+4), fill=gold)
+        else:
+            for x, top in ((5, 15), (12, 9), (19, 4)):
+                i.rounded_rectangle((x, top, x+4, 23), radius=1, fill=gold)
+            i.line((3, 24, 25, 24), fill=gold, width=1)
+        icon.save(OUT / f"nav_{name}.png", optimize=True)
+
     # Keep the corners/edges of the approved new material independent of
     # destination width or height. ttk stretches only the neutral center.
     panel = Image.open(SRC / "generic_panel.png").convert("RGBA")

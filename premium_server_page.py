@@ -129,21 +129,32 @@ class ServerPage:
                        if term in (s.label+" "+s.address+" "+
                                    (self.app.monitor.snapshots.get(s.address).name if self.app.monitor.snapshots.get(s.address) else "")).casefold()]
         self._visible.sort(key=lambda s:(not s.favorite,(s.label or s.address).casefold()))
-        self.listbox.delete(0,"end")
+        position=self.listbox.yview()[0]
+        labels=[]
         for s in self._visible:
             snap=self.app.monitor.snapshots.get(s.address)
             marker="●" if snap and snap.state in ("online","limited") else "○"
-            self.listbox.insert("end",f"{'★' if s.favorite else '☆'}  {marker}  {s.label or (snap.name if snap else s.address)}   ·   {s.address}")
+            labels.append(f"{'★' if s.favorite else '☆'}  {marker}  {s.label or (snap.name if snap else s.address)}   ·   {s.address}")
+        if tuple(self.listbox.get(0,"end"))!=tuple(labels):
+            self.listbox.delete(0,"end")
+            for label in labels:self.listbox.insert("end",label)
         if self._visible:
             index=self._visible.index(selected) if selected in self._visible else 0
+            self.listbox.selection_clear(0,"end")
             self.listbox.selection_set(index)
-        self.friends.delete(0,"end")
+            self.listbox.yview_moveto(position)
+        friend_rows=[]
         for friend in self.app.monitor_settings["friends"]:
             present=[s.label or s.address for s in self.app.monitor_settings["servers"]
                      for snap in [self.app.monitor.snapshots.get(s.address)]
                      if snap and snap.state=="online"
                      and any(normalized_name(p.name)==normalized_name(friend) for p in snap.players)]
-            self.friends.insert("end",f"{'●' if present else '○'}  {friend}"+("  ·  "+", ".join(present) if present else ""))
+            friend_rows.append(f"{'●' if present else '○'}  {friend}"+("  ·  "+", ".join(present) if present else ""))
+        if tuple(self.friends.get(0,"end"))!=tuple(friend_rows):
+            friend_position=self.friends.yview()[0]
+            self.friends.delete(0,"end")
+            for row in friend_rows:self.friends.insert("end",row)
+            self.friends.yview_moveto(friend_position)
         self.summary.configure(text=f"{len(self._visible)}/{len(self.app.monitor_settings['servers'])}")
         self.details()
 

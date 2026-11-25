@@ -125,6 +125,23 @@ def main():
                 root.update()
                 assert bool(variable.get())==before,key
 
+            # Live roster refresh must retain a player's reading position and
+            # avoid replacing unchanged text on every server poll.
+            from server_monitor import Player
+            roster=dashboard.premium_home.players
+            sample=[Player(f"^2Player {i}",i,30+i) for i in range(32)]
+            roster.render(sample)
+            root.update()
+            roster.fields[0].yview_moveto(.5)
+            root.update()
+            before=roster.fields[0].yview()[0]
+            roster.render(sample)
+            root.update()
+            assert abs(roster.fields[0].yview()[0]-before)<.03
+            roster.render([*sample,Player("^1New player",33,44)])
+            root.update()
+            assert abs(roster.fields[0].yview()[0]-before)<.06
+
             app.smart_engine_var.set(False)
             app._persist_settings()
             dashboard.refresh()

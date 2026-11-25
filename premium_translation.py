@@ -46,8 +46,8 @@ class TranslationConsole:
                                           "INCOMING CHAT · F8"), 19, TEXT, True)
         self.label("outgoing", localized(app, "ИСХОДЯЩИЙ ЧАТ · F9", "ВИХІДНИЙ ЧАТ · F9",
                                           "OUTGOING CHAT · F9"), 19, TEXT, True)
-        self.label("f8_note", tr(app, "f8_note"), 11, MUTED)
-        self.label("f9_note", tr(app, "f9_note"), 11, MUTED)
+        self.label("f8_note", localized(app, "Перевод игрового чата", "Переклад ігрового чату", "Game chat translation"), 11, MUTED)
+        self.label("f9_note", localized(app, "Перевод перед отправкой в игру", "Переклад перед надсиланням у гру", "Translate before sending in game"), 11, MUTED)
         for key, title in (("target", "target"), ("style", "style"),
                            ("source", "my_language"), ("send", "send_language")):
             self.label(key, tr(app, title), 11, AMBER, True)
@@ -101,12 +101,16 @@ class TranslationConsole:
         labels = {
             "heading": (.035, .07), "incoming": (.19, .285),
             "outgoing": (.19, .69), "f8_note": (.19, .375),
-            "f9_note": (.19, .78), "target": (.585, .265),
+            "f9_note": (.19, .755), "target": (.585, .265),
             "style": (.77, .265), "source": (.585, .65),
             "send": (.77, .65),
         }
         for key, (x, y) in labels.items():
             c.coords(self.labels[key], round(w*x), round(h*y))
+        # Notes wrap before the live switch and language controls; the
+        # Russian and Ukrainian descriptions are longer than English.
+        for key in ("f8_note", "f9_note"):
+            c.itemconfigure(self.labels[key], width=round(w*.275), anchor="nw")
         geometry = {
             "f8": (.48, .325, .055, 30), "f9": (.48, .73, .055, 30),
             "target_combo": (.585, .32, .165, 32),
