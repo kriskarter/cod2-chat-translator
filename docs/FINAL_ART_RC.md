@@ -4,7 +4,7 @@ Draft PR #8, branch `feature/premium-ui-redesign`; no stable release or merge. B
 
 ## Real application screenshots
 
-`docs/images/final_art_rc/xvfb_*.png` contains 11 screenshots taken by ffmpeg from the actual running Tk application at 1366×768 with Linux Xvfb. Pages: home, servers, translation, overlay, knowledge, stats, settings, history. Dialogs: server configuration, About, knowledge. The approved artistic reference is `docs/images/server_monitor_rc/reference.png`. The screenshots do not represent a Windows installation.
+`docs/images/final_art_rc/xvfb_*.png` contains 11 main screenshots taken by ffmpeg from the actual running Tk application at 1366×768 with Linux Xvfb. Pages: home, servers, translation, overlay, knowledge, stats, settings, history. Dialogs: server configuration, About, knowledge. The approved artistic reference is `docs/images/server_monitor_rc/reference.png`. An additional `xvfb_home_150pct.png` records the actual Tk application with simulated 150% scaling and vertical scrolling. These screenshots do not represent a Windows installation.
 
 The new banner composes a distinct complete church and a larger soldier over a city panorama, preserving their aspect ratio. The logo is a separate asset and the subtitle is legible below it. The tab dividers sit between labels. The green F8/F9 and lower rail toggles remain live checkbuttons. The server list uses actual UDP observations; the five visible player rows are real data, with color runs preserved. A missing game journal is now explicitly signaled, and on Windows the game-window state is separately detected. All expert pages share the graphite palette; the history uses the same styled scrollbar; About uses the approved metallic logo.
 

@@ -123,8 +123,12 @@ class PremiumHome:
             combo.bind("<<ComboboxSelected>>",a.outgoing_chat._languages_changed)
         combo_id=card.create_window(0,0,window=combo,anchor="nw")
         def position(event):
-            left=148 if self.compact else 165
+            left=148 if self.compact or self.large_dpi else 165
             card.coords(title_id,left,16 if self.compact else 24)
+            for size in range(14 if self.compact else 17,8,-1):
+                card.itemconfigure(title_id,font=(FONT,size,"bold"))
+                if card.bbox(title_id)[2] <= event.width-19:
+                    break
             card.coords(note_id,left,43 if self.compact else 58)
             controls_y=69 if self.compact else 92
             card.coords(switch_id,left,controls_y)
@@ -148,16 +152,16 @@ class PremiumHome:
         head.pack_propagate(False)
         from dashboard_ui import ui_photo
         tk.Label(head,image=ui_photo(head,"premium_radio.png"),bg=CARD).pack(side="left",padx=(9,3))
-        txt(head,local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),16,bold=True,bg=CARD).pack(side="left",padx=4)
-        self.friends_badge=txt(head,"",10,GREEN,bold=True)
-        self.friends_badge.pack(side="right",padx=12)
+        txt(head,local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),13 if self.large_dpi else 16,bold=True,bg=CARD).pack(side="left",padx=4)
+        self.friends_badge=txt(head,"",9 if self.large_dpi else 10,GREEN,bold=True)
+        self.friends_badge.pack(side="right",padx=5 if self.large_dpi else 12)
         style=ttk.Style()
         style.configure("Monitor.Treeview",background="#1C2022",foreground=TEXT,
-                        fieldbackground="#1C2022",rowheight=29,font=(FONT,10),borderwidth=0,
+                        fieldbackground="#1C2022",rowheight=29,font=(FONT,9 if self.large_dpi else 10),borderwidth=0,
                         relief="flat")
         style.configure("Monitor.Treeview.Heading",background="#343A3C",foreground="#F4D49A",
                         bordercolor="#665C4B",lightcolor="#44494A",darkcolor="#202325",
-                        font=(FONT,9,"bold"),padding=(3,5))
+                        font=(FONT,8 if self.large_dpi else 9,"bold"),padding=(3,5))
         style.map("Monitor.Treeview.Heading",background=[("active","#565148")])
         style.map("Monitor.Treeview",background=[("selected","#65523B")],
                   foreground=[("selected","#FFF0CF")])
@@ -169,7 +173,7 @@ class PremiumHome:
         names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
                local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
                local(a,"Статус","Стан","Status"))
-        for key,title,width in zip(columns,names,(34,178,90,82,64,98)):
+        for key,title,width in zip(columns,names,(30,140,80,75,60,80)):
             self.tree.heading(key,text=title,command=lambda k=key:self._sort(k))
             self.tree.column(key,width=width,minwidth=width,stretch=key=="name",
                              anchor="w" if key=="name" else "center")
@@ -365,7 +369,8 @@ class PremiumHome:
                 for snap in [self.app.monitor.snapshots.get(s.address)]
                 if snap and snap.state=="online" for p in snap.players
                 if normalized_name(p.name) in names}
-        self.friends_badge.configure(text=local(self.app,"Друзья в игре: ","Друзі у грі: ","Friends online: ")+str(len(online)))
+        self.friends_badge.configure(text=(local(self.app,"Друзья: ","Друзі: ","Friends: ") if self.large_dpi else
+            local(self.app,"Друзья в игре: ","Друзі у грі: ","Friends online: "))+str(len(online)))
         enabled=bool(self.app.enabled_var.get() or self.app.outgoing_chat.enabled_var.get())
         log=self.app.current_log_path()
         log_available=bool(log and log.is_file())
