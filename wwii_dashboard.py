@@ -7,6 +7,7 @@ from dashboard_ui import (
     FONT, tr, text, card, action, check, label_combo, ui_photo,
 )
 from server_catalog import FEATURED_SERVER
+from premium_material import MetalCanvas
 
 
 def nav_name(app, name):
@@ -91,7 +92,9 @@ class WWIIDashboard(Dashboard):
             scale=max(width/panorama.width,header_height/panorama.height)
             picture=panorama.resize((round(panorama.width*scale),round(panorama.height*scale)),Image.Resampling.LANCZOS)
             x=max(0,(picture.width-width)//2)
-            y=max(0,(picture.height-header_height)//2)
+            # The upper battlefield contains the complete helmet and church.
+            # Centre-cropping removed the helmet crown on compact displays.
+            y=min(max(0,round(14*scale)),max(0,picture.height-header_height))
             picture=picture.crop((x,y,x+width,y+header_height))
             self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
             header.itemconfigure(hero_item,image=self._header_photos["scene"])
@@ -172,12 +175,11 @@ class WWIIDashboard(Dashboard):
                 widget=getattr(app,key,None)
                 if widget:widget.configure(text=app.t("lock_overlay"))
         for page in self.pages.values():self._enable_page_wheel(page)
-        footer=tk.Frame(outer,bg="#15130D",height=40,
-                        highlightbackground="#9C7442",highlightthickness=2)
+        footer=MetalCanvas(outer,height=46)
         footer.pack(fill="x")
         footer.pack_propagate(False)
         first=tk.Frame(footer,bg="#15130D")
-        first.pack(fill="both",expand=True,padx=11,pady=5)
+        first.pack(fill="both",expand=True,padx=16,pady=8)
         self.footer_ready_dot=text(first,"●",color=MUTED,
                                    bg="#15130D",size=10)
         self.footer_ready_dot.pack(side="left")

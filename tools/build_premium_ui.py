@@ -53,6 +53,15 @@ def button(name, *, amber=False, hover=False, pressed=False, disabled=False):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    # Project-original illustrated key and signal icon. Live captions and
+    # states are composed at runtime, not burned into the asset.
+    for source, output, bounds in (
+        ("keycap_source.png", "premium_keycap.png", (180, 180)),
+        ("radio_source.png", "premium_radio.png", (42, 42)),
+    ):
+        artwork = Image.open(SRC / source).convert("RGBA")
+        artwork.thumbnail(bounds, Image.Resampling.LANCZOS)
+        artwork.save(OUT / output, optimize=True)
     hero = Image.open(SRC / "hero_source.png").convert("RGB")
     hero = hero.resize((1500, 500), Image.Resampling.LANCZOS)
     # Keep a taller composition so the helmet, skyline and stonework remain
@@ -141,6 +150,27 @@ def main():
     th.line((7, 9, 14, 9), fill=(88, 64, 37, 255), width=2)
     th.line((7, 16, 14, 16), fill=(88, 64, 37, 255), width=2)
     thumb.save(OUT / "premium_scale_thumb.png", optimize=True)
+    # Small controls are nine-slice images, not Windows default scrollbars.
+    track = material(18, 48).convert("RGBA")
+    track = Image.alpha_composite(track, Image.new("RGBA", track.size, (12, 10, 8, 220)))
+    d = ImageDraw.Draw(track, "RGBA")
+    d.rounded_rectangle((1, 1, 16, 46), radius=5,
+                        outline=(123, 91, 51, 235), width=2)
+    track.save(OUT / "premium_scroll_track.png", optimize=True)
+    grip = material(18, 42).convert("RGBA")
+    grip = Image.alpha_composite(grip, Image.new("RGBA", grip.size, (75, 55, 31, 175)))
+    d = ImageDraw.Draw(grip, "RGBA")
+    d.rounded_rectangle((1, 1, 16, 40), radius=5,
+                        outline=(222, 174, 105, 235), width=2)
+    for y in (18, 21, 24):
+        d.line((5, y, 12, y), fill=(255, 204, 129, 180), width=1)
+    grip.save(OUT / "premium_scroll_grip.png", optimize=True)
+    arrow = material(24, 24).convert("RGBA")
+    arrow = Image.alpha_composite(arrow, Image.new("RGBA", arrow.size, (36, 29, 19, 205)))
+    d = ImageDraw.Draw(arrow, "RGBA")
+    d.line((0, 0, 0, 23), fill=(165, 122, 68, 230), width=2)
+    d.polygon(((6, 9), (18, 9), (12, 16)), fill=(240, 190, 112, 255))
+    arrow.save(OUT / "premium_combo_arrow.png", optimize=True)
     print("Premium art rebuilt from the three supplied original source images")
 
 

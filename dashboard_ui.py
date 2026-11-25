@@ -277,6 +277,25 @@ def setup_theme(root: tk.Tk):
                     darkcolor="#18140F",padding=(6,4))
     style.map("TEntry",fieldbackground=[("disabled","#211F1B")],
               bordercolor=[("focus",AMBER)])
+    if "Premium.Scrollbar.trough" not in style.element_names():
+        style.element_create("Premium.Scrollbar.trough", "image",
+            ui_photo(root, "premium_scroll_track.png"),
+            border=(5, 9, 5, 9), sticky="nsew")
+        style.element_create("Premium.Scrollbar.thumb", "image",
+            ui_photo(root, "premium_scroll_grip.png"),
+            border=(5, 12, 5, 12), sticky="nsew")
+        style.element_create("Premium.Combo.arrow", "image",
+            ui_photo(root, "premium_combo_arrow.png"), sticky="ns")
+    style.layout("Premium.Vertical.TScrollbar", [
+        ("Premium.Scrollbar.trough", {"sticky":"ns", "children":[
+            ("Premium.Scrollbar.thumb", {"expand":"1", "sticky":"nsew"})]})])
+    style.configure("Premium.Vertical.TScrollbar", width=18)
+    style.layout("Vertical.TScrollbar", style.layout("Premium.Vertical.TScrollbar"))
+    style.configure("Vertical.TScrollbar", width=18)
+    style.layout("TCombobox", [("Combobox.field", {"sticky":"nsew", "children":[
+        ("Premium.Combo.arrow", {"side":"right", "sticky":"ns"}),
+        ("Combobox.padding", {"sticky":"nsew", "children":[
+            ("Combobox.textarea", {"sticky":"nsew"})]})]})])
 
 
 def tr(app, key):

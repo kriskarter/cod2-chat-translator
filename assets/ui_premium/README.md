@@ -47,3 +47,12 @@ server status. They remain separate assets rendered beneath live Tk widgets.
 The original supplied concept is a design reference only. Its sample server
 rows and player statistics are never bundled into the running app.
 
+The final art pass adds original project-generated `keycap_source.png`,
+`translation_card_source.jpg` and `radio_source.png`. These contain no captions,
+player statistics or actions. `tools/build_premium_ui.py` exports optimized
+key/antenna artwork together with stretchable metal scrollbar and combobox
+details. `premium_material.py` preserves panel corners with a nine-slice
+renderer; `premium_roster.py` keeps actual colored player names alongside
+separate score and ping columns. The illustrated F8/F9 keys are focusable
+controls and invoke the existing switches.
+

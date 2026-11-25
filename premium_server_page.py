@@ -7,6 +7,8 @@ from tkinter import ttk, messagebox
 from dashboard_ui import BG,CARD,TEXT,MUTED,AMBER,GREEN,FONT
 from premium_home import local,txt
 from server_monitor import Server,canonical_address,normalized_name,plain_name,color_runs,MAX_SERVERS
+from premium_material import MetalCanvas
+from premium_roster import PlayerRoster
 
 
 class ServerPage:
@@ -51,10 +53,14 @@ class ServerPage:
         body.pack(fill="both",expand=True)
         body.columnconfigure(0,weight=3)
         body.columnconfigure(1,weight=2)
-        left=tk.Frame(body,bg=CARD,highlightbackground="#967246",highlightthickness=2)
-        right=tk.Frame(body,bg=CARD,highlightbackground="#967246",highlightthickness=2)
-        left.grid(row=0,column=0,sticky="nsew",padx=(0,7))
-        right.grid(row=0,column=1,sticky="nsew",padx=(7,0))
+        left_shell=MetalCanvas(body,height=510)
+        right_shell=MetalCanvas(body,height=510)
+        left=tk.Frame(left_shell,bg=CARD)
+        right=tk.Frame(right_shell,bg=CARD)
+        left.pack(fill="both",expand=True,padx=11,pady=11)
+        right.pack(fill="both",expand=True,padx=11,pady=11)
+        left_shell.grid(row=0,column=0,sticky="nsew",padx=(0,7))
+        right_shell.grid(row=0,column=1,sticky="nsew",padx=(7,0))
         body.rowconfigure(0,weight=1)
         txt(left,local(a,"Отслеживаемые серверы","Відстежувані сервери","Tracked servers"),13,AMBER,True).pack(anchor="w",padx=10,pady=8)
         self.listbox=tk.Listbox(left,bg="#191815",fg=TEXT,selectbackground="#7B5026",
@@ -80,8 +86,8 @@ class ServerPage:
                           state="readonly",width=7)
         sort.pack(side="right")
         sort.bind("<<ComboboxSelected>>",lambda _e:self.details())
-        self.roster=tk.Text(roster,bg="#181713",fg=TEXT,bd=0,highlightthickness=0,
-                            height=6,state="disabled",font=(FONT,10),wrap="none")
+        self.roster=PlayerRoster(roster,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
+                           local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),rows=6)
         self.roster.pack(fill="both",expand=True,pady=(5,0))
         txt(right,local(a,"Сведения о сервере","Відомості про сервер","Server details"),13,AMBER,True).pack(anchor="w",padx=10,pady=8)
         self.info=txt(right,"",11,bg=CARD)
@@ -167,9 +173,7 @@ class ServerPage:
 
     def _roster(self,snap):
         a=self.app
-        w=self.roster
-        w.configure(state="normal")
-        w.delete("1.0","end")
+        players=[]
         if snap and snap.state=="online":
             term=normalized_name(self.player_filter.get())
             players=[p for p in snap.players if term in normalized_name(p.name)]
@@ -179,16 +183,9 @@ class ServerPage:
                 players.sort(key=lambda p:p.name.casefold())
             else:
                 players.sort(key=lambda p:(-(p.score or 0),p.name.casefold()))
-            for p in players:
-                for segment,color in color_runs(p.raw_name):
-                    tag="c"+color[1:]
-                    w.tag_configure(tag,foreground=color)
-                    w.insert("end",segment,tag)
-                w.insert("end",f"     {p.score if p.score is not None else '—'}   {p.ping if p.ping is not None else '—'} ms\n")
-            if not players:w.insert("end",local(a,"Совпадений нет.","Збігів немає.","No matches."))
-        else:
-            w.insert("end",local(a,"Список игроков недоступен.","Список гравців недоступний.","Player list unavailable."))
-        w.configure(state="disabled")
+        empty=(local(a,"Совпадений нет.","Збігів немає.","No matches.") if snap and snap.state=="online" else
+               local(a,"Список игроков недоступен.","Список гравців недоступний.","Player list unavailable."))
+        self.roster.render(players,friends=a.monitor_settings["friends"],empty=empty)
 
     def update_snapshot(self,snapshot):
         if self.page.winfo_exists():self.render()

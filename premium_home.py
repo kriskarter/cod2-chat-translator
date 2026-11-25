@@ -7,6 +7,8 @@ from PIL import Image, ImageTk
 
 from dashboard_ui import BG, CARD, TEXT, MUTED, AMBER, GREEN, FONT
 from server_monitor import color_runs, normalized_name
+from premium_material import MetalCanvas, Keycap
+from premium_roster import PlayerRoster
 
 
 def local(app, ru, uk, en):
@@ -67,38 +69,23 @@ class PremiumHome:
 
     def _translator(self,parent,kind):
         a=self.app
-        from wwii_dashboard import tactical_action,tactical_switch
-        border=tk.Frame(parent,bg="#A6783D",padx=2,pady=2)
-        border.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
-        card=tk.Frame(border,bg="#1F1C17",height=164 if self.compact else 244 if self.large_dpi else 205)
-        card.pack(fill="both",expand=True)
+        from wwii_dashboard import tactical_switch
+        height=164 if self.compact else 244 if self.large_dpi else 205
+        card=MetalCanvas(parent,scene="assets/ui_premium/translation_card_source.jpg",height=height)
+        card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
-        art=tk.Canvas(card,bg="#1F1C17",highlightthickness=0)
-        art.place(relx=0,rely=0,relwidth=1,relheight=1)
-        def resize(e):
-            sw,sh=self.scene.size
-            part=self.scene.crop((int(sw*(.48 if kind=="f8" else .25)),int(sh*.35),
-                                  int(sw*(.91 if kind=="f8" else .68)),int(sh*.82)))
-            photo=ImageTk.PhotoImage(part.resize((e.width,e.height),Image.Resampling.LANCZOS),master=art)
-            self.photos[kind]=photo
-            art.delete("scene")
-            art.create_image(0,0,image=photo,anchor="nw",tags="scene")
-        art.bind("<Configure>",resize)
-        key=tk.Button(card,text=kind.upper(),bg="#29251D",fg="#FFCD80",font=(FONT,30,"bold"),
-                      relief="raised",bd=3,highlightbackground="#C19050",highlightthickness=2,
-                      activebackground="#765027",activeforeground="#FFE1A0",
-                      cursor="hand2",takefocus=True,command=lambda:switch.invoke())
-        key.place(x=13,y=25,width=94 if self.compact else 104,height=96 if self.compact else 108)
+        key=Keycap(card,kind.upper(),lambda:switch.invoke(),size=96 if self.compact else 108)
+        key.place(x=23,rely=.5,anchor="w")
         setattr(self,kind+"_key",key)
-        foreground=tk.Frame(card,bg="#211E19",highlightbackground="#806040",highlightthickness=1)
-        foreground.place(relx=.24,relwidth=.74,y=7 if self.compact else 14,
-                         height=151 if self.compact else 215 if self.large_dpi else 175)
+        foreground=tk.Frame(card,bg="#26201A")
+        foreground.place(relx=.27,relwidth=.68,y=22 if self.compact else 34,
+                         height=124 if self.compact else 184 if self.large_dpi else 143)
         title=local(a,"Входящий перевод","Вхідний переклад","Incoming translation") if kind=="f8" else local(a,"Исходящий перевод","Вихідний переклад","Outgoing translation")
-        txt(foreground,title,14 if self.compact else 17,bold=True).pack(fill="x",padx=10,pady=(5 if self.compact else 8,0))
+        txt(foreground,title,14 if self.compact else 17,bold=True,bg="#26201A").pack(fill="x",padx=6,pady=(1 if self.compact else 5,0))
         note=local(a,"Перевод чата игроков","Переклад чату гравців","Translate player chat") if kind=="f8" else local(a,"Перевод ваших сообщений","Переклад ваших повідомлень","Translate your messages")
-        txt(foreground,note,10,MUTED).pack(fill="x",padx=10)
-        row=tk.Frame(foreground,bg="#211E19")
-        row.pack(fill="x",padx=8,pady=(5 if self.compact else 12,1))
+        txt(foreground,note,10,MUTED,bg="#26201A").pack(fill="x",padx=6)
+        row=tk.Frame(foreground,bg="#26201A")
+        row.pack(fill="x",padx=5,pady=(5 if self.compact else 12,1))
         var,callback=(a.enabled_var,a.toggle_enabled) if kind=="f8" else (a.outgoing_chat.enabled_var,a._outgoing_enabled_changed)
         switch=tactical_switch(row,local(a,"Вкл","Увімк","On"),var,callback)
         switch.pack(side="left")
@@ -117,31 +104,36 @@ class PremiumHome:
                                values=list(LANGUAGES),state="readonly",width=14)
             combo.bind("<<ComboboxSelected>>",a.outgoing_chat._languages_changed)
         combo.pack(side="right",fill="x",expand=True,padx=(8,0))
-        detail=txt(foreground,"",10,MUTED)
-        detail.pack(fill="x",padx=10)
+        detail=txt(foreground,"",10,MUTED,bg="#26201A")
+        detail.pack(fill="x",padx=6)
         setattr(self,kind+"_detail",detail)
         # Full translation controls live in the Settings/Translation section.
 
     def _monitor(self,parent):
         a=self.app
         from wwii_dashboard import tactical_action
-        border=tk.Frame(parent,bg="#A6783D",padx=2,pady=2)
+        border=MetalCanvas(parent)
         border.pack(fill="both",expand=True)
         box=tk.Frame(border,bg="#24221D",height=350 if self.compact else 492 if self.large_dpi else 420)
-        box.pack(fill="both",expand=True)
+        box.pack(fill="both",expand=True,padx=12,pady=12)
         box.pack_propagate(False)
         head=tk.Frame(box,bg="#29261F",height=46)
         head.pack(fill="x")
         head.pack_propagate(False)
-        txt(head,"♙  "+local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),16,bold=True).pack(side="left",padx=12)
+        from dashboard_ui import ui_photo
+        tk.Label(head,image=ui_photo(head,"premium_radio.png"),bg="#29261F").pack(side="left",padx=(9,3))
+        txt(head,local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),16,bold=True,bg="#29261F").pack(side="left",padx=4)
         self.friends_badge=txt(head,"",10,GREEN,bold=True)
         self.friends_badge.pack(side="right",padx=12)
         style=ttk.Style()
-        style.configure("Monitor.Treeview",background="#1C1B18",foreground=TEXT,
-                        fieldbackground="#1C1B18",rowheight=27,font=(FONT,10),borderwidth=0)
-        style.configure("Monitor.Treeview.Heading",background="#302B23",foreground=TEXT,
-                        font=(FONT,9,"bold"))
-        style.map("Monitor.Treeview",background=[("selected","#77522C")],
+        style.configure("Monitor.Treeview",background="#191713",foreground=TEXT,
+                        fieldbackground="#191713",rowheight=29,font=(FONT,10),borderwidth=0,
+                        relief="flat")
+        style.configure("Monitor.Treeview.Heading",background="#413326",foreground="#F4D49A",
+                        bordercolor="#B48C52",lightcolor="#A9834F",darkcolor="#241A14",
+                        font=(FONT,9,"bold"),padding=(3,5))
+        style.map("Monitor.Treeview.Heading",background=[("active","#715032")])
+        style.map("Monitor.Treeview",background=[("selected","#865A30")],
                   foreground=[("selected","#FFF0CF")])
         area=tk.Frame(box,bg="#161511")
         area.pack(fill="both",expand=True,padx=8,pady=(2,5))
@@ -157,7 +149,7 @@ class PremiumHome:
                              anchor="w" if key=="name" else "center")
         self.tree.tag_configure("offline",foreground="#AAA69F")
         self.tree.pack(side="left",fill="both",expand=True)
-        sb=ttk.Scrollbar(area,orient="vertical",command=self.tree.yview)
+        sb=ttk.Scrollbar(area,orient="vertical",style="Premium.Vertical.TScrollbar",command=self.tree.yview)
         sb.pack(side="right",fill="y")
         self.tree.configure(yscrollcommand=sb.set)
         self.tree.bind("<<TreeviewSelect>>",lambda _e:self._select())
@@ -168,16 +160,10 @@ class PremiumHome:
         self.player_title.pack(side="left",padx=7)
         self.last_update=txt(heading,"",9,MUTED)
         self.last_update.pack(side="right",padx=7)
-        players=tk.Frame(box,bg="#171613")
-        players.pack(fill="both",expand=True,padx=8,pady=(0,4))
-        self.players=tk.Text(players,bg="#171613",fg=TEXT,bd=0,highlightthickness=0,
-                             height=2 if self.compact and self.dpi>=1.65 else 4,
-                             wrap="none",font=(FONT,10),state="disabled",
-                             cursor="arrow",spacing1=2,spacing3=2)
-        self.players.pack(side="left",fill="both",expand=True,padx=5)
-        ps=ttk.Scrollbar(players,orient="vertical",command=self.players.yview)
-        ps.pack(side="right",fill="y")
-        self.players.configure(yscrollcommand=ps.set)
+        self.players=PlayerRoster(box,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
+                    local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),
+                    rows=2 if self.compact and self.dpi>=1.65 else 4)
+        self.players.pack(fill="both",expand=True,padx=8,pady=(0,4))
         actions=tk.Frame(box,bg="#24221D")
         actions.pack(fill="x",padx=7,pady=(0,7))
         for title,command,primary in (
@@ -191,10 +177,10 @@ class PremiumHome:
     def _rail(self):
         a=self.app
         from wwii_dashboard import tactical_action
-        border=tk.Frame(self.content,bg="#9A7140",padx=2,pady=2)
+        border=MetalCanvas(self.content,height=86 if self.large_dpi else 80 if self.compact else 78)
         border.pack(fill="x",padx=14,pady=(0,6))
-        frame=tk.Frame(border,bg="#24211B",height=61 if self.compact else 74 if self.large_dpi else 63)
-        frame.pack(fill="x")
+        frame=tk.Frame(border,bg="#24211B",height=61 if self.compact else 70 if self.large_dpi else 62)
+        frame.pack(fill="both",expand=True,padx=12,pady=8)
         frame.pack_propagate(False)
         for col in range(3):frame.columnconfigure(col,weight=1,uniform="rail")
         cells=[tk.Frame(frame,bg="#24211B") for _ in range(3)]
@@ -276,23 +262,14 @@ class PremiumHome:
         if snap and snap.state=="limited":title+=" · "+local(a,"список недоступен","список недоступний","list unavailable")
         self.player_title.configure(text=title)
         self.last_update.configure(text=snap.last_success.astimezone().strftime("%H:%M:%S") if snap and snap.last_success else "—")
-        w=self.players
-        w.configure(state="normal");w.delete("1.0","end")
+        empty=local(a,"Ожидание ответа…" if not snap else "Нет ответа; старые данные не считаются текущими.",
+                    "Очікування відповіді…" if not snap else "Немає відповіді; старі дані застаріли.",
+                    "Waiting for response…" if not snap else "No response; previous data is stale.")
         if snap and snap.state=="online":
-            if not snap.players:w.insert("end",local(a,"Игроков сейчас нет.","Гравців зараз немає.","No players currently."))
-            friends={normalized_name(f) for f in a.monitor_settings["friends"]}
-            for p in sorted(snap.players,key=lambda player:(-(player.score or 0),player.name.casefold())):
-                w.insert("end","★  " if normalized_name(p.name) in friends else "    ")
-                for segment,color in color_runs(p.raw_name):
-                    tag="c"+color[1:]
-                    w.tag_configure(tag,foreground=color)
-                    w.insert("end",segment,tag)
-                w.insert("end",f"    {p.score if p.score is not None else '—'}   {p.ping if p.ping is not None else '—'} ms\n")
-        else:
-            w.insert("end",local(a,"Ожидание ответа…" if not snap else "Нет ответа; старые данные не считаются текущими.",
-                                 "Очікування відповіді…" if not snap else "Немає відповіді; старі дані застаріли.",
-                                 "Waiting for response…" if not snap else "No response; previous data is stale."))
-        w.configure(state="disabled")
+            empty=local(a,"Игроков сейчас нет.","Гравців зараз немає.","No players currently.")
+        self.players.render(sorted(snap.players,key=lambda p:(-(p.score or 0),p.name.casefold()))
+                            if snap and snap.state=="online" else (),
+                            friends=a.monitor_settings["friends"],empty=empty)
 
     def update_snapshot(self,snapshot):
         if self.page.winfo_exists():self.render()
