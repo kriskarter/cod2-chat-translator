@@ -1,6 +1,7 @@
 """Live command center with two translation bays and a CoD2 server monitor."""
 from __future__ import annotations
 
+import os
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
@@ -212,7 +213,7 @@ class PremiumHome:
         # One textured surface carries the three sections. Only the actual
         # controls are Tk child windows; captions and separators do not hide it.
         overlay_icon=rail.create_image(0,0,image=ui_photo(rail,"quick_screenshot.png"),anchor="center")
-        engine_icon=rail.create_image(0,0,image=ui_photo(rail,"nav_settings.png"),anchor="center")
+        engine_icon=rail.create_image(0,0,image=ui_photo(rail,"premium_chip.png"),anchor="center")
         rail.create_text(0,0,text=local(a,"Оверлей","Оверлей","Overlay"),anchor="w",
                          fill=TEXT,font=(FONT,12,"bold"),tags="overlay_title")
         rail.create_text(0,0,text="Smart Engine",anchor="w",
@@ -243,6 +244,8 @@ class PremiumHome:
             0,0,text="",anchor="w",fill=MUTED,font=(FONT,9)))
         self.system_status=CanvasText(rail,rail.create_text(
             0,0,text="",anchor="w",fill=GREEN,font=(FONT,10)))
+        self.game_status=CanvasText(rail,rail.create_text(
+            0,0,text="",anchor="w",fill=MUTED,font=(FONT,9)))
         def layout(event):
             width=event.width
             third=width/3
@@ -263,6 +266,7 @@ class PremiumHome:
             rail.coords("status_icon",round(third*2+24),19,round(third*2+39),34)
             rail.coords("status_title",round(third*2+54),23)
             rail.coords(self.system_status.item,round(third*2+50),58)
+            rail.coords(self.game_status.item,round(third*2+50),83)
         rail.bind("<Configure>",layout,add="+")
 
     def _hide_tip(self):
@@ -376,6 +380,16 @@ class PremiumHome:
                          "Журнал доступний · переклад активний",
                          "Game log found · translation active")
         self.system_status.configure(text=status, fg=GREEN if enabled and log_available else AMBER if enabled else MUTED)
+        if os.name=="nt":
+            from app import find_cod2_window
+            game_detected=bool(find_cod2_window())
+            game_label=(local(self.app,"Окно CoD2 обнаружено","Вікно CoD2 виявлено","CoD2 window detected")
+                        if game_detected else
+                        local(self.app,"Окно CoD2 не обнаружено","Вікно CoD2 не виявлено","CoD2 window not detected"))
+            self.game_status.configure(text=game_label,fg=GREEN if game_detected else MUTED)
+        else:
+            self.game_status.configure(text=local(self.app,"Проверка игры — в Windows",
+                "Перевірка гри — у Windows","Game detection — Windows only"),fg=MUTED)
         self.f8_detail.configure(text="Auto → "+self.app.target_name_var.get())
         self.f9_detail.configure(text=self.app.outgoing_chat.route_var.get())
 

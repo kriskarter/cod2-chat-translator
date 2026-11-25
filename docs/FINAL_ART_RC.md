@@ -1,41 +1,34 @@
-# CoD2 Chat Translator v1.22.0 RC — visual and functional acceptance
+# CoD2 Chat Translator v1.22.0 RC — composition acceptance
 
-Base: `61ab2679b4ac4d34d721e4002c5485f199d5add4`. Existing draft PR #8; stable branch unchanged.
+Draft PR #8, branch `feature/premium-ui-redesign`; no stable release or merge. Base for this pass: `b2018feb4adfc58428b5e5bfef2a19aea94bb078`.
 
-## Real running application
+## Real application screenshots
 
-All images in `docs/images/final_art_rc/` are screenshots captured with ffmpeg from the actual Tk application under Linux/Xvfb at 1366×768. They are not generated concepts or Windows captures. The design reference remains `docs/images/server_monitor_rc/reference.png`.
+`docs/images/final_art_rc/xvfb_*.png` contains 11 screenshots taken by ffmpeg from the actual running Tk application at 1366×768 with Linux Xvfb. Pages: home, servers, translation, overlay, knowledge, stats, settings, history. Dialogs: server configuration, About, knowledge. The approved artistic reference is `docs/images/server_monitor_rc/reference.png`. The screenshots do not represent a Windows installation.
 
-- `xvfb_home.png` — distinct illustrated F8 town and F9 tank; no opaque content frame, live controls, one soldier with torso in panoramic header, continuous navigation and functional bottom rail.
-- `xvfb_servers.png`, `xvfb_translation.png`, `xvfb_overlay.png`, `xvfb_settings.png`, `xvfb_history.png`, `xvfb_knowledge.png`, `xvfb_stats.png` — other live pages.
-- `xvfb_dialog_server.png`, `xvfb_dialog_about.png`, `xvfb_dialog_knowledge_dialog.png` — actual dialogs.
+The new banner composes a distinct complete church and a larger soldier over a city panorama, preserving their aspect ratio. The logo is a separate asset and the subtitle is legible below it. The tab dividers sit between labels. The green F8/F9 and lower rail toggles remain live checkbuttons. The server list uses actual UDP observations; the five visible player rows are real data, with color runs preserved. A missing game journal is now explicitly signaled, and on Windows the game-window state is separately detected. All expert pages share the graphite palette; the history uses the same styled scrollbar; About uses the approved metallic logo.
 
-## Behavior checked
+Compared with the reference, the application still has simpler expert forms and no decorative crate/helmet in the compact Home. Its native Windows titlebar requests dark DWM chrome where supported. At 150% simulated Tk scale on 1366×768, Home scrolls to preserve live controls. Real Windows scale, titlebar and F10 overlay require native validation.
 
-- pytest: 221 passed, 1 skipped.
-- Xvfb smoke: five live navigation controls; eight pages; F8/F9 keyboard-facing illustrated keys and actual switches; RU/UK/EN; settings callbacks; 1050px layout; 1366×768 Home with no vertical scrolling in simulated 100% Tk scaling.
-- Player roster refresh now preserves scroll position and skips unchanged contents. Server lists preserve selection and scroll. Added live smoke assertion with 32 players and one joining.
-- The monitor queried real CoD2 UDP data from CLASSIC OBORONA on the VPS during capture. Names, scores, ping, map and status in screenshots are observed responses at capture time, not bundled sample data.
-- F10 in-game overlay, Windows native DPI and player notifications were not validated on Windows in this environment. The owner's prior installed Windows screenshot refers to the previous SHA.
+## Functional verification
 
-## Performance comparison
+- `pytest -q`: 221 passed, 1 skipped.
+- Synthetic semantic safety checks: 32/32, zero unsafe accepted and zero valid rejected. This is not an actual in-game translation benchmark.
+- Real application smoke at 1366×768, 1536×864 and 1920×1080; simulated 100%, 125%, 150% Tk scales; RU, UK and EN; navigation, F8/F9, settings and overlay callbacks, preserved player scroll. At 1366×768 / 100%, Home content is 490 px inside a 495 px viewport.
+- Server/players in the screenshots came from a real CoD2 UDP query. An offline Windows computer was not touched. Native F10, installation and Windows DPI cannot be attested by Linux/Xvfb.
 
-Same VPS, Python 3.12/Tk 8.6, 1366×768 Xvfb, temporary empty configuration; one measured run per revision. CPU uses process time in seconds; memory uses peak resident set size in MiB.
+## Performance — same VPS, one run per revision
 
-| Phase | Previous RC `61ab267` | New UI |
+Python/Tk under 1366×768 Xvfb with empty isolated configuration. CPU measures seconds of process time; memory is peak resident set size in MiB. The previous RC values below were recorded for `b2018feb` on the same VPS. One-run results vary with host load.
+
+| Phase | Previous RC `b2018feb` | This pass |
 | --- | ---: | ---: |
-| First window initialized, elapsed | 4.616 s | 5.686 s |
-| First window initialized, CPU | 2.792 s | 3.221 s |
-| Peak RSS at initialized window | 133.3 MiB | 134.2 MiB |
-| Four seconds idle, CPU | 0.631 s | 0.593 s |
-| Peak RSS after idle | 142.5 MiB | 142.0 MiB |
-| Four seconds after manual refresh, CPU | 0.144 s | 0.158 s |
-| Peak RSS after refresh | 142.5 MiB | 142.0 MiB |
+| Startup wall time | 5.686 s | 3.345 s |
+| Startup CPU time | 3.221 s | 2.805 s |
+| Startup peak RSS | 134.2 MiB | 143.5 MiB |
+| Four seconds idle, CPU | 0.593 s | 0.791 s |
+| Peak RSS after idle | 142.0 MiB | 150.6 MiB |
+| Four seconds following manual refresh, CPU | 0.158 s | 0.157 s |
+| Peak RSS following refresh | 142.0 MiB | 150.6 MiB |
 
-The artwork adds about 1.1 s to cold startup in this sample, while idle and refresh CPU and memory remain close to baseline. This is a Linux/Xvfb measurement, not a native Windows or in-game benchmark.
-
-## Visual comparison with approved reference
-
-The separate logo, single helmet-and-backpack soldier, unified metal navigation, different F8/F9 scenes, drawn-on-art text, visible tank, metal keycaps, status rail and live server tables now follow the reference composition. The accepted reference has a custom dark titlebar and additional helmet/crate decoration. The application requests a dark native DWM titlebar on Windows where supported, retaining native resize, taskbar and system shortcuts; this requires confirmation on the owner's Windows install. The compact layout hides secondary decoration. Tk comboboxes, text inputs and some expert pages retain simple rectangular controls; final artistic approval is the owner's decision after a new native Windows install.
-
-The RC installer is a test artifact from Windows GitHub Actions; no stable Release was published and PR #8 remains draft.
+The additional independent full-height church asset increases resident memory by about 9 MiB in this sample; no continuous full-frame animation was added. Native Windows idle, in-game CPU and graphics memory remain unmeasured.

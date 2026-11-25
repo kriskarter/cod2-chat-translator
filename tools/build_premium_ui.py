@@ -108,6 +108,18 @@ def main():
             d.line((5, 36, 59, 36), fill=(247, 177, 68, 175 if state=="active" else 95), width=2)
         nav.save(OUT / f"premium_nav_{state}.png", optimize=True)
 
+    chip = Image.new("RGBA", (28, 28))
+    chip_draw = ImageDraw.Draw(chip)
+    gold = (228, 190, 116, 245)
+    chip_draw.rounded_rectangle((7, 7, 21, 21), radius=2, outline=gold, width=2)
+    chip_draw.rectangle((11, 11, 17, 17), fill=(133, 164, 118, 230))
+    for coord in (10, 14, 18):
+        chip_draw.line((coord, 3, coord, 7), fill=gold, width=2)
+        chip_draw.line((coord, 21, coord, 25), fill=gold, width=2)
+        chip_draw.line((3, coord, 7, coord), fill=gold, width=2)
+        chip_draw.line((21, coord, 25, coord), fill=gold, width=2)
+    chip.save(OUT / "premium_chip.png", optimize=True)
+
     # Distinct plus pictogram for the actual add-server action.
     add = Image.new("RGBA", (22, 22))
     add_draw = ImageDraw.Draw(add)
