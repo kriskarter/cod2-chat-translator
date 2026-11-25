@@ -74,7 +74,10 @@ class WWIIDashboard(Dashboard):
         header.pack(fill="x")
         from PIL import Image,ImageTk
         from app import resource_path
-        panorama=Image.open(resource_path("assets/ui_premium/header_panorama.jpg")).convert("RGB")
+        try:
+            panorama=Image.open(resource_path("assets/ui_premium/header_panorama.jpg")).convert("RGB")
+        except FileNotFoundError:
+            panorama=Image.open(resource_path("assets/ui_premium/monitor_hero.png")).convert("RGB")
         brand_source=Image.open(resource_path("assets/ui_premium/monitor_logo.png")).convert("RGBA")
         self._header_photos={}
         hero_item=header.create_image(0,0,anchor="nw")

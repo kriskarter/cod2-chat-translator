@@ -201,30 +201,49 @@ class PremiumHome:
 
     def _rail(self):
         a=self.app
-        from wwii_dashboard import tactical_action
-        border=MetalCanvas(self.content,height=86 if self.large_dpi else 80 if self.compact else 78)
+        from wwii_dashboard import tactical_action, tactical_switch
+        from dashboard_ui import ui_photo
+        border=MetalCanvas(self.content,height=91 if self.large_dpi else 85 if self.compact else 88)
         border.pack(fill="x",padx=14,pady=(0,6))
-        frame=tk.Frame(border,bg="#24211B",height=61 if self.compact else 70 if self.large_dpi else 62)
+        frame=tk.Frame(border,bg="#24211B",height=69 if self.compact else 73 if self.large_dpi else 72)
         frame.pack(fill="both",expand=True,padx=12,pady=8)
         frame.pack_propagate(False)
         for col in range(3):frame.columnconfigure(col,weight=1,uniform="rail")
         cells=[tk.Frame(frame,bg="#24211B") for _ in range(3)]
-        for col,cell in enumerate(cells):cell.grid(row=0,column=col,sticky="nsew",padx=12,pady=4)
-        txt(cells[0],"◈  "+local(a,"Оверлей в игре","Оверлей у грі","Game overlay"),12,bold=True).pack(anchor="w")
+        for col,cell in enumerate(cells):
+            cell.grid(row=0,column=col,sticky="nsew",padx=9,pady=4)
+            if col:
+                tk.Frame(frame,bg="#735A3B",width=1).grid(row=0,column=col,sticky="ns")
+        overlay_head=tk.Frame(cells[0],bg="#24211B")
+        overlay_head.pack(fill="x")
+        tk.Label(overlay_head,image=ui_photo(frame,"quick_screenshot.png"),bg="#24211B").pack(side="left",padx=(0,5))
+        txt(overlay_head,local(a,"Оверлей","Оверлей","Overlay"),12,bold=True).pack(side="left")
+        self.overlay_var=tk.BooleanVar(value=a.overlay_hotkey_visible)
+        def toggle_overlay():
+            if self.overlay_var.get()!=a.overlay_hotkey_visible:
+                a.toggle_overlay_hotkey_visibility()
+        self.overlay_switch=tactical_switch(overlay_head,"",self.overlay_var,toggle_overlay)
+        self.overlay_switch.pack(side="right")
         actions=tk.Frame(cells[0],bg="#24211B")
         actions.pack(anchor="w")
         a.overlay_edit_button=tactical_action(actions,local(a,"Место","Місце","Position"),a.toggle_overlay_edit)
         a.overlay_edit_button.pack(side="left",padx=(0,4))
         tactical_action(actions,local(a,"Настроить →","Налаштувати →","Configure →"),
                         lambda:self.dashboard.navigate("overlay")).pack(side="left")
-        txt(cells[1],"▧  Smart Engine",12,bold=True).pack(anchor="w")
+        engine_head=tk.Frame(cells[1],bg="#24211B")
+        engine_head.pack(fill="x")
+        tk.Label(engine_head,image=ui_photo(frame,"nav_settings.png"),bg="#24211B").pack(side="left",padx=(0,5))
+        txt(engine_head,"Smart Engine",12,bold=True).pack(side="left")
         self.dashboard.engine_engine_bullet=txt(cells[1],"●",10,GREEN)
         self.dashboard.engine_engine_bullet.pack(side="left")
         self.dashboard.engine_engine_label=txt(cells[1],"",10)
         self.dashboard.engine_engine_label.pack(side="left")
         self.dashboard.engine_pack_label=txt(cells[1],"",9,MUTED)
         self.dashboard.engine_pack_label.pack(side="left",padx=5)
-        txt(cells[2],"◉  "+local(a,"Состояние программы","Стан програми","Application status"),12,bold=True).pack(anchor="w")
+        status_head=tk.Frame(cells[2],bg="#24211B")
+        status_head.pack(fill="x")
+        txt(status_head,"◉",17,GREEN,bold=True).pack(side="left",padx=(0,5))
+        txt(status_head,local(a,"Состояние системы","Стан системи","System status"),12,bold=True).pack(side="left")
         self.system_status=txt(cells[2],"",10,GREEN)
         self.system_status.pack(anchor="w")
 
@@ -262,6 +281,8 @@ class PremiumHome:
         self._render_players()
 
     def render(self):
+        if hasattr(self,"overlay_var"):
+            self.overlay_var.set(self.app.overlay_hotkey_visible)
         previous=self.selected
         for item in self.tree.get_children():self.tree.delete(item)
         for address,values,state in self._rows():
