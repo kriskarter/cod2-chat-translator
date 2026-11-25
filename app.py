@@ -3784,6 +3784,7 @@ class ControlApp:
         return {"ru":ru,"uk":uk,"en":en}.get(self.ui_language,en)
 
     def _show_knowledge_dialog(self):
+        from premium_dialogs import dialog_body
         tr=self._knowledge_text
         previous=getattr(self,"_knowledge_window",None)
         if previous is not None and previous.winfo_exists():
@@ -3792,8 +3793,7 @@ class ControlApp:
         self._knowledge_window=win
         win.title(tr("Smart Engine V2 — база знаний","Smart Engine V2 — база знань","Smart Engine V2 — knowledge"))
         win.transient(self.root)
-        body=ttk.Frame(win,padding=16)
-        body.pack(fill="both",expand=True)
+        body=dialog_body(win,win.title(),width=650)
         runtime=self._knowledge_runtime
         summary=tk.StringVar(value=(
             f"V2 · {runtime.version} · {runtime.pack.count} "+tr("групп фраз","груп фраз","phrase groups")
@@ -4086,6 +4086,9 @@ class ControlApp:
             messagebox.showerror(APP_NAME, str(exc), parent=self.root)
 
     def show_about(self) -> None:
+        from premium_dialogs import dialog_body
+        from dashboard_ui import BG, CARD, TEXT, MUTED, FONT, action
+        from PIL import Image, ImageTk
         win = tk.Toplevel(self.root)
         win.title(f"{self.t('about')} — {APP_NAME}")
         win.transient(self.root)
@@ -4098,36 +4101,41 @@ class ControlApp:
         except Exception:
             pass
 
-        body = ttk.Frame(win, padding=18)
-        body.pack(fill="both", expand=True)
-        head = ttk.Frame(body)
-        head.pack(fill="x")
+        body = dialog_body(win, self.t("about"), f"CoD2 Chat Translator · v{APP_VERSION}", width=550)
+        head = tk.Frame(body, bg=BG)
+        head.pack(fill="x", pady=(5, 10))
         try:
-            logo = tk.PhotoImage(file=str(resource_path("assets/app_64.png")))
+            source = Image.open(resource_path("assets/ui_premium/logo_source.png"))
+            source.thumbnail((310, 92), Image.Resampling.LANCZOS)
+            logo = ImageTk.PhotoImage(source, master=win)
             win._about_logo = logo
-            ttk.Label(head, image=logo).pack(side="left", padx=(0, 12))
+            tk.Label(head, image=logo, bg=BG).pack(side="left", padx=(0, 15))
         except Exception:
             pass
-        title = ttk.Frame(head)
+        title = tk.Frame(head, bg=BG)
         title.pack(side="left", fill="x", expand=True)
-        ttk.Label(title, text=APP_NAME, font=("Segoe UI", 15, "bold")).pack(anchor="w")
-        ttk.Label(title, text=f"Version {APP_VERSION}", foreground="#666666").pack(anchor="w", pady=(3, 0))
+        tk.Label(title, text=APP_NAME, bg=BG, fg=TEXT,
+                 font=(FONT, 13, "bold")).pack(anchor="w")
+        tk.Label(title, text=f"v{APP_VERSION}", bg=BG, fg=MUTED).pack(anchor="w", pady=(3, 0))
 
-        ttk.Separator(body).pack(fill="x", pady=14)
-        ttk.Label(body, text=f"{self.t('developer')}: {PROJECT_AUTHOR}", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        ttk.Label(body, text=self.t("made_for")).pack(anchor="w", pady=(6, 0))
+        ttk.Separator(body).pack(fill="x", pady=8)
+        tk.Label(body, text=f"{self.t('developer')}: {PROJECT_AUTHOR}",
+                 bg=BG, fg=TEXT, font=(FONT, 10, "bold")).pack(anchor="w")
+        tk.Label(body, text=self.t("made_for"), bg=BG, fg=MUTED).pack(anchor="w", pady=(6, 0))
 
         links = ttk.Frame(body)
-        links.pack(fill="x", pady=(14, 0))
-        ttk.Button(links, text=f"{self.t('github')}: @{PROJECT_AUTHOR}", command=lambda: self._open_url(PROJECT_PROFILE_URL)).pack(side="left")
+        links.pack(fill="x", pady=(12, 0))
+        action(links, f"{self.t('github')}: @{PROJECT_AUTHOR}",
+               lambda: self._open_url(PROJECT_PROFILE_URL)).pack(side="left")
         repo_url = self._project_repository_url()
-        star = ttk.Button(links, text=self.t("star_project"), command=lambda: self._open_url(repo_url) if repo_url else None)
+        star = action(links, self.t("star_project"), lambda: self._open_url(repo_url) if repo_url else None)
         star.pack(side="left", padx=(8, 0))
         if not repo_url:
             star.state(["disabled"])
-            ttk.Label(body, text=self.t("repo_pending"), foreground="#777777", wraplength=430).pack(anchor="w", pady=(10, 0))
+            tk.Label(body, text=self.t("repo_pending"), bg=BG, fg=MUTED,
+                     wraplength=430).pack(anchor="w", pady=(10, 0))
 
-        ttk.Button(body, text=self.t("close"), command=win.destroy).pack(anchor="e", pady=(16, 0))
+        action(body, self.t("close"), win.destroy, primary=True).pack(anchor="e", pady=(15, 0))
         win.update_idletasks()
         x = self.root.winfo_rootx() + max(20, (self.root.winfo_width() - win.winfo_width()) // 2)
         y = self.root.winfo_rooty() + max(20, (self.root.winfo_height() - win.winfo_height()) // 2)
@@ -4359,6 +4367,7 @@ class ControlApp:
         self._persist_settings()
 
     def show_server_settings(self) -> None:
+        from premium_dialogs import dialog_body
         win = tk.Toplevel(self.root)
         win.title(self.t("server_settings_title"))
         win.transient(self.root)
@@ -4371,8 +4380,8 @@ class ControlApp:
         except Exception:
             pass
 
-        body = ttk.Frame(win, padding=14)
-        body.pack(fill="both", expand=True)
+        body = dialog_body(win, self.t("server_settings_title"),
+                           self.t("server_settings_hint"), width=680)
         ttk.Checkbutton(
             body,
             text=self.t("auto_profile"),
@@ -4381,14 +4390,8 @@ class ControlApp:
         ).pack(anchor="w")
         ttk.Label(
             body,
-            text=self.t("server_settings_hint"),
-            foreground="#555555",
-            wraplength=560,
-        ).pack(anchor="w", pady=(6, 12))
-        ttk.Label(
-            body,
             text=self.t("game_folder_hint"),
-            foreground="#555555",
+            style="Muted.TLabel",
             wraplength=560,
         ).pack(anchor="w", pady=(0, 10))
 
@@ -4399,7 +4402,7 @@ class ControlApp:
         ttk.Label(
             game_row,
             textvariable=dialog_game_root_var,
-            foreground="#666666",
+            style="Muted.TLabel",
             wraplength=390,
         ).pack(side="left", fill="x", expand=True)
 
@@ -4410,7 +4413,7 @@ class ControlApp:
         ttk.Label(
             logging_row,
             textvariable=dialog_logging_var,
-            foreground="#555555",
+            style="Muted.TLabel",
             wraplength=390,
         ).pack(side="left", fill="x", expand=True)
 
@@ -4430,7 +4433,7 @@ class ControlApp:
         ttk.Label(
             path_row,
             textvariable=dialog_path_var,
-            foreground="#666666",
+            style="Muted.TLabel",
             wraplength=500,
         ).pack(side="left", fill="x", expand=True)
 

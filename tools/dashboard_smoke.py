@@ -246,6 +246,32 @@ def main():
                             "-i",os.environ["DISPLAY"],"-frames:v","1",
                             "-update","1","-y",str(target)
                         ], check=True, timeout=15)
+                    if args.screenshot_dir:
+                        for name, open_dialog in (
+                            ("server", app.show_server_settings),
+                            ("about", app.show_about),
+                            ("knowledge_dialog", app._show_knowledge_dialog),
+                        ):
+                            before = set(root.winfo_children())
+                            open_dialog()
+                            root.update_idletasks()
+                            root.update()
+                            dialogs = [child for child in root.winfo_children()
+                                       if isinstance(child, tk.Toplevel) and child not in before]
+                            assert len(dialogs) == 1, name
+                            win = dialogs[0]
+                            assert win.winfo_width() <= args.preview_width
+                            assert win.winfo_height() <= args.preview_height
+                            target = args.screenshot_dir/f"xvfb_dialog_{name}.png"
+                            subprocess.run([
+                                "ffmpeg", "-hide_banner", "-loglevel", "error",
+                                "-f", "x11grab", "-draw_mouse", "0", "-video_size",
+                                f"{args.preview_width}x{args.preview_height}",
+                                "-i", os.environ["DISPLAY"], "-frames:v", "1",
+                                "-update", "1", "-y", str(target),
+                            ], check=True, timeout=15)
+                            win.destroy()
+                            root.update()
             print(f"DASHBOARD SMOKE PASS: v{APP_VERSION}, pages=6, nav=7,"
                   " settings callbacks, overlay state, RU/UK/EN, 1050px layout")
             return 0
