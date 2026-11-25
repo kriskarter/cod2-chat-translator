@@ -74,7 +74,7 @@ class WWIIDashboard(Dashboard):
         header.pack(fill="x")
         from PIL import Image,ImageTk
         from app import resource_path
-        panorama=Image.open(resource_path("assets/ui_premium/monitor_hero.png")).convert("RGB")
+        panorama=Image.open(resource_path("assets/ui_premium/header_panorama.jpg")).convert("RGB")
         brand_source=Image.open(resource_path("assets/ui_premium/monitor_logo.png")).convert("RGBA")
         self._header_photos={}
         hero_item=header.create_image(0,0,anchor="nw")
@@ -90,12 +90,22 @@ class WWIIDashboard(Dashboard):
             # Cover the header with one original panoramic asset, without
             # baking live labels or hit targets into the image.
             scale=max(width/panorama.width,header_height/panorama.height)
-            picture=panorama.resize((round(panorama.width*scale),round(panorama.height*scale)),Image.Resampling.LANCZOS)
-            x=max(0,(picture.width-width)//2)
-            # The upper battlefield contains the complete helmet and church.
-            # Centre-cropping removed the helmet crown on compact displays.
-            y=min(max(0,round(14*scale)),max(0,picture.height-header_height))
-            picture=picture.crop((x,y,x+width,y+header_height))
+            scaled=panorama.resize((round(panorama.width*scale),round(panorama.height*scale)),Image.Resampling.LANCZOS)
+            x=max(0,(scaled.width-width)//2)
+            y=max(0,(scaled.height-header_height)//2)
+            picture=scaled.crop((x,y,x+width,y+header_height)).convert("RGBA")
+            # The base panorama must cover a very shallow window. Layer an
+            # independently scaled portion of the same artwork so helmet,
+            # shoulder and backpack all remain visible without distortion.
+            portrait=panorama.crop((0,0,710,710))
+            portrait_height=header_height+12
+            portrait_width=round(portrait.width*portrait_height/portrait.height)
+            portrait=portrait.resize((portrait_width,portrait_height),Image.Resampling.LANCZOS).convert("RGBA")
+            fade=Image.new("L",(portrait_width,1))
+            fade.putdata([min(255,max(0,int((portrait_width-i)*255/max(1,portrait_width*.46))))
+                          for i in range(portrait_width)])
+            portrait.putalpha(fade.resize(portrait.size))
+            picture.alpha_composite(portrait,(0,0))
             self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
             header.itemconfigure(hero_item,image=self._header_photos["scene"])
             logo_width=min(510,round(width*.38),round(header_height*2.55))
@@ -133,7 +143,11 @@ class WWIIDashboard(Dashboard):
             photo=ui_photo(nav,"nav_"+name+".png") if name in {"home","settings","about"} else None
             button=ttk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
                 command=callback,style="PremiumNav.TButton",cursor="hand2")
-            button.grid(row=0,column=index,sticky="nsew",padx=1,pady=1)
+            button.grid(row=0,column=index,sticky="nsew",padx=0,pady=0)
+            if index:
+                # A thin etched divider keeps the bar visually continuous.
+                tk.Frame(nav,bg="#9F8259",width=1).grid(row=0,column=index,
+                    sticky="ns",padx=0)
             self.nav_buttons[name]=button
         service=tk.Menu(nav,tearoff=False,bg="#2A241A",fg=TEXT,
                         activebackground="#9E540D",activeforeground=TEXT)

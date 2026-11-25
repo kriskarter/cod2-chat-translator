@@ -257,6 +257,20 @@ def setup_theme(root: tk.Tk):
     for name in ("PremiumNav.TButton", "PremiumNavActive.TButton"):
         style.configure(name, font=(FONT, 9 if compact_dpi else 10, "bold"),
                         padding=(3, 2) if compact_dpi else (4, 3))
+    nav_images = {state: ui_photo(root, f"premium_nav_{state}.png")
+                  for state in ("normal", "hover", "active", "pressed")}
+    if "PremiumNav.surface" not in style.element_names():
+        style.element_create("PremiumNav.surface", "image", nav_images["normal"],
+            ("pressed", nav_images["pressed"]), ("active", nav_images["hover"]),
+            border=(8, 5, 8, 5), sticky="nsew")
+        style.element_create("PremiumNavActive.surface", "image", nav_images["active"],
+            ("pressed", nav_images["pressed"]), border=(8, 5, 8, 5), sticky="nsew")
+    for name, surface in (("PremiumNav.TButton", "PremiumNav.surface"),
+                          ("PremiumNavActive.TButton", "PremiumNavActive.surface")):
+        style.layout(name, [(surface, {"sticky":"nsew", "children":[
+            ("Button.padding", {"sticky":"nsew", "children":[
+                ("Button.label", {"sticky":"nsew"})]})]})])
+        style.configure(name, padding=(4, 1), borderwidth=0)
     for name in ("Tactical.TButton", "TacticalAccent.TButton"):
         style.configure(name, padding=(4, 2) if compact_dpi else (7, 3))
     if "Premium.Generic.surface" not in style.element_names():

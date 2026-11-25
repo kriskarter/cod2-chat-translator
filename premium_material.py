@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from functools import lru_cache
-from PIL import Image, ImageTk, ImageEnhance, ImageDraw
+from PIL import Image, ImageTk, ImageEnhance, ImageDraw, ImageOps
 
 
 @lru_cache(maxsize=32)
@@ -19,12 +19,24 @@ def panel_image(width: int, height: int, scene: str = "") -> Image.Image:
     inset = 17
     if scene:
         artwork = Image.open(resource_path(scene)).convert("RGB")
+        if "monitor_hero" in scene:
+            artwork = ImageOps.mirror(artwork)
         target_width, target_height = width - 2 * inset, height - 2 * inset
         scale = max(target_width / artwork.width, target_height / artwork.height)
         artwork = artwork.resize((round(artwork.width * scale), round(artwork.height * scale)), Image.Resampling.LANCZOS)
-        left = (artwork.width - target_width) // 2
+        # The illustrated cards reserve their left half for controls. Keep
+        # the right-hand scene in view when the card is much wider than tall.
+        left = max(0, artwork.width - target_width) if "translation_card" in scene else (artwork.width - target_width) // 2
         top = (artwork.height - target_height) // 2
         result.paste(artwork.crop((left, top, left + target_width, top + target_height)), (inset, inset))
+        # The text is drawn on the same RGBA surface as the artwork. A soft
+        # local shadow preserves contrast without an opaque widget rectangle.
+        shade = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
+        alpha = Image.new("L", (target_width, 1))
+        alpha.putdata([int(110 * max(0, 1 - x / max(1, target_width * .82)))
+                       for x in range(target_width)])
+        shade.putalpha(alpha.resize((target_width, target_height)))
+        result.alpha_composite(shade, (inset, inset))
     else:
         steel = Image.open(resource_path("assets/ui_premium/steel_source.png")).convert("RGB")
         steel = ImageEnhance.Brightness(steel).enhance(.55)
@@ -105,4 +117,48 @@ class Keycap(tk.Canvas):
 
     def invoke(self):
         """Match Tk button activation for keyboard, tests and assistive tools."""
+        return self.command()
+
+
+class CanvasKeycap:
+    """A focusable canvas control that shares its card's illustrated surface."""
+
+    def __init__(self, canvas, caption, command, *, size=104, x=22):
+        from app import resource_path
+        self.canvas, self.command, self.size = canvas, command, size
+        source = Image.open(resource_path("assets/ui_wwii/premium_keycap.png")).convert("RGBA")
+        source = source.resize((size, size), Image.Resampling.LANCZOS)
+        self.photos = {state: ImageTk.PhotoImage(ImageEnhance.Brightness(source).enhance(brightness), master=canvas)
+                       for state, brightness in (("normal", 1), ("hover", 1.16), ("pressed", .76), ("disabled", .62))}
+        self.face = canvas.create_image(x, 0, image=self.photos["normal"], anchor="w", tags=("keycap",))
+        self.caption = canvas.create_text(x + size // 2, 0, text=caption,
+            fill="#FFE0A2", font=("Bahnschrift SemiCondensed", 26, "bold"), tags=("keycap",))
+        canvas.configure(takefocus=1, cursor="hand2")
+        canvas.tag_bind("keycap", "<Enter>", lambda _e: self._set("hover"))
+        canvas.tag_bind("keycap", "<Leave>", lambda _e: self._set("normal"))
+        canvas.tag_bind("keycap", "<ButtonPress-1>", self._press)
+        canvas.tag_bind("keycap", "<ButtonRelease-1>", self._release)
+        canvas.bind("<Return>", lambda _e: self.invoke())
+        canvas.bind("<space>", lambda _e: self.invoke())
+        canvas.bind("<FocusIn>", lambda _e: canvas.itemconfigure(self.caption, fill="#FFF4D3"))
+        canvas.bind("<FocusOut>", lambda _e: canvas.itemconfigure(self.caption, fill="#FFE0A2"))
+        canvas.bind("<Configure>", self._center, add="+")
+
+    def _center(self, event):
+        self.canvas.coords(self.face, 22, event.height // 2)
+        self.canvas.coords(self.caption, 22 + self.size // 2, event.height // 2 + 2)
+
+    def _set(self, state):
+        self.canvas.itemconfigure(self.face, image=self.photos[state])
+
+    def _press(self, _event):
+        self.canvas.focus_set()
+        self._set("pressed")
+
+    def _release(self, event):
+        self._set("hover")
+        if self.canvas.find_withtag("current") and "keycap" in self.canvas.gettags("current"):
+            self.invoke()
+
+    def invoke(self):
         return self.command()

@@ -7,7 +7,7 @@ from PIL import Image, ImageTk
 
 from dashboard_ui import BG, CARD, TEXT, MUTED, AMBER, GREEN, FONT
 from server_monitor import color_runs, normalized_name
-from premium_material import MetalCanvas, Keycap
+from premium_material import MetalCanvas, CanvasKeycap
 from premium_roster import PlayerRoster
 
 
@@ -20,6 +20,19 @@ localized=local  # Existing expert translation page imports this helper.
 def txt(parent, value, size=10, color=TEXT, bold=False, bg=None):
     return tk.Label(parent,text=value,font=(FONT,size,"bold" if bold else "normal"),
                     bg=bg or parent.cget("bg"),fg=color,anchor="w")
+
+
+class CanvasText:
+    """Keep the live status text API while painting on the card's artwork."""
+
+    def __init__(self, canvas, item):
+        self.canvas, self.item = canvas, item
+
+    def configure(self, **kwargs):
+        self.canvas.itemconfigure(self.item, **kwargs)
+
+    def cget(self, name):
+        return self.canvas.itemcget(self.item, name)
 
 
 class PremiumHome:
@@ -72,42 +85,51 @@ class PremiumHome:
         a=self.app
         from wwii_dashboard import tactical_switch
         height=149 if self.compact else 244 if self.large_dpi else 190
-        card=MetalCanvas(parent,scene="assets/ui_premium/translation_card_source.jpg",height=height)
+        scene=("assets/ui_premium/translation_card_source.jpg" if kind=="f8"
+               else "assets/ui_premium/monitor_hero.png")
+        card=MetalCanvas(parent,scene=scene,height=height)
         card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
-        key=Keycap(card,kind.upper(),lambda:switch.invoke(),size=100 if self.compact else 116)
-        key.place(x=23,rely=.5,anchor="w")
+        key=CanvasKeycap(card,kind.upper(),lambda:switch.invoke(),size=100 if self.compact else 116)
         setattr(self,kind+"_key",key)
-        foreground=tk.Frame(card,bg="#26201A")
-        foreground.place(relx=.27,relwidth=.60,y=19 if self.compact else 34,
-                         height=112 if self.compact else 184 if self.large_dpi else 143)
         title=local(a,"Входящий перевод","Вхідний переклад","Incoming translation") if kind=="f8" else local(a,"Исходящий перевод","Вихідний переклад","Outgoing translation")
-        txt(foreground,title,14 if self.compact else 17,bold=True,bg="#26201A").pack(fill="x",padx=6,pady=(1 if self.compact else 5,0))
         note=local(a,"Перевод чата игроков","Переклад чату гравців","Translate player chat") if kind=="f8" else local(a,"Перевод ваших сообщений","Переклад ваших повідомлень","Translate your messages")
-        txt(foreground,note,10,MUTED,bg="#26201A").pack(fill="x",padx=6)
-        row=tk.Frame(foreground,bg="#26201A")
-        row.pack(fill="x",padx=5,pady=(5 if self.compact else 12,1))
+        # Draw captions on the artwork itself. Tk frames are always opaque and
+        # used to obscure almost all of both illustrated cards on Windows.
+        title_id=card.create_text(0,0,text=title,anchor="nw",fill="#FFF1D4",
+                    font=(FONT,14 if self.compact else 17,"bold"))
+        note_id=card.create_text(0,0,text=note,anchor="nw",fill="#E3C8A3",font=(FONT,10))
+        detail_id=card.create_text(0,0,text="",anchor="nw",fill="#F1D5A2",font=(FONT,10))
+        setattr(self,kind+"_detail",CanvasText(card,detail_id))
         var,callback=(a.enabled_var,a.toggle_enabled) if kind=="f8" else (a.outgoing_chat.enabled_var,a._outgoing_enabled_changed)
-        switch=tactical_switch(row,local(a,"Вкл","Увімк","On"),var,callback)
-        switch.pack(side="left")
+        switch=tactical_switch(card,local(a,"Вкл","Увімк","On"),var,callback)
+        switch_id=card.create_window(0,0,window=switch,anchor="nw")
         setattr(self,kind+"_switch",switch)
         if kind=="f8":
             from app import TARGET_LANGUAGES
             values=list(TARGET_LANGUAGES)
             custom=a._custom_language_label()
             if custom:values.append(custom)
-            combo=ttk.Combobox(row,textvariable=a.target_name_var,values=values,state="readonly",width=14)
+            combo=ttk.Combobox(card,textvariable=a.target_name_var,values=values,state="readonly",width=14)
             combo.bind("<<ComboboxSelected>>",lambda _e:a._persist_settings())
             a.language_combo=combo
         else:
             from outgoing_chat import LANGUAGES
-            combo=ttk.Combobox(row,textvariable=a.outgoing_chat.target_name_var,
+            combo=ttk.Combobox(card,textvariable=a.outgoing_chat.target_name_var,
                                values=list(LANGUAGES),state="readonly",width=14)
             combo.bind("<<ComboboxSelected>>",a.outgoing_chat._languages_changed)
-        combo.pack(side="right",fill="x",expand=True,padx=(8,0))
-        detail=txt(foreground,"",10,MUTED,bg="#26201A")
-        detail.pack(fill="x",padx=6)
-        setattr(self,kind+"_detail",detail)
+        combo_id=card.create_window(0,0,window=combo,anchor="nw")
+        def position(event):
+            left=148 if self.compact else 165
+            card.coords(title_id,left,16 if self.compact else 24)
+            card.coords(note_id,left,43 if self.compact else 58)
+            controls_y=69 if self.compact else 92
+            card.coords(switch_id,left,controls_y)
+            card.coords(combo_id,left+94,controls_y)
+            # Show the full translation route below controls; no opaque strip.
+            card.coords(detail_id,left,108 if self.compact else 135)
+            combo.configure(width=12 if event.width<530 else 17)
+        card.bind("<Configure>",position,add="+")
         # Full translation controls live in the Settings/Translation section.
 
     def _monitor(self,parent):

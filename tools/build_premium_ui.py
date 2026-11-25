@@ -87,6 +87,20 @@ def main():
     d.line((0, 45, 1024, 45), fill=(171, 132, 79, 195), width=1)
     plate.save(OUT / "premium_plate.png", optimize=True)
 
+    # Navigation is a single continuous metal bar. Individual controls have
+    # no enclosing button outline; selection is a soft amber wash.
+    for state in ("normal", "hover", "active", "pressed"):
+        nav = material(64, 40, start=84).convert("RGBA")
+        glow = {"normal": (12, 12, 12, 150), "hover": (91, 57, 21, 120),
+                "active": (140, 74, 14, 155), "pressed": (102, 51, 8, 185)}[state]
+        nav = Image.alpha_composite(nav, Image.new("RGBA", nav.size, glow))
+        d = ImageDraw.Draw(nav, "RGBA")
+        d.line((0, 0, 64, 0), fill=(192, 155, 103, 140), width=1)
+        d.line((0, 39, 64, 39), fill=(15, 12, 8, 255), width=2)
+        if state != "normal":
+            d.line((5, 36, 59, 36), fill=(247, 177, 68, 175 if state=="active" else 95), width=2)
+        nav.save(OUT / f"premium_nav_{state}.png", optimize=True)
+
     # Keep the corners/edges of the approved new material independent of
     # destination width or height. ttk stretches only the neutral center.
     panel = Image.open(SRC / "generic_panel.png").convert("RGBA")
