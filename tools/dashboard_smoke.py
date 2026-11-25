@@ -52,10 +52,10 @@ def main():
             root.update_idletasks()
             root.update()
             dashboard = app.dashboard
-            expected = ("home", "translation", "overlay", "knowledge", "stats", "settings")
+            expected = ("home", "servers", "history", "translation", "overlay", "knowledge", "stats", "settings")
             assert all(key in dashboard.pages for key in expected)
             assert root.winfo_width() >= 1050
-            assert len(dashboard.nav_buttons) == 6
+            assert len(dashboard.nav_buttons) == 5
             assert dashboard.service_menu.index("end") >= 1
             assert app.language_combo.winfo_exists()
             assert app.overlay_edit_button.winfo_exists()
@@ -65,7 +65,7 @@ def main():
             # page-switch method. Auxiliary actions remain wired but are
             # not invoked because server/Discord/update are external.
             for key,expected_page in (
-                ("knowledge","knowledge"),("stats","stats"),
+                ("servers","servers"),("history","history"),
                 ("settings","settings"),("home","home"),
             ):
                 dashboard.nav_buttons[key].invoke()
@@ -102,16 +102,13 @@ def main():
             root.update()
             assert app.experience.collect == old_value
 
-            # Exercise the actual image-backed F8/F9 native switches,
-            # not just the shared BooleanVar in Python.
+            # Exercise native F8/F9 switches, not only the BooleanVar.
             assert dashboard.navigate("home")
             for key,variable in (
                 ("f8",app.enabled_var),
                 ("f9",app.outgoing_chat.enabled_var),
             ):
-                surface=dashboard.premium_home.console
-                item=dashboard.premium_home.controls[key]
-                switch=surface.nametowidget(surface.itemcget(item,"window"))
+                switch=getattr(dashboard.premium_home,key+"_switch")
                 assert isinstance(switch,tk.Checkbutton)
                 before=bool(variable.get())
                 switch.invoke()
@@ -234,7 +231,7 @@ def main():
                 else:
                     pages = (("home",args.screenshot),) if not args.screenshot_dir else (
                         (name,args.screenshot_dir/f"xvfb_{name}.png") for name in (
-                            "home", "translation", "overlay", "knowledge", "stats", "settings"))
+                            "home", "servers", "history", "translation", "overlay", "knowledge", "stats", "settings"))
                     for name, target in pages:
                         if target is None:
                             continue

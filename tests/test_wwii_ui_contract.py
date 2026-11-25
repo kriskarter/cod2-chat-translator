@@ -16,24 +16,22 @@ class WWIIContractTests(unittest.TestCase):
         self.assertIn("nav_shell=tk.Frame",UI)
         self.assertIn("nav=tk.Frame",UI)
         self.assertNotIn("sidebar.pack(",UI)
-        for name in ("home","knowledge","stats","settings","updates","discord","about"):
+        for name in ("home","servers","history","settings","updates","discord","about"):
             self.assertIn('"'+name+'"',UI)
+        for name in ("home","settings","about"):
             self.assertTrue((ASSETS/("nav_"+name+".png")).exists())
 
     def test_beginner_home_and_expert_actions_remain_wired(self):
         self.assertIn("build_premium_home(self, page)",UI)
-        self.assertIn("console_chassis.png",HOME)
-        self.assertIn("generic_panel.png",HOME)
+        self.assertIn("monitor_hero.png",HOME)
+        self.assertIn("monitor_logo.png",UI)
         self.assertNotIn("self._home_overlay_prefs",UI)
-        for method in ("_launch_featured_server","_open_featured_server_discord",
+        for method in ("_launch_server","_open_featured_server_discord",
                        "toggle_enabled","_outgoing_enabled_changed",
-                       "_persist_settings","test_overlay",
-                       "toggle_overlay_edit",
-                       "capture_game_screenshot","check_updates"):
-            self.assertIn(method,UI+HOME)
-        self.assertIn("a.language_combo.bind(",HOME)
+                       "_persist_settings","check_updates"):
+            self.assertIn(method,UI+HOME+APP)
+        self.assertIn("combo.bind(",HOME)
         self.assertIn("<<ComboboxSelected>>",HOME)
-        self.assertIn("a.outgoing_chat.source_name_var",HOME)
         self.assertIn("a.outgoing_chat.target_name_var",HOME)
         self.assertIn('self.dashboard.navigate("overlay")',HOME)
         self.assertIn("service.add_command",UI)
@@ -70,10 +68,10 @@ class WWIIContractTests(unittest.TestCase):
         self.assertIn('image=ui_photo(parent,"premium_switch_off.png")',UI)
         self.assertIn('selectimage=ui_photo(parent,"premium_switch_on.png")',UI)
         self.assertIn("self._nav_font_size",UI)
-        self.assertIn("home_scrollbar = bar",HOME)
+        self.assertIn("home_scrollbar=bar",HOME)
         self.assertIn("content.winfo_reqheight()",HOME)
-        self.assertIn('"premium_logo.png"',UI)
-        self.assertIn('"premium_hero.png"',UI)
+        self.assertIn('monitor_logo.png',UI)
+        self.assertIn('monitor_hero.png',UI)
         for name in ("hero_source", "logo_source", "steel_source"):
             self.assertTrue((ROOT/"assets/ui_premium"/(name+".png")).exists())
         for group in ("metal", "amber"):
@@ -91,10 +89,10 @@ class WWIIContractTests(unittest.TestCase):
     def test_no_fabricated_connection_state(self):
         for claim in ('"Подключено"','"Online"',"24 мс","FPS:"):
             self.assertNotIn(claim,UI)
-        self.assertIn("FEATURED_SERVER.address",HOME)
+        self.assertIn('monitor_settings["servers"]',HOME)
         self.assertIn("self.engine_pack_label",UI)
         self.assertIn("runtime.pack.count",(ROOT/"dashboard_ui.py").read_text(encoding="utf-8"))
 
     def test_version_increment_without_translation_rewrite(self):
-        self.assertIn('APP_VERSION = "1.21.3"',APP)
-        self.assertIn('MyAppVersion "1.21.3"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))
+        self.assertIn('APP_VERSION = "1.22.0"',APP)
+        self.assertIn('MyAppVersion "1.22.0"',(ROOT/"installer/CoD2ChatTranslator.iss").read_text(encoding="utf-8"))

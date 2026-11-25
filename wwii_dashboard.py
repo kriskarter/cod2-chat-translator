@@ -15,13 +15,13 @@ from server_catalog import FEATURED_SERVER
 
 def nav_name(app, name):
     choices = {
-        "ru":{"home":"Главное","translation":"Перевод","overlay":"Оверлей",
+        "ru":{"home":"Главная","servers":"Серверы","history":"Логи / История","translation":"Перевод","overlay":"Оверлей",
               "knowledge":"База знаний","stats":"Статистика",
               "settings":"Настройки","updates":"Обновления","discord":"Discord","about":"О программе"},
-        "uk":{"home":"Головна","translation":"Переклад","overlay":"Оверлей",
+        "uk":{"home":"Головна","servers":"Сервери","history":"Журнали / Історія","translation":"Переклад","overlay":"Оверлей",
               "knowledge":"База знань","stats":"Статистика",
               "settings":"Налаштування","updates":"Оновлення","discord":"Discord","about":"Про програму"},
-        "en":{"home":"Home","translation":"Translation","overlay":"Overlay",
+        "en":{"home":"Home","servers":"Servers","history":"Logs / History","translation":"Translation","overlay":"Overlay",
               "knowledge":"Knowledge","stats":"Statistics",
               "settings":"Settings","updates":"Updates","discord":"Discord","about":"About"},
     }
@@ -71,45 +71,59 @@ class WWIIDashboard(Dashboard):
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header_height=132 if compact_dpi else 148
+        header_height=158 if self.root.winfo_screenheight()<=800 else 184
         header=tk.Canvas(outer,height=header_height,bg="#17130E",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
-        hero=ui_photo(header,"premium_hero.png")
-        brand=ui_photo(header,"premium_logo_compact.png" if compact_dpi
-                       else "premium_logo.png")
-        plaque=ui_photo(header,"version_plate.png")
-        header.create_image(0,0,anchor="nw",image=hero)
-        header.create_image(170 if compact_dpi else 195,1,anchor="nw",image=brand)
-        header.create_text(200 if compact_dpi else 225,
-                           122 if compact_dpi else 139,
-                           text=tr(app,"tagline"),anchor="w",
-                           fill="#EED6A7",font=(FONT,9,"bold"))
+        from PIL import Image,ImageTk
+        from app import resource_path
+        panorama=Image.open(resource_path("assets/ui_premium/monitor_hero.png")).convert("RGB")
+        brand_source=Image.open(resource_path("assets/ui_premium/monitor_logo.png")).convert("RGBA")
+        self._header_photos={}
+        hero_item=header.create_image(0,0,anchor="nw")
+        logo_item=header.create_image(0,0,anchor="nw")
+        tagline_item=header.create_text(0,0,text="Intelligent Gaming Companion",
+                            anchor="w",fill="#F2DEB4",font=(FONT,12,"italic"))
         header.create_line(0,header_height-2,1600,header_height-2,
                            fill="#BC8A46",width=2)
-        self.version_plate=header.create_image(0,0,image=plaque,anchor="ne")
         self.banner_version=header.create_text(0,0,text="",
-            font=(FONT,11,"bold"),fill="#F8E0AE",anchor="e")
+            font=(FONT,9,"bold"),fill="#F8E0AE",anchor="e")
         def resize_header(event):
-            header.coords(self.version_plate,event.width-9,8)
-            header.coords(self.banner_version,event.width-22,28)
+            width=max(1,event.width)
+            # Cover the header with one original panoramic asset, without
+            # baking live labels or hit targets into the image.
+            scale=max(width/panorama.width,header_height/panorama.height)
+            picture=panorama.resize((round(panorama.width*scale),round(panorama.height*scale)),Image.Resampling.LANCZOS)
+            x=max(0,(picture.width-width)//2)
+            y=max(0,(picture.height-header_height)//2)
+            picture=picture.crop((x,y,x+width,y+header_height))
+            self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
+            header.itemconfigure(hero_item,image=self._header_photos["scene"])
+            logo_width=min(560,round(width*.40),round(header_height*2.85))
+            logo_height=round(brand_source.height*logo_width/brand_source.width)
+            logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
+            self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
+            header.itemconfigure(logo_item,image=self._header_photos["logo"])
+            header.coords(logo_item,round(width*.35),3)
+            header.coords(tagline_item,round(width*.39),header_height-16)
+            header.coords(self.banner_version,width-13,header_height-16)
             header.itemconfigure(self.banner_version,
                                  text="v"+__import__("app").APP_VERSION)
         header.bind("<Configure>",resize_header)
 
-        # Six working pages and one explicit service menu. All commands remain
-        # reachable by keyboard and retain their existing callbacks.
+        # Five primary destinations mirror the approved concept. Expert
+        # translation, overlay and knowledge tools remain directly reachable
+        # through the Settings section.
         nav_shell=tk.Frame(outer,bg="#89633D",pady=1)
         nav_shell.pack(fill="x")
         nav=tk.Frame(nav_shell,bg=SIDEBAR)
         nav.pack(fill="x")
         buttons=[
             ("home",lambda:self.navigate("home")),
-            ("translation",lambda:self.navigate("translation")),
-            ("overlay",lambda:self.navigate("overlay")),
-            ("knowledge",lambda:self.navigate("knowledge")),
-            ("stats",lambda:self.navigate("stats")),
+            ("servers",lambda:self.navigate("servers")),
             ("settings",lambda:self.navigate("settings")),
+            ("history",lambda:self.navigate("history")),
+            ("about",app.show_about),
         ]
         # At 125%/150% DPI use proportionally smaller typography so all
         # seven real navigation buttons fit without clipped labels.
@@ -117,12 +131,12 @@ class WWIIDashboard(Dashboard):
         self._nav_font_size=9 if dpi_scale>=1.85 else 10 if dpi_scale>=1.6 else 11
         for index,(name,callback) in enumerate(buttons):
             nav.columnconfigure(index,weight=1,uniform="nav")
-            photo=ui_photo(nav,"nav_"+name+".png") if name in {"home","knowledge","stats","settings"} else None
+            photo=ui_photo(nav,"nav_"+name+".png") if name in {"home","settings","about"} else None
             button=ttk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
                 command=callback,style="PremiumNav.TButton",cursor="hand2")
             button.grid(row=0,column=index,sticky="nsew",padx=1,pady=1)
             self.nav_buttons[name]=button
-        nav.columnconfigure(6,weight=1,uniform="nav")
+        nav.columnconfigure(5,weight=1,uniform="nav")
         service=tk.Menu(nav,tearoff=False,bg="#2A241A",fg=TEXT,
                         activebackground="#9E540D",activeforeground=TEXT)
         service.add_command(label=nav_name(app,"updates"),
@@ -130,7 +144,8 @@ class WWIIDashboard(Dashboard):
         if FEATURED_SERVER.discord_url:
             service.add_command(label=nav_name(app,"discord"),
                                 command=app._open_featured_server_discord)
-        service.add_command(label=nav_name(app,"about"),command=app.show_about)
+        for section in ("translation","overlay","knowledge","stats"):
+            service.add_command(label=nav_name(app,section),command=lambda key=section:self.navigate(key))
         self.service_menu=service
         caption={"ru":"Справка и сервис ▾","uk":"Довідка і сервіс ▾",
                  "en":"Help and service ▾"}.get(app.ui_language,"Help and service ▾")
@@ -139,22 +154,27 @@ class WWIIDashboard(Dashboard):
                              service_button.winfo_rooty()+service_button.winfo_height())
         service_button=ttk.Button(nav,text=caption,style="PremiumNav.TButton",
                                   command=show_service,cursor="hand2")
-        service_button.grid(row=0,column=6,sticky="nsew",padx=1,pady=1)
+        service_button.grid(row=0,column=5,sticky="nsew",padx=1,pady=1)
         self.service_button=service_button
 
         stack=tk.Frame(outer,bg=BG)
         stack.pack(fill="both",expand=True)
         self.stack=stack
-        for name in ("home","translation","overlay","knowledge","stats","settings"):
+        for name in ("home","servers","translation","overlay","knowledge","stats","settings","history"):
             page=tk.Frame(stack,bg=BG)
             page.place(relx=0,rely=0,relwidth=1,relheight=1)
             self.pages[name]=page
         self._home(self.pages["home"])
+        from premium_server_page import ServerPage
+        self.server_page=ServerPage(self,self.pages["servers"])
         self._translation(self.pages["translation"])
         self._overlay(self.pages["overlay"])
         self._knowledge(self.pages["knowledge"])
         self._stats(self.pages["stats"])
         self._settings(self.pages["settings"])
+        from premium_history_page import build_history_page
+        build_history_page(self,self.pages["history"])
+        self._expert_links()
         if app.overlay_editing:
             for key in ("overlay_edit_button","overlay_edit_button_alt"):
                 widget=getattr(app,key,None)
@@ -192,14 +212,23 @@ class WWIIDashboard(Dashboard):
         from premium_home import build_premium_home
         build_premium_home(self, page)
 
-    def navigate(self,name):
+    def _expert_links(self):
+        for page_name in ("settings","translation","overlay","knowledge","stats"):
+            row=tk.Frame(self.pages[page_name],bg="#29241D",height=38)
+            row.pack(fill="x",side="top",before=self.pages[page_name].winfo_children()[0])
+            for key in ("translation","overlay","knowledge","stats","settings"):
+                tactical_action(row,nav_name(self.app,key),lambda destination=key:self.navigate(destination)).pack(
+                    side="left",padx=5,pady=2)
+
+    def navigate(self,name,*,add=False):
         if name not in self.pages:return False
         self.page=name
         self.pages[name].tkraise()
         if name=="stats":self.request_stats()
+        if name=="servers" and add:self.root.after_idle(self.server_page.add)
         for key,button in self.nav_buttons.items():
             if button.instate(["disabled"]):continue
-            active=key==name
+            active=key==name or (key=="settings" and name in ("translation","overlay","knowledge","stats"))
             button.configure(style="PremiumNavActive.TButton" if active
                              else "PremiumNav.TButton")
         return True

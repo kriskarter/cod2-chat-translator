@@ -31,16 +31,16 @@ class DashboardContractTests(unittest.TestCase):
         self.assertIn("from wwii_dashboard import build_dashboard", (ROOT / "app.py").read_text(encoding="utf-8"))
         tactical=(ROOT/"wwii_dashboard.py").read_text(encoding="utf-8")
         self.assertIn("class WWIIDashboard(Dashboard):", tactical)
-        self.assertIn("ui_photo(header,\"premium_hero.png\")", tactical)
+        self.assertIn('monitor_hero.png', tactical)
         self.assertIn('nav=tk.Frame(nav_shell,bg=SIDEBAR)', tactical)
         self.assertNotIn("sidebar.pack(side=\"left\"", tactical)
         self.assertNotIn('self._home_overlay_prefs', tactical)
         self.assertIn('build_premium_home(self, page)', tactical)
         live=(ROOT/"premium_home.py").read_text(encoding="utf-8")
-        self.assertIn('console_chassis.png', live)
+        self.assertIn('monitor_hero.png', live)
         self.assertIn('variable=var', tactical)
         for callback in ('toggle_enabled', '_outgoing_enabled_changed',
-                         '_launch_featured_server', 'capture_game_screenshot'):
+                         '_launch_server', 'monitor.refresh'):
             self.assertIn(callback, live)
 
     def test_all_localizations_cover_the_same_pages_and_labels(self):

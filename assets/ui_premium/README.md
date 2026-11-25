@@ -36,3 +36,14 @@ generic source with 42px borders for expandable expert panels and dialogs.
 Illustrated output must be reviewed on actual Windows DPI settings in
 addition to the automated Linux Tk layout checks; neither test stands in
 for an in-game CoD2 interaction test.
+# Server Monitor command center artwork
+
+The 1.22.0 command center uses `monitor_hero.png` (panoramic battlefield
+background) and `monitor_logo.png` (transparent two-line metallic logo).
+They were generated specifically for this project from the owner's approved
+composition. Neither resource contains controls, telemetry, player names or
+server status. They remain separate assets rendered beneath live Tk widgets.
+
+The original supplied concept is a design reference only. Its sample server
+rows and player statistics are never bundled into the running app.
+

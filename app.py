@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.21.3"
+APP_VERSION = "1.22.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -137,6 +137,7 @@ DEFAULT_CONFIG = {
     "ui_language": "ru",
     "log_path": "",
     "server_profiles": [],
+    "server_monitor": {},
     "active_profile_path": "",
     "primary_profile_path": "",
     "auto_detect_profile": True,
@@ -3613,6 +3614,13 @@ class ControlApp:
         self.stop_event = threading.Event()
         self.translation_jobs: "queue.Queue[ChatMessage]" = queue.Queue(maxsize=50)
         self.ui_queue: "queue.Queue[tuple]" = queue.Queue()
+        from server_monitor import Monitor, load_settings
+        self.monitor_settings = load_settings(self.config.get("server_monitor"))
+        self.monitor = Monitor(self.monitor_settings,
+                               lambda snapshot: self.ui_queue.put(("server_snapshot", snapshot)))
+        self._friend_presence: dict[str, set[str]] = {}
+        self._friend_notice_at: dict[tuple[str, str], float] = {}
+        self._friend_notifier = None
         self.enabled = True
 
         stored_log = str(self.config.get("log_path", "")).strip()
@@ -3713,6 +3721,8 @@ class ControlApp:
         self._arrival_context=deque(maxlen=24)
         self._chat_epoch=0
         self._build_ui()
+        from windows_friend_notice import FriendNotice
+        self._friend_notifier = FriendNotice(root.winfo_id())
         self._refresh_server_profiles(initial=True)
         self.overlay = OverlayWindow(root, self.config, on_geometry_changed=self._on_overlay_geometry_changed, use_fresh_default_position=self.fresh_install)
         if self.fresh_install:
@@ -3746,6 +3756,7 @@ class ControlApp:
         ]
         self.translator = self.translators[0]
         self.tailer.start()
+        self.monitor.start()
         for translator in self.translators:
             translator.start()
         self.root.after(80, self.process_ui_queue)
@@ -3921,7 +3932,15 @@ class ControlApp:
         return result
 
     def _launch_featured_server(self) -> None:
-        server = FEATURED_SERVER
+        self._launch_server(FEATURED_SERVER.address, FEATURED_SERVER.name)
+
+    def _launch_server(self, address: str, name: str = "") -> None:
+        from server_monitor import canonical_address
+        try:
+            address = canonical_address(address)
+        except ValueError:
+            return
+        name = name or address
 
         if os.name != "nt":
             self.status_var.set(self.t("quick_connect_windows_only"))
@@ -3965,13 +3984,13 @@ class ControlApp:
 
             launch_connect_command(
                 executable,
-                server.address,
+                address,
             )
 
             self.status_var.set(
                 self.t("quick_connect_launching").format(
-                    name=server.name,
-                    address=server.address,
+                    name=name,
+                    address=address,
                 )
             )
         except Exception as exc:
@@ -4749,6 +4768,8 @@ class ControlApp:
             messagebox.showerror(APP_NAME, self.t("update_error").format(error=exc))
 
     def _persist_settings(self) -> None:
+        from server_monitor import dump_settings
+        self.config["server_monitor"] = dump_settings(self.monitor_settings)
         self.config["ui_language"] = self.ui_language
         active = str(self._active_log_path) if self._active_log_path else self.log_path_var.get().strip()
         self.config["log_path"] = active
@@ -5207,6 +5228,34 @@ class ControlApp:
                 memory=translation_memory.RUNTIME
                 if memory:memory.record("incoming","auto",settings[0],settings[3],msg.text,"","queue_full","none",0,nick=msg.nickname)
 
+    def _server_friend_update(self, snapshot) -> None:
+        from server_monitor import normalized_name
+        if snapshot.state != "online":
+            return  # An offline server cannot establish that a friend left.
+        favorites = {normalized_name(value): value
+                     for value in self.monitor_settings["friends"]}
+        current = {normalized_name(player.name) for player in snapshot.players}
+        previous = self._friend_presence.get(snapshot.address)
+        self._friend_presence[snapshot.address] = current
+        if previous is None or not self.monitor_settings["notify_friends"]:
+            return  # First successful poll establishes the baseline.
+        now = time.monotonic()
+        for nickname in sorted((current - previous) & favorites.keys()):
+            key = (snapshot.address, nickname)
+            if now - self._friend_notice_at.get(key, -1e9) < 600:
+                continue
+            self._friend_notice_at[key] = now
+            server = next((item for item in self.monitor_settings["servers"]
+                           if item.address == snapshot.address), None)
+            title = {"ru": "Друг в игре", "uk": "Друг у грі",
+                     "en": "Friend online"}.get(self.ui_language, "Friend online")
+            detail = f"{favorites[nickname]} · {server.label or snapshot.name or snapshot.address if server else snapshot.address}"
+            if self._friend_notifier:
+                self._friend_notifier.show(title, detail)
+            from premium_history_page import record
+            if hasattr(self, "dashboard"):
+                record(self.dashboard, f"{title}: {detail}")
+
     def process_ui_queue(self) -> None:
         # A rare content-free UI scheduling sample can tell us whether a
         # slower PC is freezing the Tk main loop. It is NOT a CPU/FPS reading.
@@ -5228,6 +5277,15 @@ class ControlApp:
                     if msg.settings and msg.settings[0]!=self._f8_settings[0]:continue
                 if event == "status":
                     self.status_var.set(item[1])
+                    if hasattr(self, "dashboard"):
+                        from premium_history_page import record
+                        record(self.dashboard, item[1])
+                elif event == "server_snapshot":
+                    self._server_friend_update(item[1])
+                    if hasattr(self, "dashboard") and hasattr(self.dashboard, "premium_home"):
+                        self.dashboard.premium_home.update_snapshot(item[1])
+                    if hasattr(self, "dashboard") and hasattr(self.dashboard, "server_page"):
+                        self.dashboard.server_page.update_snapshot(item[1])
                 elif event == "map_change":
                     # Previous map context must never influence a new match.
                     with self.translator.context_lock:
@@ -5337,6 +5395,9 @@ class ControlApp:
 
     def close(self) -> None:
         self._persist_settings()
+        self.monitor.stop()
+        if self._friend_notifier:
+            self._friend_notifier.close()
         self.stop_event.set()
         self.outgoing_chat.close()
         if hasattr(self,"experience"):self.experience.close()

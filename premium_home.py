@@ -1,261 +1,298 @@
-"""Illustrated Home console; only the chassis is raster art.
-
-Every switch, language selection and action remains a live Tk control bound to
-the existing ControlApp variables and callbacks.  No telemetry is painted into
-the artwork.  The graphic is resized at runtime; the controls follow its bays.
-"""
+"""Live command center with two translation bays and a CoD2 server monitor."""
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-
 from PIL import Image, ImageTk
 
-from dashboard_ui import BG, CARD, TEXT, MUTED, AMBER, GREEN, FONT, tr, ui_photo
-from server_catalog import FEATURED_SERVER
+from dashboard_ui import BG, CARD, TEXT, MUTED, AMBER, GREEN, FONT
+from server_monitor import color_runs, normalized_name
 
 
-def localized(app, ru, uk, en):
-    return {"ru": ru, "uk": uk, "en": en}.get(app.ui_language, en)
+def local(app, ru, uk, en):
+    return {"ru":ru,"uk":uk,"en":en}.get(app.ui_language,en)
+
+
+def txt(parent, value, size=10, color=TEXT, bold=False, bg=None):
+    return tk.Label(parent,text=value,font=(FONT,size,"bold" if bold else "normal"),
+                    bg=bg or parent.cget("bg"),fg=color,anchor="w")
 
 
 class PremiumHome:
-    def __init__(self, dashboard, page):
-        self.dashboard = dashboard
-        self.app = dashboard.app
-        self.page = page
+    def __init__(self,dashboard,page):
+        self.dashboard,self.app,self.page=dashboard,dashboard.app,page
+        self.selected=None
+        self.sort_key="favorite"
+        self.reverse=False
+        self.photos={}
         from app import resource_path
-        self.chassis_source = Image.open(resource_path(
-            "assets/ui_premium/console_chassis.png")).convert("RGBA")
-        self.rail_source = Image.open(resource_path(
-            "assets/ui_premium/generic_panel.png")).convert("RGBA")
-        self.images = {}
+        self.scene=Image.open(resource_path("assets/ui_premium/monitor_hero.png")).convert("RGB")
         self._build()
 
     def _build(self):
-        app = self.app
-        scroll = tk.Canvas(self.page, bg=BG, borderwidth=0, highlightthickness=0)
-        bar = ttk.Scrollbar(self.page, orient="vertical", command=scroll.yview)
-        scroll.configure(yscrollcommand=bar.set)
-        scroll.pack(side="left", fill="both", expand=True)
-        content = tk.Frame(scroll, bg=BG)
-        window = scroll.create_window((0, 0), window=content, anchor="nw")
-        self.dashboard.home_canvas = scroll
-        self.dashboard.home_content = content
-        self.dashboard.home_scrollbar = bar
+        self.canvas=tk.Canvas(self.page,bg=BG,highlightthickness=0)
+        bar=ttk.Scrollbar(self.page,orient="vertical",command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=bar.set)
+        self.canvas.pack(side="left",fill="both",expand=True)
+        self.content=tk.Frame(self.canvas,bg=BG)
+        item=self.canvas.create_window((0,0),window=self.content,anchor="nw")
+        self.dashboard.home_canvas=self.canvas
+        self.dashboard.home_content=self.content
+        self.dashboard.home_scrollbar=bar
+        def measure(_event=None):
+            needed=self.content.winfo_reqheight()>self.canvas.winfo_height()+2
+            self.canvas.configure(scrollregion=(0,0,self.canvas.winfo_width(),self.content.winfo_reqheight()))
+            if needed and not bar.winfo_manager():bar.pack(side="right",fill="y")
+            elif not needed and bar.winfo_manager():bar.pack_forget()
+        self.content.bind("<Configure>",measure)
+        self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(item,width=e.width),measure()))
+        columns=tk.Frame(self.content,bg=BG)
+        columns.pack(fill="both",expand=True,padx=14,pady=(11,7))
+        columns.columnconfigure(0,weight=44,uniform="command",minsize=380)
+        columns.columnconfigure(1,weight=56,uniform="command",minsize=520)
+        left=tk.Frame(columns,bg=BG)
+        right=tk.Frame(columns,bg=BG)
+        left.grid(row=0,column=0,sticky="nsew",padx=(0,7))
+        right.grid(row=0,column=1,sticky="nsew",padx=(7,0))
+        self._translator(left,"f8")
+        self._translator(left,"f9")
+        self._monitor(right)
+        self._rail()
+        self.render()
 
-        def scroll_size(_event=None):
-            height = max(content.winfo_reqheight(), scroll.winfo_height())
-            scroll.configure(scrollregion=(0, 0, scroll.winfo_width(), height))
-            needed = content.winfo_reqheight() > scroll.winfo_height() + 2
-            if needed and not bar.winfo_manager():
-                bar.pack(side="right", fill="y")
-            elif not needed and bar.winfo_manager():
-                bar.pack_forget()
-        content.bind("<Configure>", scroll_size)
-        scroll.bind("<Configure>", lambda e: (
-            scroll.itemconfigure(window, width=e.width), scroll_size()))
+    def _translator(self,parent,kind):
+        a=self.app
+        from wwii_dashboard import tactical_action,tactical_switch
+        border=tk.Frame(parent,bg="#A6783D",padx=2,pady=2)
+        border.pack(fill="x",pady=(0,12))
+        card=tk.Frame(border,bg="#1F1C17",height=188)
+        card.pack(fill="both",expand=True)
+        card.pack_propagate(False)
+        art=tk.Canvas(card,bg="#1F1C17",highlightthickness=0)
+        art.place(relx=0,rely=0,relwidth=1,relheight=1)
+        def resize(e):
+            sw,sh=self.scene.size
+            part=self.scene.crop((int(sw*(.48 if kind=="f8" else .25)),int(sh*.35),
+                                  int(sw*(.91 if kind=="f8" else .68)),int(sh*.82)))
+            photo=ImageTk.PhotoImage(part.resize((e.width,e.height),Image.Resampling.LANCZOS),master=art)
+            self.photos[kind]=photo
+            art.delete("scene")
+            art.create_image(0,0,image=photo,anchor="nw",tags="scene")
+        art.bind("<Configure>",resize)
+        key=tk.Label(card,text=kind.upper(),bg="#29251D",fg="#FFCD80",font=(FONT,30,"bold"),
+                     relief="ridge",bd=3,highlightbackground="#C19050",highlightthickness=2)
+        key.place(x=13,y=26,width=104,height=108)
+        foreground=tk.Frame(card,bg="#211E19",highlightbackground="#806040",highlightthickness=1)
+        foreground.place(relx=.24,relwidth=.74,y=14,height=159)
+        title=local(a,"Входящий перевод","Вхідний переклад","Incoming translation") if kind=="f8" else local(a,"Исходящий перевод","Вихідний переклад","Outgoing translation")
+        txt(foreground,title,16,bold=True).pack(fill="x",padx=10,pady=(8,0))
+        note=local(a,"Перевод чата игроков","Переклад чату гравців","Translate player chat") if kind=="f8" else local(a,"Перевод ваших сообщений","Переклад ваших повідомлень","Translate your messages")
+        txt(foreground,note,10,MUTED).pack(fill="x",padx=10)
+        row=tk.Frame(foreground,bg="#211E19")
+        row.pack(fill="x",padx=8,pady=(10,2))
+        var,callback=(a.enabled_var,a.toggle_enabled) if kind=="f8" else (a.outgoing_chat.enabled_var,a._outgoing_enabled_changed)
+        switch=tactical_switch(row,local(a,"Вкл","Увімк","On"),var,callback)
+        switch.pack(side="left")
+        setattr(self,kind+"_switch",switch)
+        if kind=="f8":
+            from app import TARGET_LANGUAGES
+            values=list(TARGET_LANGUAGES)
+            custom=a._custom_language_label()
+            if custom:values.append(custom)
+            combo=ttk.Combobox(row,textvariable=a.target_name_var,values=values,state="readonly",width=14)
+            combo.bind("<<ComboboxSelected>>",lambda _e:a._persist_settings())
+            a.language_combo=combo
+        else:
+            from outgoing_chat import LANGUAGES
+            combo=ttk.Combobox(row,textvariable=a.outgoing_chat.target_name_var,
+                               values=list(LANGUAGES),state="readonly",width=14)
+            combo.bind("<<ComboboxSelected>>",a.outgoing_chat._languages_changed)
+        combo.pack(side="right",fill="x",expand=True,padx=(8,0))
+        detail=txt(foreground,"",10,MUTED)
+        detail.pack(fill="x",padx=10)
+        setattr(self,kind+"_detail",detail)
+        tactical_action(foreground,local(a,"Параметры →","Параметри →","Settings →"),
+                        lambda:self.dashboard.navigate("translation")).pack(anchor="e",padx=8,pady=(0,3))
 
-        self.console = tk.Canvas(content, bg=BG, borderwidth=0,
-                                 highlightthickness=0, height=395)
-        self.console.pack(fill="x", padx=8, pady=(5, 3))
-        self.rail = tk.Canvas(content, bg=BG, borderwidth=0,
-                              highlightthickness=0, height=94)
-        self.rail.pack(fill="x", padx=8, pady=(0, 4))
-        self.console_bg = self.console.create_image(0, 0, anchor="nw")
-        self.rail_bg = self.rail.create_image(0, 0, anchor="nw")
-        self._console_labels()
-        self._console_widgets()
-        self._rail_widgets()
-        self.console.bind("<Configure>", self._layout_console)
-        self.rail.bind("<Configure>", self._layout_rail)
-
-    def _label(self, surface, x, y, value, size, *, color=TEXT, bold=False,
-               anchor="w", tags=()):
-        return surface.create_text(x, y, text=value, anchor=anchor, fill=color,
-                                   font=(FONT, size, "bold" if bold else "normal"),
-                                   tags=tags)
-
-    def _console_labels(self):
-        a = self.app
-        c = self.console
-        self.labels = {}
-        names = {
-            "heading": localized(a, "ПЕРЕВОД ЧАТА", "ПЕРЕКЛАД ЧАТУ", "CHAT TRANSLATION"),
-            "incoming": localized(a, "ВХОДЯЩИЕ · F8", "ВХІДНІ · F8", "INCOMING · F8"),
-            "incoming_note": localized(a, "Читаю игроков", "Читаю гравців", "Reading players"),
-            "target": tr(a, "target"),
-            "outgoing": localized(a, "ИСХОДЯЩИЕ · F9", "ВИХІДНІ · F9", "OUTGOING · F9"),
-            "outgoing_note": localized(a, "Пишу игрокам", "Пишу гравцям", "Writing to players"),
-            "my_language": tr(a, "my_language"),
-            "send_language": tr(a, "send_language"),
-            "preview": localized(a, "ПРЕДПРОСМОТР", "ПЕРЕГЛЯД", "PREVIEW"),
-        }
-        for key, value in names.items():
-            self.labels[key] = self._label(c, 0, 0, value,
-                20 if key == "heading" else 18 if key in {"incoming", "outgoing"}
-                else 13 if key in {"incoming_note", "outgoing_note"} else 11,
-                color=AMBER if key in {"target", "my_language", "send_language"}
-                else MUTED if key in {"incoming_note", "outgoing_note"}
-                else TEXT, bold=key in {"heading", "incoming", "outgoing", "preview"})
-
-    def _window(self, surface, widget):
-        return surface.create_window(0, 0, window=widget, anchor="nw")
-
-    def _console_widgets(self):
-        a = self.app
-        c = self.console
-        from app import TARGET_LANGUAGES
-        from outgoing_chat import LANGUAGES
-        from wwii_dashboard import tactical_switch, tactical_action
-        self.controls = {}
-        for key, var, callback in (
-            ("f8", a.enabled_var, a.toggle_enabled),
-            ("f9", a.outgoing_chat.enabled_var, a._outgoing_enabled_changed),
-        ):
-            self.controls[key] = self._window(c, tactical_switch(
-                c, "", var, callback))
-        available = list(TARGET_LANGUAGES.keys())
-        custom = a._custom_language_label()
-        if custom:
-            available.append(custom)
-        a.language_combo = ttk.Combobox(c, textvariable=a.target_name_var,
-                                         values=available, state="readonly")
-        a.language_combo.bind("<<ComboboxSelected>>",
-                              lambda _e: a._persist_settings())
-        self.controls["target"] = self._window(c, a.language_combo)
-        languages = list(LANGUAGES.keys())
-        for key, var in (("source", a.outgoing_chat.source_name_var),
-                         ("send", a.outgoing_chat.target_name_var)):
-            combo = ttk.Combobox(c, textvariable=var, values=languages,
-                                 state="readonly")
-            combo.bind("<<ComboboxSelected>>", a.outgoing_chat._languages_changed)
-            self.controls[key] = self._window(c, combo)
-        test = tactical_action(c, localized(a, "Тест", "Тест", "Test"),
-                               a.test_overlay, primary=True)
-        position = tactical_action(c, localized(a, "Место", "Місце", "Position"),
-                                   a.toggle_overlay_edit)
-        a.overlay_edit_button = position
-        prefs = tactical_action(c, tr(a, "overlay"),
-                                lambda: self.dashboard.navigate("overlay"))
-        self.controls["test"] = self._window(c, test)
-        self.controls["position"] = self._window(c, position)
-        self.controls["prefs"] = self._window(c, prefs)
-
-    def _rail_widgets(self):
-        a = self.app
-        r = self.rail
+    def _monitor(self,parent):
+        a=self.app
         from wwii_dashboard import tactical_action
-        self.rail_controls = {}
-        thumb = tk.Label(r, image=ui_photo(r, "premium_server.png"),
-                         bg="#15130e", borderwidth=0)
-        self.rail_controls["thumb"] = self._window(r, thumb)
-        for key, value, size, color in (
-            ("server", FEATURED_SERVER.name, 16, TEXT),
-            ("address", FEATURED_SERVER.address, 11, AMBER),
-            ("smart", "Smart Engine", 14, TEXT),
+        border=tk.Frame(parent,bg="#A6783D",padx=2,pady=2)
+        border.pack(fill="both",expand=True)
+        box=tk.Frame(border,bg="#24221D",height=388)
+        box.pack(fill="both",expand=True)
+        box.pack_propagate(False)
+        head=tk.Frame(box,bg="#29261F",height=46)
+        head.pack(fill="x")
+        head.pack_propagate(False)
+        txt(head,"♙  "+local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),16,bold=True).pack(side="left",padx=12)
+        self.friends_badge=txt(head,"",10,GREEN,bold=True)
+        self.friends_badge.pack(side="right",padx=12)
+        style=ttk.Style()
+        style.configure("Monitor.Treeview",background="#1C1B18",foreground=TEXT,
+                        fieldbackground="#1C1B18",rowheight=27,font=(FONT,10),borderwidth=0)
+        style.configure("Monitor.Treeview.Heading",background="#302B23",foreground=TEXT,
+                        font=(FONT,9,"bold"))
+        style.map("Monitor.Treeview",background=[("selected","#77522C")],
+                  foreground=[("selected","#FFF0CF")])
+        area=tk.Frame(box,bg="#161511")
+        area.pack(fill="both",expand=True,padx=8,pady=(2,5))
+        columns=("star","name","map","players","ping","status")
+        self.tree=ttk.Treeview(area,columns=columns,show="headings",height=4,
+                               style="Monitor.Treeview",selectmode="browse")
+        names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
+               local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
+               local(a,"Статус","Стан","Status"))
+        for key,title,width in zip(columns,names,(34,178,80,60,59,90)):
+            self.tree.heading(key,text=title,command=lambda k=key:self._sort(k))
+            self.tree.column(key,width=width,minwidth=width,stretch=key=="name",
+                             anchor="w" if key=="name" else "center")
+        self.tree.tag_configure("offline",foreground="#AAA69F")
+        self.tree.pack(side="left",fill="both",expand=True)
+        sb=ttk.Scrollbar(area,orient="vertical",command=self.tree.yview)
+        sb.pack(side="right",fill="y")
+        self.tree.configure(yscrollcommand=sb.set)
+        self.tree.bind("<<TreeviewSelect>>",lambda _e:self._select())
+        self.tree.bind("<Double-1>",lambda _e:self.connect_selected())
+        heading=tk.Frame(box,bg="#302B23",height=29)
+        heading.pack(fill="x",padx=8)
+        self.player_title=txt(heading,"",10,AMBER,bold=True)
+        self.player_title.pack(side="left",padx=7)
+        self.last_update=txt(heading,"",9,MUTED)
+        self.last_update.pack(side="right",padx=7)
+        players=tk.Frame(box,bg="#171613")
+        players.pack(fill="both",expand=True,padx=8,pady=(0,4))
+        self.players=tk.Text(players,bg="#171613",fg=TEXT,bd=0,highlightthickness=0,
+                             height=4,wrap="none",font=(FONT,10),state="disabled",
+                             cursor="arrow",spacing1=2,spacing3=2)
+        self.players.pack(side="left",fill="both",expand=True,padx=5)
+        ps=ttk.Scrollbar(players,orient="vertical",command=self.players.yview)
+        ps.pack(side="right",fill="y")
+        self.players.configure(yscrollcommand=ps.set)
+        actions=tk.Frame(box,bg="#24221D")
+        actions.pack(fill="x",padx=7,pady=(0,7))
+        for title,command,primary in (
+            (local(a,"＋ Добавить сервер","＋ Додати сервер","＋ Add server"),
+             lambda:self.dashboard.navigate("servers",add=True),False),
+            (local(a,"⟳ Обновить","⟳ Оновити","⟳ Refresh"),a.monitor.refresh,False),
+            (local(a,"▶ Подключиться","▶ Підключитися","▶ Connect"),self.connect_selected,True),
         ):
-            self.rail_controls[key] = self._label(
-                r, 0, 0, value, size, color=color, bold=True)
-        # Refresh() updates these two labels using the same real runtime data.
-        self.dashboard.engine_engine_bullet = tk.Label(
-            r, text="●", bg="#25231D", fg=MUTED, font=(FONT, 13))
-        self.dashboard.engine_engine_label = tk.Label(
-            r, text="", bg="#25231D", fg=TEXT, font=(FONT, 12, "bold"))
-        self.dashboard.engine_pack_label = tk.Label(
-            r, text="", bg="#25231D", fg=MUTED, font=(FONT, 9))
-        for key, widget in (
-            ("bullet", self.dashboard.engine_engine_bullet),
-            ("engine", self.dashboard.engine_engine_label),
-            ("pack", self.dashboard.engine_pack_label),
-        ):
-            self.rail_controls[key] = self._window(r, widget)
-        connect = tactical_action(r, tr(a, "connect"),
-                                  a._launch_featured_server, primary=True)
-        shot = tactical_action(r, tr(a, "screenshot"), a.capture_game_screenshot)
-        self.rail_controls["connect"] = self._window(r, connect)
-        self.rail_controls["shot"] = self._window(r, shot)
+            tactical_action(actions,title,command,primary=primary).pack(side="left",fill="x",expand=True,padx=3)
 
-    def _photo(self, source, width, height, key):
-        dimensions = (max(1, width), max(1, height))
-        if key not in self.images or self.images[key][0] != dimensions:
-            photo = ImageTk.PhotoImage(source.resize(dimensions,
-                                                      Image.Resampling.LANCZOS),
-                                       master=self.page)
-            self.images[key] = (dimensions, photo)
-        return self.images[key][1]
+    def _rail(self):
+        a=self.app
+        from wwii_dashboard import tactical_action
+        border=tk.Frame(self.content,bg="#9A7140",padx=2,pady=2)
+        border.pack(fill="x",padx=14,pady=(0,6))
+        frame=tk.Frame(border,bg="#24211B",height=67)
+        frame.pack(fill="x")
+        frame.pack_propagate(False)
+        for col in range(3):frame.columnconfigure(col,weight=1,uniform="rail")
+        cells=[tk.Frame(frame,bg="#24211B") for _ in range(3)]
+        for col,cell in enumerate(cells):cell.grid(row=0,column=col,sticky="nsew",padx=12,pady=4)
+        txt(cells[0],"◈  "+local(a,"Оверлей в игре","Оверлей у грі","Game overlay"),12,bold=True).pack(anchor="w")
+        actions=tk.Frame(cells[0],bg="#24211B")
+        actions.pack(anchor="w")
+        a.overlay_edit_button=tactical_action(actions,local(a,"Место","Місце","Position"),a.toggle_overlay_edit)
+        a.overlay_edit_button.pack(side="left",padx=(0,4))
+        tactical_action(actions,local(a,"Настроить →","Налаштувати →","Configure →"),
+                        lambda:self.dashboard.navigate("overlay")).pack(side="left")
+        txt(cells[1],"▧  Smart Engine",12,bold=True).pack(anchor="w")
+        self.dashboard.engine_engine_bullet=txt(cells[1],"●",10,GREEN)
+        self.dashboard.engine_engine_bullet.pack(side="left")
+        self.dashboard.engine_engine_label=txt(cells[1],"",10)
+        self.dashboard.engine_engine_label.pack(side="left")
+        self.dashboard.engine_pack_label=txt(cells[1],"",9,MUTED)
+        self.dashboard.engine_pack_label.pack(side="left",padx=5)
+        txt(cells[2],"◉  "+local(a,"Состояние программы","Стан програми","Application status"),12,bold=True).pack(anchor="w")
+        txt(cells[2],"F8 · F9 · F10",10,MUTED).pack(anchor="w")
 
-    def _layout_console(self, event):
-        w = max(1, event.width)
-        h = max(340, min(390, round(w * .274)))
-        if self.console.cget("height") != str(h):
-            self.console.configure(height=h)
-        self.console.itemconfigure(self.console_bg,
-                                   image=self._photo(self.chassis_source, w, h, "console"))
-        c = self.console
-        positions = {
-            "heading": (.03, .072), "incoming": (.205, .285),
-            "incoming_note": (.205, .39), "target": (.555, .255),
-            "outgoing": (.205, .67), "outgoing_note": (.205, .78),
-            "my_language": (.507, .635), "send_language": (.62, .635),
-            "preview": (.755, .205),
-        }
-        for key, (x, y) in positions.items():
-            c.coords(self.labels[key], round(w*x), round(h*y))
-        controls = {
-            "f8": (.48, .32, .055, 33), "f9": (.455, .70, .055, 33),
-            "target": (.553, .32, .16, 34),
-            "source": (.50, .71, .105, 34), "send": (.615, .71, .105, 34),
-            "test": (.735, .72, .12, 40), "prefs": (.86, .72, .125, 40),
-            "position": (.75, .85, .225, 40),
-        }
-        for key, (x, y, width, height) in controls.items():
-            if key in ("test", "prefs", "position"):
-                native = c.nametowidget(c.itemcget(self.controls[key], "window"))
-                height = max(height, native.winfo_reqheight())
-                width = max(width, (native.winfo_reqwidth()+4)/w)
-                if key == "prefs":
-                    x = .985-width
-            c.coords(self.controls[key], round(w*x), round(h*y))
-            c.itemconfigure(self.controls[key], width=max(60, round(w*width)),
-                            height=height)
-        # This crosshair belongs to the illustrated preview, not to a fake
-        # translation status. Repaint only the lightweight canvas marks.
-        c.delete("reticle")
-        cx, cy = round(w*.868), round(h*.53)
-        c.create_line(cx-13, cy, cx-4, cy, fill="#ff9f24", width=2,
-                      tags="reticle")
-        c.create_line(cx+4, cy, cx+13, cy, fill="#ff9f24", width=2,
-                      tags="reticle")
-        c.create_line(cx, cy-13, cx, cy-4, fill="#ff9f24", width=2,
-                      tags="reticle")
-        c.create_line(cx, cy+4, cx, cy+13, fill="#ff9f24", width=2,
-                      tags="reticle")
+    def _rows(self):
+        rows=[]
+        for s in self.app.monitor_settings["servers"]:
+            snap=self.app.monitor.snapshots.get(s.address)
+            state=snap.state if snap else "waiting"
+            status=local(self.app,"Онлайн","Онлайн","Online") if state=="online" else (
+                local(self.app,"Частично","Частково","Partial") if state=="limited" else
+                local(self.app,"Нет ответа","Немає відповіді","No response") if state=="offline" else "…")
+            values=("★" if s.favorite else "☆",s.label or (snap.name if snap else "") or s.address,
+                    snap.map_name if snap else "—",
+                    f"{snap.clients if snap.clients is not None else '—'}/{snap.max_clients if snap.max_clients is not None else '—'}" if snap else "—",
+                    f"{snap.ping_ms} ms" if snap and snap.ping_ms is not None else "—",status)
+            rows.append((s.address,values,state))
+        def sort(row):
+            address,values,_=row
+            if self.sort_key=="favorite":return (values[0]!="★",values[1].casefold())
+            index=("star","name","map","players","ping","status").index(self.sort_key)
+            snap=self.app.monitor.snapshots.get(address)
+            if self.sort_key=="players":return snap.clients if snap and snap.clients is not None else -1
+            if self.sort_key=="ping":return snap.ping_ms if snap and snap.ping_ms is not None else 99999
+            return str(values[index]).casefold()
+        return sorted(rows,key=sort,reverse=self.reverse)
 
-    def _layout_rail(self, event):
-        w, h = max(1, event.width), 94
-        r = self.rail
-        r.itemconfigure(self.rail_bg,
-                        image=self._photo(self.rail_source, w, h, "rail"))
-        # Thumbnail is source artwork only; connection state is never implied.
-        r.coords(self.rail_controls["thumb"], 11, 6)
-        r.itemconfigure(self.rail_controls["thumb"], width=180, height=80)
-        for key, x, y in (
-            ("server", .16, .31), ("address", .16, .66),
-            ("smart", .58, .32),
-        ):
-            r.coords(self.rail_controls[key], round(w*x), round(h*y))
-        for key, x, y, width, height in (
-            ("connect", .39, .27, .17, 41),
-            ("bullet", .58, .55, .02, 25),
-            ("engine", .61, .54, .17, 25),
-            ("pack", .59, .78, .21, 20),
-            ("shot", .82, .27, .16, 41),
-        ):
-            r.coords(self.rail_controls[key], round(w*x), round(h*y))
-            r.itemconfigure(self.rail_controls[key], width=max(24, round(w*width)),
-                            height=height)
+    def _sort(self,key):
+        self.reverse=not self.reverse if key==self.sort_key else False
+        self.sort_key=key
+        self.render()
+
+    def _select(self):
+        chosen=self.tree.selection()
+        if chosen:self.selected=chosen[0]
+        self._render_players()
+
+    def render(self):
+        previous=self.selected
+        for item in self.tree.get_children():self.tree.delete(item)
+        for address,values,state in self._rows():
+            self.tree.insert("","end",iid=address,values=values,
+                             tags=("offline",) if state not in ("online","limited") else ())
+        if previous not in self.tree.get_children():
+            previous=self.tree.get_children()[0] if self.tree.get_children() else None
+        if previous:self.tree.selection_set(previous);self.selected=previous
+        self._render_players()
+        names={normalized_name(f) for f in self.app.monitor_settings["friends"]}
+        online={(normalized_name(p.name),s.address) for s in self.app.monitor_settings["servers"]
+                for snap in [self.app.monitor.snapshots.get(s.address)]
+                if snap and snap.state=="online" for p in snap.players
+                if normalized_name(p.name) in names}
+        self.friends_badge.configure(text=local(self.app,"Друзья в игре: ","Друзі у грі: ","Friends online: ")+str(len(online)))
+        self.f8_detail.configure(text="Auto → "+self.app.target_name_var.get())
+        self.f9_detail.configure(text=self.app.outgoing_chat.route_var.get())
+
+    def _render_players(self):
+        a=self.app
+        snap=a.monitor.snapshots.get(self.selected) if self.selected else None
+        title=local(a,"Игроки на сервере","Гравці на сервері","Players")
+        if snap and snap.state=="online":title+=f": {len(snap.players)}"
+        if snap and snap.state=="limited":title+=" · "+local(a,"список недоступен","список недоступний","list unavailable")
+        self.player_title.configure(text=title)
+        self.last_update.configure(text=snap.last_success.astimezone().strftime("%H:%M:%S") if snap and snap.last_success else "—")
+        w=self.players
+        w.configure(state="normal");w.delete("1.0","end")
+        if snap and snap.state=="online":
+            if not snap.players:w.insert("end",local(a,"Игроков сейчас нет.","Гравців зараз немає.","No players currently."))
+            friends={normalized_name(f) for f in a.monitor_settings["friends"]}
+            for p in sorted(snap.players,key=lambda player:(-(player.score or 0),player.name.casefold())):
+                w.insert("end","★  " if normalized_name(p.name) in friends else "    ")
+                for segment,color in color_runs(p.raw_name):
+                    tag="c"+color[1:]
+                    w.tag_configure(tag,foreground=color)
+                    w.insert("end",segment,tag)
+                w.insert("end",f"    {p.score if p.score is not None else '—'}   {p.ping if p.ping is not None else '—'} ms\n")
+        else:
+            w.insert("end",local(a,"Ожидание ответа…" if not snap else "Нет ответа; старые данные не считаются текущими.",
+                                 "Очікування відповіді…" if not snap else "Немає відповіді; старі дані застаріли.",
+                                 "Waiting for response…" if not snap else "No response; previous data is stale."))
+        w.configure(state="disabled")
+
+    def update_snapshot(self,snapshot):
+        if self.page.winfo_exists():self.render()
+
+    def connect_selected(self):
+        if not self.selected:return
+        server=next((s for s in self.app.monitor_settings["servers"] if s.address==self.selected),None)
+        if server:self.app._launch_server(server.address,server.label)
 
 
-def build_premium_home(dashboard, page):
-    dashboard.premium_home = PremiumHome(dashboard, page)
+def build_premium_home(dashboard,page):
+    dashboard.premium_home=PremiumHome(dashboard,page)
