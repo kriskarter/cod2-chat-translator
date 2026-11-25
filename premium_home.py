@@ -54,7 +54,8 @@ class PremiumHome:
         self.content.bind("<Configure>",measure)
         self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(item,width=e.width),measure()))
         columns=tk.Frame(self.content,bg=BG)
-        columns.pack(fill="both",expand=True,padx=14,pady=(8,4 if self.compact else 5))
+        columns.pack(fill="both",expand=True,padx=14,
+                     pady=(4,2) if self.compact else (8,5))
         columns.columnconfigure(0,weight=44,uniform="command",minsize=380)
         columns.columnconfigure(1,weight=56,uniform="command",minsize=520)
         left=tk.Frame(columns,bg=BG)
@@ -70,7 +71,7 @@ class PremiumHome:
     def _translator(self,parent,kind):
         a=self.app
         from wwii_dashboard import tactical_switch
-        height=164 if self.compact else 244 if self.large_dpi else 190
+        height=149 if self.compact else 244 if self.large_dpi else 190
         card=MetalCanvas(parent,scene="assets/ui_premium/translation_card_source.jpg",height=height)
         card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
@@ -78,8 +79,8 @@ class PremiumHome:
         key.place(x=23,rely=.5,anchor="w")
         setattr(self,kind+"_key",key)
         foreground=tk.Frame(card,bg="#26201A")
-        foreground.place(relx=.27,relwidth=.60,y=22 if self.compact else 34,
-                         height=124 if self.compact else 184 if self.large_dpi else 143)
+        foreground.place(relx=.27,relwidth=.60,y=19 if self.compact else 34,
+                         height=112 if self.compact else 184 if self.large_dpi else 143)
         title=local(a,"Входящий перевод","Вхідний переклад","Incoming translation") if kind=="f8" else local(a,"Исходящий перевод","Вихідний переклад","Outgoing translation")
         txt(foreground,title,14 if self.compact else 17,bold=True,bg="#26201A").pack(fill="x",padx=6,pady=(1 if self.compact else 5,0))
         note=local(a,"Перевод чата игроков","Переклад чату гравців","Translate player chat") if kind=="f8" else local(a,"Перевод ваших сообщений","Переклад ваших повідомлень","Translate your messages")
@@ -114,7 +115,7 @@ class PremiumHome:
         from wwii_dashboard import tactical_action
         border=MetalCanvas(parent)
         border.pack(fill="both",expand=True)
-        box=tk.Frame(border,bg="#24221D",height=350 if self.compact else 492 if self.large_dpi else 390)
+        box=tk.Frame(border,bg="#24221D",height=318 if self.compact else 492 if self.large_dpi else 390)
         box.pack(fill="both",expand=True,padx=12,pady=12)
         box.pack_propagate(False)
         head=tk.Frame(box,bg="#29261F",height=46)
@@ -138,7 +139,7 @@ class PremiumHome:
         area=tk.Frame(box,bg="#161511")
         area.pack(fill="x",padx=8,pady=(2,5))
         columns=("star","name","map","players","ping","status")
-        self.tree=ttk.Treeview(area,columns=columns,show="headings",height=3,
+        self.tree=ttk.Treeview(area,columns=columns,show="headings",height=2 if self.compact else 3,
                                style="Monitor.Treeview",selectmode="browse")
         names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
                local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
@@ -162,7 +163,7 @@ class PremiumHome:
         self.last_update.pack(side="right",padx=7)
         self.players=PlayerRoster(box,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
                     local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),
-                    rows=2 if self.compact and self.dpi>=1.65 else 4)
+                    rows=2 if self.compact and self.dpi>=1.65 else 3 if self.compact or self.dpi>=1.6 else 4)
         self.players.pack(fill="both",expand=True,padx=8,pady=(0,4))
         actions=tk.Frame(box,bg="#24221D")
         actions.pack(fill="x",padx=7,pady=(0,7))
