@@ -704,14 +704,19 @@ class Dashboard:
             self.disk_stats_var.set(str(data))
             return
         groups = data[2]
-        lines = [f"{tr(self.app, 'base')}: {data[0]}  ·  samples: {data[1]}"]
+        words = {
+            "ru": ("Локальных групп", "примеров", "ошибок"),
+            "uk": ("Локальних груп", "прикладів", "помилок"),
+            "en": ("Local groups", "samples", "errors"),
+        }[self.app.ui_language]
+        lines = [f"{words[0]}: {data[0]}  ·  {words[1]}: {data[1]}"]
         for direction in ("incoming", "outgoing", "ui"):
             stats = groups.get(direction)
             if stats:
                 name = {"incoming":"F8","outgoing":"F9","ui":"UI"}[direction]
-                lines.append(f"{name}: {stats['samples']} samples  ·  "
+                lines.append(f"{name}: {stats['samples']} {words[1]}  ·  "
                              f"p50 {stats['p50_ms']} ms  ·  "
-                             f"p95 {stats['p95_ms']} ms  ·  errors: {stats['failed']}")
+                             f"p95 {stats['p95_ms']} ms  ·  {words[2]}: {stats['failed']}")
         self.disk_stats_var.set("\n".join(lines))
     def _settings(self, page):
         from premium_data_pages import settings_page
