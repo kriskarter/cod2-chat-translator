@@ -14,8 +14,14 @@ from a UDP query to CLASSIC OBORONA during the capture.
 Additional running views: [Servers](images/server_monitor_rc/xvfb_servers.png),
 [Translation](images/server_monitor_rc/xvfb_translation.png),
 [Overlay](images/server_monitor_rc/xvfb_overlay.png),
+[Knowledge](images/server_monitor_rc/xvfb_knowledge.png),
+[Statistics](images/server_monitor_rc/xvfb_stats.png),
 [Settings](images/server_monitor_rc/xvfb_settings.png),
-[History](images/server_monitor_rc/xvfb_history.png).
+[History](images/server_monitor_rc/xvfb_history.png),
+[Add Server dialog](images/server_monitor_rc/xvfb_dialog_add_server.png),
+[game profile dialog](images/server_monitor_rc/xvfb_dialog_server.png),
+[knowledge dialog](images/server_monitor_rc/xvfb_dialog_knowledge_dialog.png),
+[About dialog](images/server_monitor_rc/xvfb_dialog_about.png).
 
 ## Behavior
 

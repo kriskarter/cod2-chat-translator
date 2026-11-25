@@ -207,6 +207,14 @@ class ServerPage:
         window.transient(a.root)
         window.grab_set()
         window.resizable(False,False)
+        heading=tk.Frame(window,bg="#A6783D",padx=2,pady=2)
+        heading.pack(fill="x",padx=12,pady=(12,3))
+        plate=tk.Frame(heading,bg="#2B2821")
+        plate.pack(fill="x")
+        txt(plate,local(a,"ИЗМЕНИТЬ СЕРВЕР" if current else "ДОБАВИТЬ СЕРВЕР",
+                        "ЗМІНИТИ СЕРВЕР" if current else "ДОДАТИ СЕРВЕР",
+                        "EDIT SERVER" if current else "ADD SERVER"),
+            13,AMBER,True,bg="#2B2821").pack(anchor="w",padx=11,pady=8)
         address=tk.StringVar(value=current.address if current else "")
         name=tk.StringVar(value=current.label if current else "")
         favorite=tk.BooleanVar(value=current.favorite if current else True)
@@ -238,7 +246,10 @@ class ServerPage:
             window.destroy()
             self._save()
         from wwii_dashboard import tactical_action
-        tactical_action(window,local(a,"Сохранить","Зберегти","Save"),save,primary=True).pack(fill="x",padx=18,pady=(8,16))
+        actions=tk.Frame(window,bg=CARD)
+        actions.pack(fill="x",padx=18,pady=(8,16))
+        tactical_action(actions,local(a,"Сохранить","Зберегти","Save"),save,primary=True).pack(side="left",fill="x",expand=True,padx=(0,5))
+        tactical_action(actions,local(a,"Отмена","Скасувати","Cancel"),window.destroy).pack(side="left",fill="x",expand=True)
         window.bind("<Return>",lambda _e:save())
         window.bind("<Escape>",lambda _e:window.destroy())
         window.geometry(f"+{a.root.winfo_rootx()+150}+{a.root.winfo_rooty()+100}")
@@ -280,6 +291,10 @@ class ServerPage:
         dialog.transient(a.root)
         dialog.grab_set()
         dialog.resizable(False,False)
+        heading=tk.Frame(dialog,bg="#A6783D",padx=2,pady=2)
+        heading.pack(fill="x",padx=12,pady=(12,3))
+        txt(heading,local(a,"ИЗБРАННЫЙ ИГРОК","ОБРАНИЙ ГРАВЕЦЬ","FAVORITE PLAYER"),
+            13,AMBER,True,bg="#29251E").pack(fill="x",padx=9,pady=6)
         txt(dialog,local(a,"Никнейм игрока","Нікнейм гравця","Player nickname"),
             13,AMBER,True,bg=CARD).pack(anchor="w",padx=18,pady=(15,6))
         field=ttk.Entry(dialog,width=38)
@@ -289,8 +304,12 @@ class ServerPage:
             nonlocal value
             value=field.get().strip()
             dialog.destroy()
-        tactical_action(dialog,local(a,"Сохранить","Зберегти","Save"),save,primary=True).pack(
-            fill="x",padx=18,pady=(12,16))
+        actions=tk.Frame(dialog,bg=CARD)
+        actions.pack(fill="x",padx=18,pady=(12,16))
+        tactical_action(actions,local(a,"Сохранить","Зберегти","Save"),save,primary=True).pack(
+            side="left",fill="x",expand=True,padx=(0,5))
+        tactical_action(actions,local(a,"Отмена","Скасувати","Cancel"),dialog.destroy).pack(
+            side="left",fill="x",expand=True)
         dialog.bind("<Return>",lambda _e:save())
         dialog.bind("<Escape>",lambda _e:dialog.destroy())
         dialog.geometry(f"+{a.root.winfo_rootx()+170}+{a.root.winfo_rooty()+130}")
