@@ -86,7 +86,7 @@ class PremiumHome:
         from wwii_dashboard import tactical_switch
         height=149 if self.compact else 244 if self.large_dpi else 190
         scene=("assets/ui_premium/translation_card_source.jpg" if kind=="f8"
-               else "assets/ui_premium/monitor_hero.png")
+               else "assets/ui_premium/tank_card.png")
         card=MetalCanvas(parent,scene=scene,height=height)
         card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)

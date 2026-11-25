@@ -92,8 +92,11 @@ class WWIIDashboard(Dashboard):
             width=max(1,event.width)
             # Cover the header with one original panoramic asset, without
             # baking live labels or hit targets into the image.
-            scale=max(width/panorama.width,header_height/panorama.height)
-            scaled=panorama.resize((round(panorama.width*scale),round(panorama.height*scale)),Image.Resampling.LANCZOS)
+            # Exclude the portrait from the cover layer; the same soldier is
+            # composited once at a scale that exposes helmet and backpack.
+            backdrop=panorama.crop((min(610,panorama.width//3),0,panorama.width,panorama.height))
+            scale=max(width/backdrop.width,header_height/backdrop.height)
+            scaled=backdrop.resize((round(backdrop.width*scale),round(backdrop.height*scale)),Image.Resampling.LANCZOS)
             x=max(0,(scaled.width-width)//2)
             y=max(0,(scaled.height-header_height)//2)
             picture=scaled.crop((x,y,x+width,y+header_height)).convert("RGBA")
