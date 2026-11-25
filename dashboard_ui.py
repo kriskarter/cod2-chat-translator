@@ -12,7 +12,7 @@ from server_catalog import FEATURED_SERVER
 
 BG = "#17150F"
 SIDEBAR = "#231F18"
-CARD = "#201E17"
+CARD = "#24231D"
 CARD_ALT = "#393329"
 BORDER = "#9C7950"
 TEXT = "#F6E9CB"
@@ -259,6 +259,13 @@ def setup_theme(root: tk.Tk):
                         padding=(3, 2) if compact_dpi else (4, 3))
     for name in ("Tactical.TButton", "TacticalAccent.TButton"):
         style.configure(name, padding=(4, 2) if compact_dpi else (7, 3))
+    if "Premium.Generic.surface" not in style.element_names():
+        style.element_create("Premium.Generic.surface", "image",
+            ui_photo(root, "premium_generic_frame.png"),
+            border=(42, 42, 42, 42), sticky="nsew")
+    style.layout("PremiumCard.TFrame", [("Premium.Generic.surface",
+                  {"sticky":"nsew"})])
+    style.configure("PremiumCard.TFrame", background=CARD)
     # Real readonly comboboxes and scales keep their native semantics.
     style.configure("TCombobox", fieldbackground="#252218", background="#382D20",
                     foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
@@ -296,9 +303,9 @@ def ui_photo(master, name):
 def card(parent, title=None, *, tone=CYAN, padding=5):
     compact_dpi = float(parent.tk.call("tk", "scaling")) >= 1.6
     heading_height = 27 if compact_dpi else 30
-    border=tk.Frame(parent, bg="#BC975D", padx=2, pady=2)
-    shell=tk.Frame(border, bg="#100F0B", padx=2, pady=2)
-    shell.pack(fill="both", expand=True)
+    border=ttk.Frame(parent, style="PremiumCard.TFrame")
+    shell=tk.Frame(border, bg="#1F1F19", padx=2, pady=2)
+    shell.pack(fill="both", expand=True, padx=8, pady=8)
     if title:
         heading=tk.Canvas(shell, bg="#302B20", height=heading_height,
                           highlightthickness=0, borderwidth=0)
@@ -669,124 +676,12 @@ class Dashboard:
         action(row, tr(self.app, "export"), self.app._export_knowledge).pack(side="left", padx=(7, 0))
 
     def _translation(self, page):
-        content = self._scroll_page(page, tr(self.app, "translation_head"), tr(self.app, "actual"))
-        incoming_border, incoming = card(content, tr(self.app, "f8"))
-        incoming_border.pack(fill="x", padx=22, pady=(0, 14))
-        text(incoming, tr(self.app, "f8_note"), color=MUTED).pack(anchor="w", pady=(0, 11))
-        row = tk.Frame(incoming, bg=CARD)
-        row.pack(fill="x")
-        custom = self.app._custom_language_label()
-        from app import TARGET_LANGUAGES
-        options = list(TARGET_LANGUAGES.keys()) + ([custom] if custom else [])
-        dest, self.app.language_combo = label_combo(row, tr(self.app, "target"),
-            options, self.app.target_name_var, lambda _e:self.app._persist_settings(), width=22)
-        dest.pack(side="left", padx=(0, 12))
-        action(row, tr(self.app, "other"), self.app.choose_custom_language).pack(side="left", pady=(23, 0))
-        checks = tk.Frame(incoming, bg=CARD)
-        checks.pack(fill="x", pady=(12, 0))
-        for name, var, cb in (
-            ("smart_enabled", self.app.smart_engine_var, self.app._persist_settings),
-            ("slang", self.app.slang_var, self.app._persist_settings),
-            ("dedupe", self.app.dedupe_var, self.app._persist_settings),
-            ("original", self.app.show_original_var, self.app.toggle_original),
-            ("hide_same", self.app.hide_same_var, self.app._persist_settings),
-        ):
-            check(checks, tr(self.app, name), var, cb).pack(side="left", padx=(0, 11))
-        style_row = tk.Frame(incoming, bg=CARD)
-        style_row.pack(fill="x", pady=(12, 0))
-        style_names = [self.app._style_label(code) for code in ("clear", "live", "raw")]
-        self.app.slang_style_var.set(self.app._style_label(
-            str(self.app.config.get("slang_style", "live"))))
-        style_combo, _ = label_combo(style_row, tr(self.app, "style"), style_names,
-             self.app.slang_style_var, lambda _e:self.app._persist_settings(), width=19)
-        style_combo.pack(side="left")
-        tk.Label(style_row, textvariable=self.metrics_var, bg=CARD, fg=MUTED,
-                 font=(FONT, 9)).pack(side="left", padx=(18, 0), pady=(21, 0))
-        outgoing_border, outgoing = card(content, tr(self.app, "f9"), tone=AMBER)
-        outgoing_border.pack(fill="x", padx=22, pady=(0, 14))
-        text(outgoing, tr(self.app, "f9_note"), color=MUTED).pack(anchor="w", pady=(0, 11))
-        check(outgoing, tr(self.app, "enabled"), self.app.outgoing_chat.enabled_var,
-              self.app._outgoing_enabled_changed).pack(anchor="w")
-        choices = tk.Frame(outgoing, bg=CARD)
-        choices.pack(fill="x", pady=(10, 0))
-        from outgoing_chat import LANGUAGES
-        languages = list(LANGUAGES.keys())
-        for label, var in (
-            ("my_language", self.app.outgoing_chat.source_name_var),
-            ("send_language", self.app.outgoing_chat.target_name_var),
-        ):
-            part, _ = label_combo(choices, tr(self.app, label), languages, var,
-                self.app.outgoing_chat._languages_changed, width=19)
-            part.pack(side="left", padx=(0, 20))
-        tk.Label(outgoing, textvariable=self.app.outgoing_chat.route_var, bg=CARD,
-                 fg=CYAN, font=(FONT, 13, "bold")).pack(anchor="w", pady=(15, 0))
-        note, other = card(content, tr(self.app, "hotkeys"), tone=AMBER)
-        note.pack(fill="x", padx=22, pady=(0, 16))
-        text(other, "F8  —  "+tr(self.app, "f8_note"), color=TEXT).pack(anchor="w")
-        text(other, "F9  —  "+tr(self.app, "f9_note"), color=TEXT).pack(anchor="w", pady=(5, 0))
+        from premium_pages import translation_page
+        translation_page(self, page)
 
     def _overlay(self, page):
-        content = self._scroll_page(page, tr(self.app, "overlay_head"), tr(self.app, "overlay_hint"))
-        switch_border, switch = card(content, tr(self.app, "overlay_view"))
-        switch_border.pack(fill="x", padx=22, pady=(0, 14))
-        check(switch, tr(self.app, "app_active"), self.app.enabled_var, self.app.toggle_enabled).pack(anchor="w")
-        tk.Label(switch, textvariable=self.app.overlay_hotkey_status_var, bg=CARD,
-                 fg=CYAN, font=(FONT, 10, "bold")).pack(anchor="w", pady=(8, 0))
-        sliders_border, sliders = card(content, tr(self.app, "overlay_view") + " · F8", tone=AMBER)
-        sliders_border.pack(fill="x", padx=22, pady=(0, 14))
-        for title, value_var, label_var, start, end, fn in (
-            ("font_size", self.app.font_var, self.app.font_label_var, 7, 20, self.app._font_slider),
-            ("opacity", self.app.bg_var, self.app.bg_label_var, 0, 90, self.app._background_slider),
-            ("time", self.app.ttl_var, self.app.ttl_label_var, 5, 20, self.app._ttl_slider),
-        ):
-            row = tk.Frame(sliders, bg=CARD)
-            row.pack(fill="x", pady=6)
-            text(row, tr(self.app, title), color=MUTED).pack(side="left")
-            tk.Label(row, textvariable=label_var, fg=CYAN, bg=CARD,
-                     font=(FONT, 10, "bold"), width=8).pack(side="right")
-            scale = ttk.Scale(row, from_=start, to=end, orient="horizontal", command=fn)
-            scale.set(value_var.get())
-            scale.pack(side="right", fill="x", expand=True, padx=(20, 16))
-        controls = tk.Frame(sliders, bg=CARD)
-        controls.pack(fill="x", pady=(12, 0))
-        text(controls, tr(self.app, "messages"), color=MUTED).pack(side="left")
-        from app import MIN_OVERLAY_MESSAGES, MAX_OVERLAY_MESSAGES
-        ttk.Combobox(controls, state="readonly",
-            values=list(range(MIN_OVERLAY_MESSAGES, MAX_OVERLAY_MESSAGES+1)),
-            textvariable=self.app.max_messages_var, width=6).pack(side="left", padx=12)
-        # Same variable / callback as existing implementation.
-        combo = controls.winfo_children()[-1]
-        combo.bind("<<ComboboxSelected>>", lambda _e:self.app._max_messages_changed())
-        flags = tk.Frame(sliders, bg=CARD)
-        flags.pack(fill="x", pady=(12, 0))
-        for title, var, fn in (
-            ("bg_only", self.app.bg_only_var, self.app._background_only_changed),
-            ("compact_bg", self.app.compact_bg_var, self.app._compact_background_changed),
-            ("fade", self.app.fade_var, self.app._fade_changed),
-        ):
-            check(flags, tr(self.app, title), var, fn).pack(side="left", padx=(0, 18))
-        presets_border, presets = card(content, tr(self.app, "minimal") + " / " + tr(self.app, "readable"))
-        presets_border.pack(fill="x", padx=22, pady=(0, 14))
-        for name, fn in (
-            ("text_only", self.app.text_only_preset),
-            ("minimal", self.app.minimal_preset),
-            ("readable", self.app.readable_preset),
-            ("standard", self.app.reset_overlay_position),
-        ):
-            action(presets, tr(self.app, name), fn).pack(side="left", padx=(0, 8))
-        actions_border, actions = card(content, tr(self.app, "quick"), tone=AMBER)
-        actions_border.pack(fill="x", padx=22, pady=(0, 16))
-        for name, fn in (
-            ("test", self.app.test_overlay), ("clear", self.app.clear_overlay),
-            ("configure", self.app.toggle_overlay_edit),
-            ("borderless", self.app.enable_cod2_borderless),
-            ("screenshot", self.app.capture_game_screenshot),
-        ):
-            button = action(actions, tr(self.app, name), fn)
-            button.pack(side="left", padx=(0, 8))
-            if name == "configure":
-                self.app.overlay_edit_button_alt = button
-
+        from premium_pages import overlay_page
+        overlay_page(self, page)
 
     def _knowledge(self, page):
         app = self.app

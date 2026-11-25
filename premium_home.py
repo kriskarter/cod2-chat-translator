@@ -90,14 +90,13 @@ class PremiumHome:
             "my_language": tr(a, "my_language"),
             "send_language": tr(a, "send_language"),
             "preview": localized(a, "ПРЕДПРОСМОТР", "ПЕРЕГЛЯД", "PREVIEW"),
-            "example": localized(a, "Образец оформления", "Зразок оформлення", "Display sample"),
         }
         for key, value in names.items():
             self.labels[key] = self._label(c, 0, 0, value,
                 20 if key == "heading" else 18 if key in {"incoming", "outgoing"}
                 else 13 if key in {"incoming_note", "outgoing_note"} else 11,
                 color=AMBER if key in {"target", "my_language", "send_language"}
-                else MUTED if key in {"incoming_note", "outgoing_note", "example"}
+                else MUTED if key in {"incoming_note", "outgoing_note"}
                 else TEXT, bold=key in {"heading", "incoming", "outgoing", "preview"})
 
     def _window(self, surface, widget):
@@ -132,8 +131,9 @@ class PremiumHome:
                                  state="readonly")
             combo.bind("<<ComboboxSelected>>", a.outgoing_chat._languages_changed)
             self.controls[key] = self._window(c, combo)
-        test = tactical_action(c, tr(a, "test"), a.test_overlay, primary=True)
-        position = tactical_action(c, localized(a, "Положение", "Положення", "Position"),
+        test = tactical_action(c, localized(a, "Тест", "Тест", "Test"),
+                               a.test_overlay, primary=True)
+        position = tactical_action(c, localized(a, "Место", "Місце", "Position"),
                                    a.toggle_overlay_edit)
         a.overlay_edit_button = position
         prefs = tactical_action(c, tr(a, "overlay"),
@@ -159,11 +159,11 @@ class PremiumHome:
                 r, 0, 0, value, size, color=color, bold=True)
         # Refresh() updates these two labels using the same real runtime data.
         self.dashboard.engine_engine_bullet = tk.Label(
-            r, text="●", bg="#171811", fg=MUTED, font=(FONT, 13))
+            r, text="●", bg="#25231D", fg=MUTED, font=(FONT, 13))
         self.dashboard.engine_engine_label = tk.Label(
-            r, text="", bg="#171811", fg=TEXT, font=(FONT, 12, "bold"))
+            r, text="", bg="#25231D", fg=TEXT, font=(FONT, 12, "bold"))
         self.dashboard.engine_pack_label = tk.Label(
-            r, text="", bg="#171811", fg=MUTED, font=(FONT, 9))
+            r, text="", bg="#25231D", fg=MUTED, font=(FONT, 9))
         for key, widget in (
             ("bullet", self.dashboard.engine_engine_bullet),
             ("engine", self.dashboard.engine_engine_label),
@@ -198,16 +198,16 @@ class PremiumHome:
             "incoming_note": (.205, .39), "target": (.555, .255),
             "outgoing": (.205, .67), "outgoing_note": (.205, .78),
             "my_language": (.507, .635), "send_language": (.62, .635),
-            "preview": (.755, .205), "example": (.755, .32),
+            "preview": (.755, .205),
         }
         for key, (x, y) in positions.items():
             c.coords(self.labels[key], round(w*x), round(h*y))
         controls = {
-            "f8": (.48, .32, .055, 33), "f9": (.48, .70, .055, 33),
+            "f8": (.48, .32, .055, 33), "f9": (.455, .70, .055, 33),
             "target": (.553, .32, .16, 34),
             "source": (.50, .71, .105, 34), "send": (.615, .71, .105, 34),
-            "test": (.75, .85, .07, 32), "position": (.825, .85, .075, 32),
-            "prefs": (.905, .85, .075, 32),
+            "test": (.75, .75, .11, 32), "prefs": (.865, .75, .11, 32),
+            "position": (.75, .865, .225, 32),
         }
         for key, (x, y, width, height) in controls.items():
             c.coords(self.controls[key], round(w*x), round(h*y))

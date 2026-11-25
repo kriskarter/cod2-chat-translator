@@ -78,6 +78,27 @@ def main():
     d.line((0, 45, 1024, 45), fill=(171, 132, 79, 195), width=1)
     plate.save(OUT / "premium_plate.png", optimize=True)
 
+    # Keep the corners/edges of the approved new material independent of
+    # destination width or height. ttk stretches only the neutral center.
+    panel = Image.open(SRC / "generic_panel.png").convert("RGBA")
+    tile = Image.new("RGBA", (160, 160))
+    source = 126
+    border = 42
+    for dest_y, src_y, dest_h, src_h in (
+        (0, 0, border, source),
+        (border, panel.height//2-32, 76, 64),
+        (118, panel.height-source, border, source),
+    ):
+        for dest_x, src_x, dest_w, src_w in (
+            (0, 0, border, source),
+            (border, panel.width//2-32, 76, 64),
+            (118, panel.width-source, border, source),
+        ):
+            cut=panel.crop((src_x,src_y,src_x+src_w,src_y+src_h))
+            tile.alpha_composite(cut.resize((dest_w,dest_h),Image.Resampling.LANCZOS),
+                                 (dest_x,dest_y))
+    tile.save(OUT / "premium_generic_frame.png", optimize=True)
+
     for group, amber in (("metal", False), ("amber", True)):
         for state in ("normal", "hover", "pressed", "disabled"):
             button(f"{group}_{state}", amber=amber, hover=state == "hover",
