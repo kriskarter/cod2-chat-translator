@@ -74,11 +74,11 @@ class PremiumHome:
         card=MetalCanvas(parent,scene="assets/ui_premium/translation_card_source.jpg",height=height)
         card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
-        key=Keycap(card,kind.upper(),lambda:switch.invoke(),size=96 if self.compact else 108)
+        key=Keycap(card,kind.upper(),lambda:switch.invoke(),size=100 if self.compact else 116)
         key.place(x=23,rely=.5,anchor="w")
         setattr(self,kind+"_key",key)
         foreground=tk.Frame(card,bg="#26201A")
-        foreground.place(relx=.27,relwidth=.68,y=22 if self.compact else 34,
+        foreground.place(relx=.27,relwidth=.60,y=22 if self.compact else 34,
                          height=124 if self.compact else 184 if self.large_dpi else 143)
         title=local(a,"Входящий перевод","Вхідний переклад","Incoming translation") if kind=="f8" else local(a,"Исходящий перевод","Вихідний переклад","Outgoing translation")
         txt(foreground,title,14 if self.compact else 17,bold=True,bg="#26201A").pack(fill="x",padx=6,pady=(1 if self.compact else 5,0))
@@ -136,9 +136,9 @@ class PremiumHome:
         style.map("Monitor.Treeview",background=[("selected","#865A30")],
                   foreground=[("selected","#FFF0CF")])
         area=tk.Frame(box,bg="#161511")
-        area.pack(fill="both",expand=True,padx=8,pady=(2,5))
+        area.pack(fill="x",padx=8,pady=(2,5))
         columns=("star","name","map","players","ping","status")
-        self.tree=ttk.Treeview(area,columns=columns,show="headings",height=4,
+        self.tree=ttk.Treeview(area,columns=columns,show="headings",height=3,
                                style="Monitor.Treeview",selectmode="browse")
         names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
                local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
@@ -200,7 +200,8 @@ class PremiumHome:
         self.dashboard.engine_pack_label=txt(cells[1],"",9,MUTED)
         self.dashboard.engine_pack_label.pack(side="left",padx=5)
         txt(cells[2],"◉  "+local(a,"Состояние программы","Стан програми","Application status"),12,bold=True).pack(anchor="w")
-        txt(cells[2],"F8 · F9 · F10",10,MUTED).pack(anchor="w")
+        self.system_status=txt(cells[2],"",10,GREEN)
+        self.system_status.pack(anchor="w")
 
     def _rows(self):
         rows=[]
@@ -251,6 +252,11 @@ class PremiumHome:
                 if snap and snap.state=="online" for p in snap.players
                 if normalized_name(p.name) in names}
         self.friends_badge.configure(text=local(self.app,"Друзья в игре: ","Друзі у грі: ","Friends online: ")+str(len(online)))
+        enabled=bool(self.app.enabled_var.get() or self.app.outgoing_chat.enabled_var.get())
+        self.system_status.configure(
+            text=local(self.app,"Переводчик готов","Перекладач готовий","Translator ready") if enabled else
+                 local(self.app,"Перевод выключен","Переклад вимкнено","Translation off"),
+            fg=GREEN if enabled else MUTED)
         self.f8_detail.configure(text="Auto → "+self.app.target_name_var.get())
         self.f9_detail.configure(text=self.app.outgoing_chat.route_var.get())
 

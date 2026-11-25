@@ -102,3 +102,7 @@ class Keycap(tk.Canvas):
 
     def _set(self, state):
         self.itemconfigure(self._face, image=self._states[state])
+
+    def invoke(self):
+        """Match Tk button activation for keyboard, tests and assistive tools."""
+        return self.command()
