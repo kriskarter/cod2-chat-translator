@@ -9,6 +9,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / "dashboard_ui.py").read_text(encoding="utf-8")
 PREMIUM = (ROOT / "premium_pages.py").read_text(encoding="utf-8")
 TRANSLATION = (ROOT / "premium_translation.py").read_text(encoding="utf-8")
+DATA_PAGES = (ROOT / "premium_data_pages.py").read_text(encoding="utf-8")
 MODULE = ast.parse(SOURCE)
 
 def static_i18n():
@@ -57,8 +58,9 @@ class DashboardContractTests(unittest.TestCase):
     def test_all_pages_and_real_backend_controls_remain_wired(self):
         for name in ("home", "translation", "overlay", "knowledge", "stats", "settings"):
             self.assertIn(f'self._{name}(self.pages["{name}"])', SOURCE)
-        self.assertIn('lambda:self.navigate("knowledge")', SOURCE)
-        self.assertIn('lambda:self.navigate("stats")', SOURCE)
+        navigation = (ROOT/"wwii_dashboard.py").read_text(encoding="utf-8")
+        self.assertIn('lambda:self.navigate("knowledge")', SOURCE+navigation)
+        self.assertIn('lambda:self.navigate("stats")', SOURCE+navigation)
         for callback in (
             "test_overlay", "clear_overlay", "toggle_overlay_edit",
             "enable_cod2_borderless", "capture_game_screenshot",
@@ -70,7 +72,8 @@ class DashboardContractTests(unittest.TestCase):
             "_max_messages_changed", "_background_only_changed",
             "_compact_background_changed", "_fade_changed",
         ):
-            self.assertIn(callback, SOURCE+PREMIUM+TRANSLATION, callback)
+            self.assertIn(callback, SOURCE+PREMIUM+TRANSLATION+DATA_PAGES,
+                          callback)
 
     def test_no_invented_ping_fps_or_service_connected_claim(self):
         self.assertNotIn("24 мс", SOURCE)

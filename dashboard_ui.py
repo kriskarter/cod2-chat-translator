@@ -684,94 +684,12 @@ class Dashboard:
         overlay_page(self, page)
 
     def _knowledge(self, page):
-        app = self.app
-        content = self._scroll_page(page, tr(app, "knowledge"),
-            tr(app, "privacy"))
-        summary_border, summary = card(content, tr(app, "knowledge_state"), tone=AMBER)
-        summary_border.pack(fill="x", padx=22, pady=(0, 14))
-        tk.Label(summary, textvariable=self.base_var, bg=CARD, fg=CYAN,
-                 font=(FONT, 17, "bold")).pack(anchor="w")
-        text(summary, tr(app, "online_hint") + ": Google / MyMemory",
-             color=MUTED).pack(anchor="w", pady=(5, 0))
-
-        options_border, options = card(content, tr(app, "learn"))
-        options_border.pack(fill="x", padx=22, pady=(0, 14))
-        values = (
-            ("knowledge_v2_enabled", True,
-             {"ru":"Использовать базу V2", "uk":"Використовувати базу V2", "en":"Enable V2 knowledge"}),
-            ("knowledge_auto_update", True,
-             {"ru":"Проверять знания при запуске", "uk":"Перевіряти знання під час запуску", "en":"Check knowledge at startup"}),
-            ("experience_collect", False,
-             {"ru":"Локально собирать примеры для экспорта", "uk":"Збирати приклади локально для експорту", "en":"Collect local examples for export"}),
-            ("experience_cache", False,
-             {"ru":"Сохранять временный кэш (7 дней)", "uk":"Зберігати тимчасовий кеш (7 днів)", "en":"Keep temporary disk cache (7 days)"}),
-        )
-        self.knowledge_options = {}
-        def changed():
-            for name, value in self.knowledge_options.items():
-                app.config[name] = bool(value.get())
-            runtime = getattr(app, "_knowledge_runtime", None)
-            if runtime is not None:
-                runtime.enabled = app.config["knowledge_v2_enabled"]
-            app.experience.set_options(app.config["experience_collect"],
-                                       app.config["experience_cache"])
-            app._persist_settings()
-            self.refresh()
-        for name, fallback, captions in values:
-            variable = tk.BooleanVar(master=self.root, value=bool(app.config.get(name, fallback)))
-            self.knowledge_options[name] = variable
-            check(options, captions.get(app.ui_language, captions["en"]), variable,
-                  changed).pack(anchor="w", pady=(0, 4))
-        note, privacy = card(content, tr(app, "privacy"), tone=AMBER)
-        note.pack(fill="x", padx=22, pady=(0, 14))
-        description = {
-            "ru":"Тексты остаются на вашем ПК до ручного экспорта ZIP. Перед передачей проверьте архив: даже после фильтрации свободный текст может содержать личные данные.",
-            "uk":"Тексти залишаються на ПК до ручного експорту ZIP. Перед передаванням перевірте архів: текст може містити особисті дані.",
-            "en":"Examples remain on this PC until manual ZIP export. Review each archive before sharing: free text may still contain personal information.",
-        }
-        text(privacy, description.get(app.ui_language,description["en"]),
-             color=MUTED, wraplength=780).pack(anchor="w")
-        actions_border, actions = card(content, tr(app, "quick"))
-        actions_border.pack(fill="x", padx=22, pady=(0, 16))
-        for key, fn in (
-            ("update_knowledge", lambda:app._check_knowledge_update(True)),
-            ("export", app._export_knowledge),
-            ("stats", lambda:self.navigate("stats")),
-        ):
-            action(actions, tr(app,key), fn).pack(side="left", padx=(0, 9))
-        remove = {
-            "ru":"Очистить локальный опыт", "uk":"Очистити локальний досвід",
-            "en":"Clear local experience"
-        }
-        action(actions, remove.get(app.ui_language, remove["en"]),
-               app._clear_knowledge, warm=True).pack(side="left")
+        from premium_data_pages import knowledge_page
+        knowledge_page(self, page)
 
     def _stats(self, page):
-        content = self._scroll_page(page, tr(self.app, "stats"),
-            tr(self.app, "actual"))
-        live_border, live = card(content, tr(self.app, "latency"))
-        live_border.pack(fill="x", padx=22, pady=(0, 14))
-        tk.Label(live, textvariable=self.metrics_var, bg=CARD, fg=CYAN,
-                 font=(FONT, 14, "bold")).pack(anchor="w")
-        text(live, "p50 / p95  ·  Google / MyMemory  ·  "
-             + tr(self.app, "online_hint"),
-             color=MUTED).pack(anchor="w", pady=(6, 0))
-        disk_border, disk = card(content, tr(self.app, "stats") + " · ZIP", tone=AMBER)
-        disk_border.pack(fill="x", padx=22, pady=(0, 14))
-        self.disk_stats_var = tk.StringVar(master=self.root,
-                                          value=tr(self.app, "no_samples"))
-        tk.Label(disk, textvariable=self.disk_stats_var, bg=CARD, fg=TEXT,
-                 font=(FONT, 10), anchor="w", justify="left",
-                 wraplength=750).pack(fill="x")
-        actions_border, actions = card(content, tr(self.app, "quick"))
-        actions_border.pack(fill="x", padx=22, pady=(0, 16))
-        refresh_text = {
-            "ru":"Обновить измерения", "uk":"Оновити вимірювання",
-            "en":"Refresh measurements"
-        }
-        action(actions, refresh_text.get(self.app.ui_language, refresh_text["en"]),
-               self.request_stats, primary=True).pack(side="left")
-        action(actions, tr(self.app, "export"), self.app._export_knowledge).pack(side="left", padx=9)
+        from premium_data_pages import stats_page
+        stats_page(self, page)
 
     def request_stats(self):
         app = self.app
@@ -796,28 +714,8 @@ class Dashboard:
                              f"p95 {stats['p95_ms']} ms  ·  errors: {stats['failed']}")
         self.disk_stats_var.set("\n".join(lines))
     def _settings(self, page):
-        content = self._scroll_page(page, tr(self.app, "settings_head"), tr(self.app, "settings_sub"))
-        server_border, server = card(content, tr(self.app, "profile"))
-        server_border.pack(fill="x", padx=22, pady=(0, 14))
-        tk.Label(server, textvariable=self.server_var, fg=CYAN, bg=CARD,
-                 font=(FONT, 11, "bold")).pack(anchor="w")
-        action(server, tr(self.app, "server_settings"), self.app.show_server_settings,
-               primary=True).pack(anchor="w", pady=(12, 0))
-        language_border, language = card(content, tr(self.app, "interface"), tone=AMBER)
-        language_border.pack(fill="x", padx=22, pady=(0, 14))
-        languages, _ = label_combo(language, tr(self.app, "interface"),
-            ["Русский", "Українська", "English"],
-            self.app.ui_language_var, lambda _e:self.app.change_ui_language(), width=18)
-        languages.pack(anchor="w")
-        maint_border, maint = card(content, tr(self.app, "quick"))
-        maint_border.pack(fill="x", padx=22, pady=(0, 16))
-        for name, fn in (
-            ("updates", lambda:self.app.check_updates(manual=True)),
-            ("cod2", self.app.enable_cod2_borderless),
-            ("learn", lambda:self.navigate("knowledge")),
-            ("about", self.app.show_about),
-        ):
-            action(maint, tr(self.app, name), fn).pack(side="left", padx=(0, 8))
+        from premium_data_pages import settings_page
+        settings_page(self, page)
 
     def navigate(self, name):
         if name not in self.pages:
