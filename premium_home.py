@@ -173,7 +173,9 @@ class PremiumHome:
             (local(a,"Обновить","Оновити","Refresh"),a.monitor.refresh,False,"updates"),
             (local(a,"Подключиться","Підключитися","Connect"),self.connect_selected,True,"test"),
         ):
-            tactical_action(actions,title,command,primary=primary,icon=icon).pack(side="left",fill="x",expand=True,padx=3)
+            tactical_action(actions,title,command,primary=primary,
+                            icon=None if self.large_dpi and self.app.root.winfo_screenwidth()<=1366 else icon).pack(
+                            side="left",fill="x",expand=True,padx=2)
 
     def _rail(self):
         a=self.app
