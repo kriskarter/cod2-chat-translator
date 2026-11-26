@@ -307,9 +307,9 @@ def setup_theme(root: tk.Tk):
     style.layout("Premium.Vertical.TScrollbar", [
         ("Premium.Scrollbar.trough", {"sticky":"ns", "children":[
             ("Premium.Scrollbar.thumb", {"expand":"1", "sticky":"nsew"})]})])
-    style.configure("Premium.Vertical.TScrollbar", width=14)
+    style.configure("Premium.Vertical.TScrollbar", width=10)
     style.layout("Vertical.TScrollbar", style.layout("Premium.Vertical.TScrollbar"))
-    style.configure("Vertical.TScrollbar", width=14)
+    style.configure("Vertical.TScrollbar", width=10)
     style.layout("TCombobox", [("Combobox.field", {"sticky":"nsew", "children":[
         ("Premium.Combo.arrow", {"side":"right", "sticky":"ns"}),
         ("Combobox.padding", {"sticky":"nsew", "children":[

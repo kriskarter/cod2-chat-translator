@@ -3683,10 +3683,21 @@ class ControlApp:
         # Keep the entire native window within the user's work area as far
         # as possible; smaller monitors retain a scrollable home screen.
         screen_w,screen_h=root.winfo_screenwidth(),root.winfo_screenheight()
-        preferred_w=max(1050,min(1680,screen_w-24))
-        preferred_h=max(650,min(920,screen_h-28))
+        work_w,work_h=screen_w,screen_h-76
+        if os.name == "nt":
+            try:
+                work=wintypes.RECT()
+                if ctypes.windll.user32.SystemParametersInfoW(48,0,ctypes.byref(work),0):
+                    work_w=work.right-work.left
+                    # geometry() requests the *client* height; allow for the
+                    # native title and resize border within the work area.
+                    work_h=work.bottom-work.top-48
+            except (AttributeError,OSError):
+                pass
+        preferred_w=max(900,min(1680,work_w-24))
+        preferred_h=max(520,min(920,work_h-10))
         root.geometry(f"{preferred_w}x{preferred_h}")
-        root.minsize(1050, 650)
+        root.minsize(min(1050,preferred_w),min(590,preferred_h))
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._set_window_icon()
 

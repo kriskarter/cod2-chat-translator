@@ -81,12 +81,12 @@ def request_dark_native_titlebar(root):
 
 
 def home_banner_height(root):
-    screen=root.winfo_screenheight()
-    if screen>=1000:
-        return 270
-    if screen>=850:
-        return 198 if float(root.tk.call("tk","scaling"))>=1.65 else 218
-    return 145 if float(root.tk.call("tk","scaling"))>=1.95 else 185
+    client=root.winfo_height()
+    if client<=1: client=root.winfo_screenheight()-85
+    if client<670:return 135
+    if client<730:return 155 if float(root.tk.call("tk","scaling"))>=1.95 else 170
+    if client<850:return 185
+    return min(250,round(client*.24))
 
 
 class WWIIDashboard(Dashboard):
@@ -129,14 +129,43 @@ class WWIIDashboard(Dashboard):
         def resize_header(event):
             width=max(1,event.width)
             height=max(120,event.height)
-            picture=compose_banner(width,height)
-            self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
-            header.itemconfigure(hero_item,image=self._header_photos["scene"])
+            size=(width,height)
+            if getattr(self,"_banner_size",None)==size:
+                return
+            self._banner_size=size
+            previous=getattr(self,"_banner_timer",None)
+            if previous is not None:
+                header.after_cancel(previous)
+            def request_art():
+                self._banner_timer=None
+                from premium_material import _art_worker
+                if getattr(self,"_banner_future",None) is None:
+                    self._banner_future=_art_worker.submit(compose_banner,*self._banner_size)
+                    self._banner_future_size=self._banner_size
+                    header.after(30,collect_art)
+            def collect_art():
+                if not header.winfo_exists():return
+                future=self._banner_future
+                if future is None:return
+                if not future.done():
+                    header.after(35,collect_art)
+                    return
+                self._banner_future=None
+                try: picture=future.result()
+                except Exception: return
+                if self._banner_future_size==self._banner_size:
+                    self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
+                    header.itemconfigure(hero_item,image=self._header_photos["scene"])
+                else:
+                    request_art()
+            self._banner_timer=header.after(110,request_art)
             logo_width=min(540,round(width*.38),round(height*2.7))
             logo_height=round(brand_source.height*logo_width/brand_source.width)
-            logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
-            self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
-            header.itemconfigure(logo_item,image=self._header_photos["logo"])
+            if getattr(self,"_logo_size",None)!=(logo_width,logo_height):
+                logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
+                self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
+                header.itemconfigure(logo_item,image=self._header_photos["logo"])
+                self._logo_size=(logo_width,logo_height)
             logo_x=round(width*.36)
             logo_y=max(-4,round((height-logo_height-25)/2))
             header.coords(logo_item,logo_x,logo_y)
@@ -236,6 +265,7 @@ class WWIIDashboard(Dashboard):
         footer=MetalCanvas(outer,height=46)
         footer.pack(fill="x")
         footer.pack_propagate(False)
+        self.footer_widget=footer
         first=tk.Frame(footer,bg="#15130D")
         first.pack(fill="both",expand=True,padx=16,pady=8)
         self.footer_ready_dot=text(first,"●",color=MUTED,
@@ -256,6 +286,17 @@ class WWIIDashboard(Dashboard):
         self.footer_event=tk.Label(first,textvariable=app.status_var,bg="#15130D",
                  fg=TEXT,font=(FONT,9),anchor="e")
         self.footer_event.pack(side="right",fill="x",expand=True)
+        def fit_header(event):
+            if event.widget is not self.root or self.page!="home":return
+            timer=getattr(self,"_fit_header_timer",None)
+            if timer is not None:self.root.after_cancel(timer)
+            def apply():
+                self._fit_header_timer=None
+                height=home_banner_height(self.root)
+                if int(self.header_widget.cget("height"))!=height:
+                    self.header_widget.configure(height=height)
+            self._fit_header_timer=self.root.after(120,apply)
+        self.root.bind("<Configure>",fit_header,add="+")
         self.navigate("home")
 
     def _home(self, page):
@@ -287,6 +328,8 @@ class WWIIDashboard(Dashboard):
         self.page=name
         self.pages[name].tkraise()
         self.header_widget.configure(height=home_banner_height(self.root) if name=="home" else 155)
+        if name=="home":self.footer_widget.pack_forget()
+        elif not self.footer_widget.winfo_manager():self.footer_widget.pack(fill="x")
         if name=="stats":self.request_stats()
         if name=="servers" and add:self.root.after_idle(self.server_page.add)
         for key,button in self.nav_buttons.items():

@@ -45,7 +45,7 @@ class PremiumHome:
         self.sort_key="favorite"
         self.reverse=False
         self.dpi=float(self.app.root.tk.call("tk","scaling"))
-        self.compact=self.app.root.winfo_screenheight()<=800
+        self.compact=self.app.root.winfo_height()<=760 or self.app.root.winfo_screenheight()<=800
         self.large_dpi=self.dpi>=1.95
         self.photos={}
         from app import resource_path
@@ -54,21 +54,40 @@ class PremiumHome:
 
     def _build(self):
         self.canvas=tk.Canvas(self.page,bg=BG,highlightthickness=0)
-        bar=ttk.Scrollbar(self.page,orient="vertical",command=self.canvas.yview)
+        bar=ttk.Scrollbar(self.page,orient="vertical",style="Premium.Vertical.TScrollbar",command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=bar.set)
-        self.canvas.pack(side="left",fill="both",expand=True)
+        self.canvas.pack(fill="both",expand=True)
         self.content=SteelFrame(self.canvas,bg=BG)
         item=self.canvas.create_window((0,0),window=self.content,anchor="nw")
         self.dashboard.home_canvas=self.canvas
         self.dashboard.home_content=self.content
         self.dashboard.home_scrollbar=bar
+        self._measure_timer=None
+        self._last_measure=None
         def measure(_event=None):
-            needed=self.content.winfo_reqheight()>self.canvas.winfo_height()+2
-            self.canvas.configure(scrollregion=(0,0,self.canvas.winfo_width(),self.content.winfo_reqheight()))
-            if needed and not bar.winfo_manager():bar.pack(side="right",fill="y")
-            elif not needed and bar.winfo_manager():bar.pack_forget()
+            if self._measure_timer is not None:self.canvas.after_cancel(self._measure_timer)
+            self._measure_timer=self.canvas.after(60,apply_measure)
+        def apply_measure():
+            self._measure_timer=None
+            width,height=self.canvas.winfo_width(),self.canvas.winfo_height()
+            self.canvas.itemconfigure(item,width=width)
+            # Fit to the real client viewport. Scrollbars float above the
+            # content and cannot change its width or feed Configure cycles.
+            rail_height=100 if self.compact else 112
+            if int(self.rail.cget("height"))!=rail_height:self.rail.configure(height=rail_height)
+            card_height=max(145,min(190,(height-rail_height-43)//2))
+            for card in getattr(self,"_cards",()):
+                if int(card.cget("height"))!=card_height:card.configure(height=card_height)
+            required=self.content.winfo_reqheight()
+            geometry=(width,height,required)
+            if geometry==self._last_measure:return
+            self._last_measure=geometry
+            self.canvas.configure(scrollregion=(0,0,width,required))
+            if required>height+2:
+                bar.place(relx=1.0,rely=0,relheight=1.0,anchor="ne",width=11)
+            else:bar.place_forget()
         self.content.bind("<Configure>",measure)
-        self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(item,width=e.width),measure()))
+        self.canvas.bind("<Configure>",measure)
         columns=SteelFrame(self.content,bg=BG)
         columns.pack(fill="both",expand=True,padx=14,
                      pady=(4,2) if self.compact else (8,5))
@@ -94,6 +113,8 @@ class PremiumHome:
         scene=("assets/ui_premium/translation_card_source.jpg" if kind=="f8"
                else "assets/ui_premium/tank_card.png")
         card=MetalCanvas(parent,scene=scene,height=height)
+        if not hasattr(self,"_cards"):self._cards=[]
+        self._cards.append(card)
         card.pack(fill="both",expand=True,
                   pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
@@ -247,6 +268,7 @@ class PremiumHome:
         from dashboard_ui import ui_photo
         rail=MetalCanvas(self.content,height=110 if self.compact else
                          128 if a.root.winfo_screenheight()>=1000 else 112)
+        self.rail=rail
         rail.pack(fill="x",padx=14,pady=(0,6))
         # One textured surface carries the three sections. Only the actual
         # controls are Tk child windows; captions and separators do not hide it.
@@ -262,7 +284,8 @@ class PremiumHome:
         rail.create_text(0,0,text=local(a,"Умный игровой перевод","Розумний ігровий переклад",
                          "Intelligent game translation"),anchor="w",
                          fill=MUTED,font=(FONT,9),tags="engine_note")
-        rail.create_oval(0,0,0,0,outline="#4A7953",fill="#93DF87",width=2,tags="status_icon")
+        rail.create_oval(0,0,0,0,outline="#4A7953",fill="",width=2,tags="status_icon")
+        rail.create_text(0,0,text="✓",fill=GREEN,font=(FONT,19,"bold"),tags="status_mark")
         self.status_surface=rail
         rail.create_text(0,0,text=local(a,"Состояние системы","Стан системи","System status"),
                          anchor="w",fill=TEXT,font=(FONT,12,"bold"),tags="status_title")
@@ -319,6 +342,7 @@ class PremiumHome:
                         (68 if self.compact else 76)+dy)
             rail.coords("status_icon",round(third*2+28),19+dy,
                         round(third*2+63),54+dy)
+            rail.coords("status_mark",round(third*2+45),36+dy)
             rail.coords("status_title",round(third*2+75),31+dy)
             rail.coords(self.system_status.item,round(third*2+70),
                         (54 if self.compact else 62)+dy)
@@ -429,6 +453,11 @@ class PremiumHome:
         enabled=bool(self.app.enabled_var.get() or self.app.outgoing_chat.enabled_var.get())
         log=self.app.current_log_path()
         log_available=bool(log and log.is_file())
+        game_detected=False
+        if os.name=="nt":
+            from app import find_cod2_window
+            game_detected=bool(find_cod2_window())
+        ready=enabled and log_available and game_detected
         if not enabled:
             status=local(self.app,"Перевод выключен","Переклад вимкнено","Translation off")
         elif not log_available:
@@ -437,19 +466,21 @@ class PremiumHome:
                     local(self.app,"Движок готов · журнал не найден",
                           "Рушій готовий · журнал не знайдено",
                           "Engine ready · game log missing"))
+        elif not game_detected and os.name=="nt":
+            status=local(self.app,"Движок готов · игра не обнаружена",
+                         "Рушій готовий · гру не виявлено", "Engine ready · game not detected")
         else:
             status=(local(self.app,"Перевод активен","Переклад активний",
                           "Translation active") if self.large_dpi else
                     local(self.app,"Журнал доступен · перевод активен",
                           "Журнал доступний · переклад активний",
                           "Game log found · translation active"))
-        self.system_status.configure(text=status, fg=GREEN if enabled and log_available else AMBER if enabled else MUTED)
+        status_color=GREEN if ready else AMBER if enabled else MUTED
+        self.system_status.configure(text=status, fg=status_color)
         self.status_surface.itemconfigure("status_icon",
-            fill=GREEN if enabled and log_available else AMBER if enabled else MUTED,
-            outline="#608B64" if enabled and log_available else "#967046" if enabled else "#505B5D")
+            outline=status_color)
+        self.status_surface.itemconfigure("status_mark",text="✓" if ready else "!" if enabled else "—",fill=status_color)
         if os.name=="nt":
-            from app import find_cod2_window
-            game_detected=bool(find_cod2_window())
             game_label=(local(self.app,"Окно CoD2 обнаружено","Вікно CoD2 виявлено","CoD2 window detected")
                         if game_detected else
                         local(self.app,"Окно CoD2 не обнаружено","Вікно CoD2 не виявлено","CoD2 window not detected"))

@@ -7,7 +7,31 @@ from __future__ import annotations
 
 import tkinter as tk
 from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageTk, ImageEnhance, ImageDraw, ImageOps, ImageFilter
+
+
+# Pillow works on decoded pixels off the Tk thread.  A single worker bounds
+# memory use and prevents a drag from queuing dozens of obsolete compositions.
+_art_worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cod2-art")
+
+
+@lru_cache(maxsize=8)
+def _source_image(path: str) -> Image.Image:
+    from app import resource_path
+    with Image.open(resource_path(path)) as image:
+        return image.convert("RGBA")
+
+
+@lru_cache(maxsize=1)
+def _treated_panel():
+    source = ImageEnhance.Color(_source_image("assets/ui_premium/generic_panel.png")).enhance(.55)
+    return ImageEnhance.Brightness(source).enhance(.86)
+
+
+@lru_cache(maxsize=1)
+def _treated_steel():
+    return ImageEnhance.Brightness(_source_image("assets/ui_premium/steel_source.png")).enhance(.55)
 
 
 @lru_cache(maxsize=1)
@@ -51,17 +75,17 @@ class SteelFrame(tk.Frame):
         self._underlay.tk.call("lower", self._underlay._w)
 
 
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=8)
 def panel_image(width: int, height: int, scene: str = "") -> Image.Image:
-    from app import resource_path
     width, height = max(80, width), max(60, height)
-    source = Image.open(resource_path("assets/ui_premium/generic_panel.png")).convert("RGBA")
-    source = ImageEnhance.Color(source).enhance(.55)
-    source = ImageEnhance.Brightness(source).enhance(.86)
+    source = _treated_panel()
     result = Image.new("RGBA", (width, height), (23, 26, 29, 255))
     inset = 17
     if scene:
-        artwork = Image.open(resource_path(scene)).convert("RGB")
+        artwork = _source_image(scene)
+        if "translation_card" in scene or "tank_card" in scene:
+            artwork = ImageEnhance.Color(artwork).enhance(.63)
+            artwork = Image.blend(artwork, Image.new("RGBA", artwork.size, "#333C40"), .15)
         if "monitor_hero" in scene:
             artwork = ImageOps.mirror(artwork)
         target_width, target_height = width - 2 * inset, height - 2 * inset
@@ -81,8 +105,7 @@ def panel_image(width: int, height: int, scene: str = "") -> Image.Image:
         shade.putalpha(alpha.resize((target_width, target_height)))
         result.alpha_composite(shade, (inset, inset))
     else:
-        steel = Image.open(resource_path("assets/ui_premium/steel_source.png")).convert("RGB")
-        steel = ImageEnhance.Brightness(steel).enhance(.55)
+        steel = _treated_steel()
         result.paste(steel.resize((width - 2 * inset, height - 2 * inset)), (inset, inset))
 
     # Sample each corner and edge independently.  Never stretch the rivets.
@@ -111,23 +134,65 @@ class MetalCanvas(tk.Canvas):
         self._photo = None
         self._size = None
         self._pending = None
+        self._future = None
+        self._future_size = None
+        self._poll = None
+        self._painted_size = None
         self._background = self.create_image(0, 0, anchor="nw")
         self.bind("<Configure>", self._resized)
+        self.bind("<Destroy>", self._destroyed, add="+")
 
     def _resized(self, event):
         size = (max(80, event.width), max(60, event.height))
         if size == self._size:
             return
         self._size = size
+        if self._future is not None and self._future.cancel():
+            self._future = None
+            if self._poll is not None:
+                self.after_cancel(self._poll)
+                self._poll = None
         if self._pending is not None:
             self.after_cancel(self._pending)
-        self._pending = self.after(140, self._redraw)
+        self._pending = self.after(220, self._redraw)
 
     def _redraw(self):
         self._pending = None
-        self._photo = ImageTk.PhotoImage(panel_image(*self._size, self._scene), master=self)
-        self.itemconfigure(self._background, image=self._photo)
-        self.tag_lower(self._background)
+        if self._size == self._painted_size or self._future is not None:
+            return
+        self._future_size = self._size
+        self._future = _art_worker.submit(panel_image, *self._future_size, self._scene)
+        self._poll = self.after(25, self._collect)
+
+    def _collect(self):
+        self._poll = None
+        future = self._future
+        if future is None:
+            return
+        if not future.done():
+            self._poll = self.after(35, self._collect)
+            return
+        finished_size = self._future_size
+        self._future = None
+        try:
+            pixels = future.result()
+        except Exception:
+            return  # An unavailable decorative asset cannot stop translation.
+        if finished_size == self._size:
+            self._photo = ImageTk.PhotoImage(pixels, master=self)
+            self.itemconfigure(self._background, image=self._photo)
+            self.tag_lower(self._background)
+            self._painted_size = finished_size
+        if self._size != self._painted_size and self._pending is None:
+            self._pending = self.after(80, self._redraw)
+
+    def _destroyed(self, event):
+        if event.widget is not self:
+            return
+        for timer in (self._pending, self._poll):
+            if timer is not None:
+                self.after_cancel(timer)
+        self._pending = self._poll = None
 
 
 class Keycap(tk.Canvas):

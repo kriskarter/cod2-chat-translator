@@ -154,14 +154,18 @@ def main():
     sd.polygon(outline,fill=(217,169,92,230))
     sd.line(outline+[outline[0]],fill=(255,226,163,245),width=1)
     star.save(OUT / "quick_star.png",optimize=True)
-    friends = Image.new("RGBA", (28, 28))
+    friends = Image.new("RGBA", (112, 112))
     fd = ImageDraw.Draw(friends)
-    fd.ellipse((3, 4, 12, 13), fill=(171, 195, 149, 240))
-    fd.ellipse((16, 4, 25, 13), fill=(171, 195, 149, 240))
-    fd.rounded_rectangle((1, 16, 13, 25), radius=4,
-                         fill=(99, 143, 105, 235), outline=gold)
-    fd.rounded_rectangle((15, 16, 27, 25), radius=4,
-                         fill=(99, 143, 105, 235), outline=gold)
+    # Three recognizable heads and shoulder silhouettes, supersampled for
+    # clean edges. The earlier four-dot icon resembled a loading indicator.
+    fd.ellipse((11, 25, 37, 51), fill=(126, 159, 121, 235))
+    fd.ellipse((75, 25, 101, 51), fill=(126, 159, 121, 235))
+    fd.rounded_rectangle((2, 54, 45, 89), radius=17, fill=(74, 112, 84, 220))
+    fd.rounded_rectangle((67, 54, 110, 89), radius=17, fill=(74, 112, 84, 220))
+    fd.ellipse((40, 14, 72, 46), fill=(219, 203, 158, 245))
+    fd.rounded_rectangle((28, 53, 84, 94), radius=20,
+                         fill=(176, 150, 99, 245), outline=(243, 218, 161, 235), width=3)
+    friends = friends.resize((28, 28), Image.Resampling.LANCZOS)
     friends.save(OUT / "quick_friends.png", optimize=True)
 
     # A subdued selection wash for the real Treeview cells.  The ttk cell
