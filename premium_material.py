@@ -46,6 +46,7 @@ class SteelFrame(tk.Frame):
             for x in range(0, event.width, 384):
                 self._underlay.create_image(x, y, anchor="nw",
                                              image=self._tile_photo, tags="steel")
+        self._underlay.tag_lower("steel")
         self._underlay.tk.call("lower", self._underlay._w)
 
 

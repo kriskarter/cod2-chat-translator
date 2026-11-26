@@ -89,8 +89,10 @@ class PremiumHome:
     def _field_gear(self):
         """Use spare vertical room without covering a single live control."""
         from app import resource_path
-        canvas=MetalCanvas(self.content,height=198)
-        canvas.pack(fill="x",padx=14,pady=(0,4))
+        area=SteelFrame(self.content,height=198)
+        area.pack(fill="x",padx=14,pady=(0,4))
+        area.pack_propagate(False)
+        canvas=area._underlay
         with Image.open(resource_path("assets/ui_premium/field_gear.png")) as source:
             self.photos["field_gear"]=ImageTk.PhotoImage(source.convert("RGBA"),master=canvas)
         canvas.create_image(34,191,image=self.photos["field_gear"],anchor="sw")
