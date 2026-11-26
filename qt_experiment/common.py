@@ -10,6 +10,11 @@ from pathlib import Path
 from html import escape
 
 from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtQuickControls2 import QQuickStyle
+
+# The native Windows style does not support our custom control backgrounds.
+# Use the portable Qt base style before loading any QML Controls.
+QQuickStyle.setStyle("Basic")
 
 from server_monitor import Snapshot, color_runs, plain_name
 
