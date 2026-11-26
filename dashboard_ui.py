@@ -273,6 +273,10 @@ def setup_theme(root: tk.Tk):
         style.configure(name, padding=(4, 1), borderwidth=0)
     for name in ("Tactical.TButton", "TacticalAccent.TButton"):
         style.configure(name, padding=(4, 2) if compact_dpi else (7, 3))
+    style.layout("TacticalRail.TButton", style.layout("Tactical.TButton"))
+    style.configure("TacticalRail.TButton", foreground="#E9D6B7",
+                    font=(FONT,8 if compact_dpi else 9),
+                    padding=(4,0),borderwidth=0)
     if "Premium.Generic.surface" not in style.element_names():
         style.element_create("Premium.Generic.surface", "image",
             ui_photo(root, "premium_generic_frame.png"),

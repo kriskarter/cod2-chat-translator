@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from functools import lru_cache
-from PIL import Image, ImageTk, ImageEnhance, ImageDraw, ImageOps
+from PIL import Image, ImageTk, ImageEnhance, ImageDraw, ImageOps, ImageFilter
 
 
 @lru_cache(maxsize=1)
@@ -17,7 +17,8 @@ def _chassis_texture():
     with Image.open(resource_path("assets/ui_premium/steel_source.png")) as source:
         gray = ImageOps.grayscale(source).resize((384, 384), Image.Resampling.LANCZOS)
     gray = ImageOps.autocontrast(gray, cutoff=3)
-    return ImageOps.colorize(gray, black="#171B1E", white="#3D4446")
+    gray = ImageEnhance.Contrast(gray.filter(ImageFilter.GaussianBlur(.7))).enhance(.34)
+    return ImageOps.colorize(gray, black="#202528", white="#363C3F")
 
 
 class SteelFrame(tk.Frame):

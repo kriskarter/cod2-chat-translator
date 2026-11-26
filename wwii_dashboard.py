@@ -25,11 +25,11 @@ def nav_name(app, name):
     return choices.get(app.ui_language,choices["ru"])[name]
 
 
-def tactical_action(parent, caption, command, *, primary=False, icon=None):
+def tactical_action(parent, caption, command, *, primary=False, icon=None, style=None):
     """Real native button with amber metal states, not a painted hotspot."""
     button=ttk.Button(
         parent,text=caption,command=command,
-        style="TacticalAccent.TButton" if primary else "Tactical.TButton",
+        style=style or ("TacticalAccent.TButton" if primary else "Tactical.TButton"),
     )
     if icon:
         button.configure(image=ui_photo(parent,"quick_"+icon+".png"),
@@ -80,6 +80,15 @@ def request_dark_native_titlebar(root):
     root.after_idle(apply)
 
 
+def home_banner_height(root):
+    screen=root.winfo_screenheight()
+    if screen>=1000:
+        return 270
+    if screen>=850:
+        return 218
+    return 145 if float(root.tk.call("tk","scaling"))>=1.95 else 185
+
+
 class WWIIDashboard(Dashboard):
     """Horizontal navigation / original illustrated header / metal controls."""
 
@@ -93,7 +102,7 @@ class WWIIDashboard(Dashboard):
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header_height=(145 if float(self.root.tk.call("tk","scaling"))>=1.95 else 185) if self.root.winfo_screenheight()<=800 else 198
+        header_height=home_banner_height(self.root)
         header=tk.Canvas(outer,height=header_height,bg="#171A1D",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
@@ -123,16 +132,17 @@ class WWIIDashboard(Dashboard):
             picture=compose_banner(width,height)
             self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
             header.itemconfigure(hero_item,image=self._header_photos["scene"])
-            logo_width=min(495,round(width*.38),round(height*2.7))
+            logo_width=min(540,round(width*.38),round(height*2.7))
             logo_height=round(brand_source.height*logo_width/brand_source.width)
             logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
             self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
             header.itemconfigure(logo_item,image=self._header_photos["logo"])
             logo_x=round(width*.36)
-            header.coords(logo_item,logo_x,-4)
-            for star,offset in zip(stars,(.10,.90)):
+            logo_y=max(-4,round((height-logo_height-25)/2))
+            header.coords(logo_item,logo_x,logo_y)
+            for star,offset in zip(stars,(.18,.82)):
                 x=round(logo_x+logo_width*offset)
-                y=round(height*.25)
+                y=logo_y+round(logo_height*.30)
                 points=[]
                 from math import cos, sin, pi
                 for index in range(10):
@@ -141,10 +151,12 @@ class WWIIDashboard(Dashboard):
                     points.extend((round(x+cos(angle)*radius),
                                    round(y+sin(angle)*radius)))
                 header.coords(star,*points)
-            header.coords(logo_rule,logo_x+40,height-22,
-                          logo_x+logo_width-40,height-22)
-            header.coords(tagline_shadow,round(width*.55)+1,height-12)
-            header.coords(tagline_item,round(width*.55),height-13)
+            rule_y=min(height-22,logo_y+logo_height-2)
+            caption_y=min(height-13,rule_y+16)
+            header.coords(logo_rule,logo_x+40,rule_y,
+                          logo_x+logo_width-40,rule_y)
+            header.coords(tagline_shadow,round(width*.55)+1,caption_y+1)
+            header.coords(tagline_item,round(width*.55),caption_y)
             header.coords(self.banner_version,width-13,height-16)
             header.itemconfigure(self.banner_version,
                                  text="v"+__import__("app").APP_VERSION)
@@ -274,9 +286,7 @@ class WWIIDashboard(Dashboard):
         if name not in self.pages:return False
         self.page=name
         self.pages[name].tkraise()
-        self.header_widget.configure(height=(145 if float(self.root.tk.call("tk","scaling"))>=1.95
-                              else 185) if name=="home" and self.root.winfo_screenheight()<=800
-                              else 198 if name=="home" else 155)
+        self.header_widget.configure(height=home_banner_height(self.root) if name=="home" else 155)
         if name=="stats":self.request_stats()
         if name=="servers" and add:self.root.after_idle(self.server_page.add)
         for key,button in self.nav_buttons.items():

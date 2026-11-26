@@ -68,12 +68,14 @@ class PremiumHome:
             if needed and not bar.winfo_manager():bar.pack(side="right",fill="y")
             elif not needed and bar.winfo_manager():bar.pack_forget()
         self.content.bind("<Configure>",measure)
-        self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(item,width=e.width),measure()))
+        self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(
+            item,width=e.width,height=max(e.height,self.content.winfo_reqheight())),measure()))
         columns=SteelFrame(self.content,bg=BG)
         columns.pack(fill="both",expand=True,padx=14,
                      pady=(4,2) if self.compact else (8,5))
         columns.columnconfigure(0,weight=44,uniform="command",minsize=380)
         columns.columnconfigure(1,weight=56,uniform="command",minsize=520)
+        columns.rowconfigure(0,weight=1)
         left=SteelFrame(columns,bg=BG)
         right=SteelFrame(columns,bg=BG)
         left.grid(row=0,column=0,sticky="nsew",padx=(0,7))
@@ -82,20 +84,7 @@ class PremiumHome:
         self._translator(left,"f9")
         self._monitor(right)
         self._rail()
-        if self.app.root.winfo_screenheight() >= 1000:
-            self._field_gear()
         self.render()
-
-    def _field_gear(self):
-        """Use spare vertical room without covering a single live control."""
-        from app import resource_path
-        area=SteelFrame(self.content,height=198)
-        area.pack(fill="x",padx=14,pady=(0,4))
-        area.pack_propagate(False)
-        canvas=area._underlay
-        with Image.open(resource_path("assets/ui_premium/field_gear.png")) as source:
-            self.photos["field_gear"]=ImageTk.PhotoImage(source.convert("RGBA"),master=canvas)
-        canvas.create_image(34,191,image=self.photos["field_gear"],anchor="sw")
 
     def _translator(self,parent,kind):
         a=self.app
@@ -104,7 +93,7 @@ class PremiumHome:
         scene=("assets/ui_premium/translation_card_source.jpg" if kind=="f8"
                else "assets/ui_premium/tank_card.png")
         card=MetalCanvas(parent,scene=scene,height=height)
-        card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
+        card.pack(fill="both",expand=True,pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
         key=CanvasKeycap(card,kind.upper(),lambda:switch.invoke(),size=100 if self.compact else 116)
         setattr(self,kind+"_key",key)
@@ -237,7 +226,8 @@ class PremiumHome:
         a=self.app
         from wwii_dashboard import tactical_action, tactical_switch
         from dashboard_ui import ui_photo
-        rail=MetalCanvas(self.content,height=110 if self.compact else 112)
+        rail=MetalCanvas(self.content,height=110 if self.compact else
+                         128 if a.root.winfo_screenheight()>=1000 else 112)
         rail.pack(fill="x",padx=14,pady=(0,6))
         # One textured surface carries the three sections. Only the actual
         # controls are Tk child windows; captions and separators do not hide it.
@@ -254,6 +244,7 @@ class PremiumHome:
                          "Intelligent game translation"),anchor="w",
                          fill=MUTED,font=(FONT,9),tags="engine_note")
         rail.create_oval(0,0,0,0,outline="#4A7953",fill="#93DF87",width=2,tags="status_icon")
+        self.status_surface=rail
         rail.create_text(0,0,text=local(a,"Состояние системы","Стан системи","System status"),
                          anchor="w",fill=TEXT,font=(FONT,12,"bold"),tags="status_title")
         separators=[rail.create_line(0,0,0,0,fill="#86643B",width=1) for _ in range(2)]
@@ -264,10 +255,11 @@ class PremiumHome:
         self.overlay_switch=tactical_switch(rail,"",self.overlay_var,toggle_overlay)
         overlay_switch=rail.create_window(0,0,window=self.overlay_switch,anchor="nw")
         a.overlay_edit_button=tactical_action(
-            rail,local(a,"Место","Місце","Position"),a.toggle_overlay_edit)
+            rail,local(a,"Место","Місце","Position"),a.toggle_overlay_edit,
+            style="TacticalRail.TButton")
         overlay_edit=rail.create_window(0,0,window=a.overlay_edit_button,anchor="nw")
         config=tactical_action(rail,local(a,"Настроить →","Налаштувати →","Configure →"),
-                               lambda:self.dashboard.navigate("overlay"))
+                               lambda:self.dashboard.navigate("overlay"),style="TacticalRail.TButton")
         overlay_config=rail.create_window(0,0,window=config,anchor="nw")
         engine_switch=tactical_switch(rail,"",a.smart_engine_var,a._persist_settings)
         engine_control=rail.create_window(0,0,window=engine_switch,anchor="nw")
@@ -284,27 +276,29 @@ class PremiumHome:
         def layout(event):
             width=event.width
             third=width/3
+            dy=max(0,(event.height-112)//2)
             for index,item in enumerate(separators,1):
                 x=round(third*index)
                 rail.coords(item,x,13,x,event.height-13)
-            rail.coords(overlay_icon,34,31)
-            rail.coords("overlay_title",52,31)
-            rail.coords("overlay_note",29,51)
-            rail.coords(overlay_switch,round(third-88),25)
-            rail.coords(overlay_edit,25,57)
-            rail.coords(overlay_config,156,57)
-            rail.coords(engine_icon,round(third+34),31)
-            rail.coords("engine_title",round(third+52),31)
-            rail.coords("engine_note",round(third+29),51)
-            rail.coords(engine_control,round(third*2-88),25)
-            rail.coords(self.dashboard.engine_engine_bullet.item,round(third+28),72)
-            rail.coords(self.dashboard.engine_engine_label.item,round(third+48),72)
+            rail.coords(overlay_icon,38,31+dy)
+            rail.coords("overlay_title",61,31+dy)
+            rail.coords("overlay_note",39,51+dy)
+            rail.coords(overlay_switch,round(third-88),25+dy)
+            rail.coords(overlay_edit,35,70+dy)
+            rail.coords(overlay_config,151,70+dy)
+            rail.coords(engine_icon,round(third+38),31+dy)
+            rail.coords("engine_title",round(third+61),31+dy)
+            rail.coords("engine_note",round(third+39),51+dy)
+            rail.coords(engine_control,round(third*2-88),25+dy)
+            rail.coords(self.dashboard.engine_engine_bullet.item,round(third+39),76+dy)
+            rail.coords(self.dashboard.engine_engine_label.item,round(third+58),76+dy)
             rail.coords(self.dashboard.engine_pack_label.item,
-                        round(third+176 if self.large_dpi else third+135),72)
-            rail.coords("status_icon",round(third*2+23),20,round(third*2+46),43)
-            rail.coords("status_title",round(third*2+58),31)
-            rail.coords(self.system_status.item,round(third*2+50),62)
-            rail.coords(self.game_status.item,round(third*2+50),82)
+                        round(third+176 if self.large_dpi else third+145),76+dy)
+            rail.coords("status_icon",round(third*2+29),20+dy,
+                        round(third*2+56),47+dy)
+            rail.coords("status_title",round(third*2+68),31+dy)
+            rail.coords(self.system_status.item,round(third*2+59),64+dy)
+            rail.coords(self.game_status.item,round(third*2+59),84+dy)
         rail.bind("<Configure>",layout,add="+")
 
     def _hide_tip(self):
@@ -421,6 +415,9 @@ class PremiumHome:
                          "Журнал доступний · переклад активний",
                          "Game log found · translation active")
         self.system_status.configure(text=status, fg=GREEN if enabled and log_available else AMBER if enabled else MUTED)
+        self.status_surface.itemconfigure("status_icon",
+            fill=GREEN if enabled and log_available else AMBER if enabled else MUTED,
+            outline="#608B64" if enabled and log_available else "#967046" if enabled else "#505B5D")
         if os.name=="nt":
             from app import find_cod2_window
             game_detected=bool(find_cod2_window())
