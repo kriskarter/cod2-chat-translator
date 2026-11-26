@@ -17,7 +17,7 @@ def _panorama():
         return art.convert("RGB")
 
 
-@lru_cache(maxsize=16)
+@lru_cache(maxsize=4)
 def compose_banner(width: int, height: int) -> Image.Image:
     """Preserve the full horizontal scene, tower roof and soldier's helmet.
 

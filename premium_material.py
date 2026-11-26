@@ -25,13 +25,19 @@ def _source_image(path: str) -> Image.Image:
 
 @lru_cache(maxsize=1)
 def _treated_panel():
-    source = ImageEnhance.Color(_source_image("assets/ui_premium/generic_panel.png")).enhance(.55)
+    from app import resource_path
+    with Image.open(resource_path("assets/ui_premium/generic_panel.png")) as image:
+        source = image.convert("RGBA")
+    source = ImageEnhance.Color(source).enhance(.55)
     return ImageEnhance.Brightness(source).enhance(.86)
 
 
 @lru_cache(maxsize=1)
 def _treated_steel():
-    return ImageEnhance.Brightness(_source_image("assets/ui_premium/steel_source.png")).enhance(.55)
+    from app import resource_path
+    with Image.open(resource_path("assets/ui_premium/steel_source.png")) as image:
+        source = image.convert("RGBA")
+    return ImageEnhance.Brightness(source).enhance(.55)
 
 
 @lru_cache(maxsize=1)
@@ -75,7 +81,7 @@ class SteelFrame(tk.Frame):
         self._underlay.tk.call("lower", self._underlay._w)
 
 
-@lru_cache(maxsize=8)
+@lru_cache(maxsize=4)
 def panel_image(width: int, height: int, scene: str = "") -> Image.Image:
     width, height = max(80, width), max(60, height)
     source = _treated_panel()
