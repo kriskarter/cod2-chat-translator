@@ -93,9 +93,10 @@ MetalPanel {
                                 RowLayout {
                                     Text { text: root.tr("Стили перевода"); color: "#f5e7c9"; Layout.fillWidth: true }
                                     LanguageSelector {
-                                        model: ["clear","live","raw"]
-                                        Component.onCompleted: currentIndex = find(prototype.preferences.style)
-                                        onActivated: prototype.setSlangStyle(currentText)
+                                        model: [{label:root.tr("Понятный"),code:"clear"},{label:root.tr("Живой"),code:"live"},{label:root.tr("Без цензуры"),code:"raw"}]
+                                        textRole:"label";valueRole:"code"
+                                        Component.onCompleted: currentIndex = indexOfValue(prototype.preferences.style)
+                                        onActivated: prototype.setSlangStyle(currentValue)
                                         Layout.preferredWidth: 120
                                     }
                                 }
@@ -114,7 +115,7 @@ MetalPanel {
                     RowLayout {
                         Layout.fillWidth: true
                         Text { text: prototype.settingsWritable ? root.tr("Настройки сохраняются в отдельном Qt-файле.") : root.tr("Изменения действуют в этой сессии. Существующие файлы настроек не изменяются."); color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                        AmberButton { text: root.tr("Сохранить настройки"); visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
+
                     }
                 }
             }
@@ -166,13 +167,19 @@ MetalPanel {
                     ColumnLayout {
                         id: entry
                         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 9
-                        Text { text: modelData.nickname + " · " + modelData.elapsed + " ms"; textFormat: Text.PlainText; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Text { text: (modelData.received || "—") + " · " + modelData.nickname + " · " + modelData.elapsed + " ms"; textFormat: Text.PlainText; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
                         Text { text: modelData.original; textFormat: Text.PlainText; color: "#bcb09a"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                         Text { text: modelData.translated || modelData.outcome; textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     }
                 }
                 Text { anchors.centerIn: parent; visible: history.count === 0; text: (prototype.uiLanguage, prototype.trText("Новые сообщения появятся здесь")); color: "#bcb09a" }
             }
+        }
+        RowLayout {
+            visible:root.page==="settings"&&prototype.settingsWritable
+            Layout.fillWidth:true
+            Item { Layout.fillWidth:true }
+            AmberButton {objectName:"save_settings";text:root.tr("Сохранить настройки");onClicked:prototype.saveSettings()}
         }
     }
 }

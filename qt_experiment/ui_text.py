@@ -18,6 +18,8 @@ LABELS = {
     "Новых стабильных версий нет": ("No newer stable release", "Нових стабільних версій немає"),
 }
 def translate(text, language):
+    if language == "ru" and text in ("online","offline","waiting","limited"):
+        return {"online":"Онлайн","offline":"Офлайн","waiting":"Ожидание","limited":"Ограничено"}[text]
     values = LABELS.get(text)
     return values[0 if language == "en" else 1] if values and language in ("en", "uk") else text
 
@@ -185,3 +187,52 @@ LABELS.update({
 "Неверный адрес, повтор или достигнут лимит": ("Invalid address, duplicate or limit reached", "Некоректна адреса, повтор або досягнуто ліміт"),
 "online": ("Online", "Онлайн"), "offline": ("Offline", "Офлайн"), "waiting": ("Waiting", "Очікування"), "limited": ("Limited", "Обмежено"),
 })
+
+LABELS.update({
+  "Движок готов": [
+    "Engine ready",
+    "Двигун готовий"
+  ],
+  "Требуется настройка": [
+    "Setup required",
+    "Потрібне налаштування"
+  ],
+  "Журнал подключён": [
+    "Log connected",
+    "Журнал підключено"
+  ],
+  "Журнал не выбран": [
+    "Log not selected",
+    "Журнал не вибрано"
+  ],
+  "Игра обнаружена": [
+    "Game detected",
+    "Гру знайдено"
+  ],
+  "Игра не обнаружена": [
+    "Game not detected",
+    "Гру не знайдено"
+  ],
+  "Ручной перевод": [
+    "Manual translation",
+    "Ручний переклад"
+  ],
+  "Никнейм": [
+    "Nickname",
+    "Нікнейм"
+  ],
+  "Счёт": [
+    "Score",
+    "Рахунок"
+  ],
+  "Нет данных об игроках": [
+    "No player data",
+    "Немає даних про гравців"
+  ],
+  "Добавьте сервер": [
+    "Add a server",
+    "Додайте сервер"
+  ]
+})
+
+LABELS.update({"Назад":("Back","Назад"),"Понятный":("Clear","Зрозумілий"),"Живой":("Natural","Живий"),"Без цензуры":("Uncensored","Без цензури"),"Профили пока не найдены. Автоматический поиск проверяет установленные игры и журналы. Можно указать путь вручную.":("No profiles found yet. Automatic search checks game installations and logs. You can enter a path manually.","Профілі поки не знайдено. Автоматичний пошук перевіряє встановлені ігри та журнали. Можна вказати шлях вручну."),"Неофициальная утилита. Copyright © 2026 kriskarter. Все права защищены.":("Unofficial utility. Copyright © 2026 kriskarter. All rights reserved.","Неофіційна утиліта. Copyright © 2026 kriskarter. Усі права захищено."),"Поддержка проекта":("Project support","Підтримка проєкту"),"Лицензия":("License","Ліцензія"),"Нет измерений. Включите локальный опыт и обновите статистику.":("No measurements. Enable local experience and refresh statistics.","Немає вимірювань. Увімкніть локальний досвід та оновіть статистику.")})

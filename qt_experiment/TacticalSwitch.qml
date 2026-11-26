@@ -6,7 +6,7 @@ Switch {
     indicator: Rectangle {
         width: 62; height: 24
         anchors.centerIn: parent; radius: 12
-        color: root.checked ? "#233a21" : "#222524"
+        gradient: Gradient { GradientStop {position:0;color:root.checked?"#384e2d":"#373a34"} GradientStop {position:1;color:root.checked?"#192b19":"#1a1d1b"} }
         border.color: root.checked ? "#749650" : "#625d51"
         opacity: root.enabled ? 1 : .5
         Text {
@@ -20,7 +20,7 @@ Switch {
             x: root.checked ? parent.width - width - 4 : 4
             anchors.verticalCenter: parent.verticalCenter
             width: 15; height: 15; radius: 8
-            color: root.checked ? "#b3da82" : "#9a978b"
+            gradient: Gradient { GradientStop {position:0;color:root.checked?"#d6eeaf":"#ccc7b7"} GradientStop {position:1;color:root.checked?"#7fa74d":"#77776a"} }
             border.color: root.checked ? "#d0eeb3" : "#b2ada0"
             Behavior on x { NumberAnimation { duration: 100 } }
         }

@@ -38,9 +38,12 @@ def load_window(app, state):
 
 
 def click(window, object_name):
+    QTest.qWait(80)  # allow QML layout polish after page/size change
     item = window.findChild(QQuickItem, object_name)
     assert item is not None, object_name
+    assert item.isVisible() and item.width() > 0 and item.height() > 0, object_name
     point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
+    assert 0 <= point.x() < window.width() and 0 <= point.y() < window.height(), (object_name, point)
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
                      QPoint(round(point.x()), round(point.y())))
 

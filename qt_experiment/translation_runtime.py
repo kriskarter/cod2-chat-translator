@@ -135,7 +135,7 @@ class TranslationState(LiveMonitorState):
         self._dispatcher = OutgoingTranslationDispatcher(
             self._translate_outgoing, on_worker_exit=self._transport.close_current_thread)
         self._timer = QTimer(self)
-        self._timer.setInterval(80)
+        self._timer.setInterval(80 if game_hotkeys else 120)
         self._timer.timeout.connect(self._drain)
         self._started = False
         self._game = None
@@ -588,6 +588,15 @@ class TranslationState(LiveMonitorState):
     @Property(bool, constant=True)
     def translationAvailable(self): return True
 
+    @Property(bool, notify=translationChanged)
+    def logReady(self): return bool(self._log_path and self._log_path.is_file())
+
+    @Property(bool, notify=translationChanged)
+    def engineReady(self): return self._started and not self.stop_event.is_set()
+
+    @Property(str, constant=True)
+    def appVersion(self): return APP_VERSION + " · Qt Preview"
+
     @Property(str, notify=translationChanged)
     def translationStatus(self): return self._translation_status
 
@@ -780,8 +789,9 @@ class TranslationState(LiveMonitorState):
                 # Keep history for the user; stale worker results are rejected.
                 continue
             if kind == "status":
-                self._translation_status = event[1]
-                changed = True
+                if self._translation_status != event[1]:
+                    self._translation_status = event[1]
+                    changed = True
                 continue
             if kind not in ("translation", "same_language", "translation_error", "translation_service_busy"):
                 continue
@@ -793,7 +803,7 @@ class TranslationState(LiveMonitorState):
             translated = event[2] if kind == "translation" else ""
             if kind == "translation":
                 self._hud.add(msg.nickname, msg.text, translated)
-            self._history.appendleft(dict(nickname=msg.nickname, original=msg.text,
+            self._history.appendleft(dict(nickname=msg.nickname, original=msg.text, received=time.strftime("%H:%M:%S"),
                                           translated=translated, outcome=kind,
                                           elapsed=event[3] if kind == "translation" else 0))
             self._translation_status = self.t("translation_done").format(elapsed_ms=event[3]) if kind == "translation" else self.t("translation_service_busy") if kind == "translation_service_busy" else self.t("translation_unavailable").format(error=event[2])

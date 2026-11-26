@@ -2,55 +2,39 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 ColumnLayout {
-    id: root
-    property var rows: []
-    property string selected: ""
-    signal chosen(string address)
-    spacing: 2
-    component Cells: RowLayout {
-        property var values
-        property bool header: false
-        property bool online: false
-        property bool favorite: false
-        spacing: 7
-        Image { source: "icons/favorite.svg"; opacity: favorite ? 1 : 0; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
-        Text { text: values[0]; Layout.fillWidth: true; Layout.minimumWidth: 55; color: header ? "#bcb09a" : "#f5e7c9"; elide: Text.ElideRight; font.pixelSize: header ? 11 : 13 }
-        Text { text: values[1]; Layout.preferredWidth: 86; color: header ? "#bcb09a" : "#f5e7c9"; elide: Text.ElideRight; font.pixelSize: 12 }
-        Text { text: values[2]; Layout.preferredWidth: 55; color: header ? "#bcb09a" : "#f5e7c9"; font.pixelSize: 12 }
-        Text { text: values[3]; Layout.preferredWidth: 53; color: header ? "#bcb09a" : "#add880"; font.pixelSize: 12 }
-        Text { text: values[4]; Layout.preferredWidth: 58; color: header ? "#bcb09a" : online ? "#a9d978" : "#bcb8ad"; font.pixelSize: 12 }
-    }
-    Item {
-        Layout.fillWidth: true; Layout.preferredHeight: 24
-        Cells { anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 21; header: true; values: [(prototype.uiLanguage, prototype.trText("Сервер")), (prototype.uiLanguage, prototype.trText("Карта")), (prototype.uiLanguage, prototype.trText("Игроки")), (prototype.uiLanguage, prototype.trText("Пинг")), (prototype.uiLanguage, prototype.trText("Статус"))] }
-    }
-    ListView {
-        id: table
-        Layout.fillWidth: true; Layout.fillHeight: true
-        clip: true; spacing: 2
-        model: root.rows
-        ScrollBar.vertical: MetalScrollBar {}
-        delegate: Item {
-            id: line
-            required property var modelData
-            width: table.width - 12; height: 33
-            BorderImage {
-                anchors.fill: parent
-                source: root.selected === line.modelData.address ? "../assets/ui_wwii/premium_selection.png" : "../assets/ui_wwii/premium_selection_clear.png"
-                border { left: 10; right: 10; top: 8; bottom: 8 }
-            }
-            Rectangle {
-                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-                anchors.margins: 3; width: 3; radius: 1
-                color: "#e5b875"; visible: root.selected === line.modelData.address
-            }
-            Cells {
-                anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 9
-                values: [line.modelData.name, line.modelData.map, line.modelData.population, line.modelData.ping, (prototype.uiLanguage, prototype.trText(line.modelData.state))]
-                favorite: !!line.modelData.favorite
-                online: line.modelData.state === "online"
-            }
-            TapHandler { onTapped: root.chosen(line.modelData.address) }
-        }
-    }
+ id:root
+ property var rows:[]
+ property string selected:""
+ signal chosen(string address)
+ spacing:2
+ component Cells:RowLayout {
+  property var values
+  property bool header:false
+  property bool online:false
+  property bool favorite:false
+  spacing:5
+  Image {source:"icons/star.svg";opacity:favorite?1:0;Layout.preferredWidth:15;Layout.preferredHeight:15}
+  Text {text:values[0];Layout.fillWidth:true;Layout.minimumWidth:35;color:header?"#bcb09a":"#f5e7c9";elide:Text.ElideRight;font.pixelSize:header?11:13;font.bold:!header}
+  Text {text:values[1];Layout.preferredWidth:Math.min(86,root.width*.15);color:"#d4ccba";elide:Text.ElideRight;font.pixelSize:12}
+  Text {text:values[2];Layout.preferredWidth:45;color:"#d4ccba";font.pixelSize:12;horizontalAlignment:Text.AlignHCenter}
+  Text {text:values[3];Layout.preferredWidth:51;color:header?"#bcb09a":parseInt(values[3])>0&&parseInt(values[3])<70?"#add880":parseInt(values[3])>=160?"#de8b73":"#d5c5a9";font.pixelSize:12;horizontalAlignment:Text.AlignHCenter}
+  Rectangle {opacity:header?0:1;width:7;height:7;radius:4;color:online?"#a9d978":"#888b83"}
+  Text {text:values[4];Layout.preferredWidth:Math.min(80,root.width*.16);color:header?"#bcb09a":online?"#a9d978":"#bcb8ad";font.pixelSize:12;elide:Text.ElideRight}
+ }
+ Item {Layout.fillWidth:true;Layout.preferredHeight:22;Cells {anchors.fill:parent;anchors.leftMargin:7;anchors.rightMargin:16;header:true;values:[(prototype.uiLanguage,prototype.trText("Сервер")),(prototype.uiLanguage,prototype.trText("Карта")),(prototype.uiLanguage,prototype.trText("Игроки")),(prototype.uiLanguage,prototype.trText("Пинг")),(prototype.uiLanguage,prototype.trText("Статус"))]}}
+ ListView {
+  id:table;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:2;model:root.rows
+  ScrollBar.vertical:MetalScrollBar {}
+  delegate:Rectangle {
+   id:line;required property var modelData;required property int index
+   width:Math.max(0,table.width-9);height:28;radius:4
+   color:root.selected===modelData.address?"#56452a":index%2?"#202421":"#252923"
+   border.color:root.selected===modelData.address?"#c49a58":"transparent"
+   Cells {anchors.fill:parent;anchors.leftMargin:7;anchors.rightMargin:7;values:[line.modelData.name,line.modelData.map,line.modelData.population,line.modelData.ping,(prototype.uiLanguage,prototype.trText(line.modelData.state))];favorite:!!line.modelData.favorite;online:line.modelData.state==="online"}
+   TapHandler {onTapped:root.chosen(line.modelData.address)}
+   HoverHandler {id:hover}
+   ToolTip.visible:hover.hovered;ToolTip.text:line.modelData.name+" · "+line.modelData.address
+  }
+  Text {anchors.centerIn:parent;visible:table.count===0;text:(prototype.uiLanguage,prototype.trText("Добавьте сервер"));color:"#bcb09a"}
+ }
 }

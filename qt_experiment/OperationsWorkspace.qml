@@ -5,6 +5,7 @@ import QtQuick.Dialogs
 MetalPanel {
     id: root
     property string page: "profiles"
+    signal back()
     property string uiLocale: prototype.uiLanguage
     function tr(s) { let l = uiLocale; return prototype.trText(s) }
     FileDialog {
@@ -36,7 +37,10 @@ MetalPanel {
     }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 24; spacing: 10
-        Text { text: root.tr(({profiles:"Профили",knowledge:"База знаний",notifications:"Уведомления",about:"О программе",stats:"Статистика",overlay:"Настройки оверлея"})[root.page] || (prototype.uiLanguage, prototype.trText("О программе"))); font.pixelSize: 23; font.bold: true; color: "#f5e7c9" }
+        RowLayout { Layout.fillWidth:true
+        MetalButton { text:root.tr("Назад");visible:root.page!=="about";onClicked:root.back() }
+        Text { Layout.fillWidth:true; text: root.tr(({profiles:"Профили",knowledge:"База знаний",notifications:"Уведомления",about:"О программе",stats:"Статистика",overlay:"Настройки оверлея"})[root.page] || (prototype.uiLanguage, prototype.trText("О программе"))); font.pixelSize: 23; font.bold: true; color: "#f5e7c9" }
+        }
         Rectangle { Layout.fillWidth: true; height: 1; color: "#786342" }
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
@@ -52,6 +56,7 @@ MetalPanel {
                     id: profiles
                     Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 6
                     model: prototype.profiles
+                    Text {anchors.centerIn:parent;width:parent.width*.78;text:root.tr("Профили пока не найдены. Автоматический поиск проверяет установленные игры и журналы. Можно указать путь вручную.");wrapMode:Text.WordWrap;horizontalAlignment:Text.AlignHCenter;color:"#bdb4a2";visible:profiles.count===0}
                     ScrollBar.vertical: MetalScrollBar {}
                     delegate: Rectangle {
                         required property var modelData
@@ -66,7 +71,7 @@ MetalPanel {
                                 Text { text: modelData.path; textFormat: Text.PlainText; elide: Text.ElideMiddle; Layout.fillWidth: true; color: "#b7ad9b"; font.pixelSize: 11 }
                             }
                             MetalButton { text: root.tr("Переименовать"); onClicked: prototype.renameProfile(modelData.path, profileName.text) }
-                            AmberButton { text: root.tr("Выбрать"); onClicked: prototype.setLogPath(modelData.path) }
+                            AmberButton { text: root.tr(prototype.logPath===modelData.path?"Активен":"Выбрать"); onClicked: prototype.setLogPath(modelData.path) }
                         }
                     }
                 }
@@ -76,7 +81,13 @@ MetalPanel {
                     AmberButton { text: root.tr("Сохранить настройки"); visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
                 }
             }
-            ColumnLayout {
+            Flickable {
+                id: knowledgeScroll
+                clip:true;contentWidth:width;contentHeight:knowledgeScrollContent.implicitHeight+8
+                boundsBehavior:Flickable.StopAtBounds
+                ScrollBar.vertical:MetalScrollBar { parent:knowledgeScroll;anchors.right:knowledgeScroll.right;anchors.top:knowledgeScroll.top;anchors.bottom:knowledgeScroll.bottom }
+                ColumnLayout {
+                    id: knowledgeScrollContent; width:knowledgeScroll.width-12
                 RowLayout {
                     Text { text: root.tr("Локальный словарь"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.knowledgeEnabled; onClicked: prototype.setKnowledgeEnabled(checked) }
@@ -98,7 +109,8 @@ MetalPanel {
                     MetalButton { text: root.tr("Экспорт ZIP"); enabled: prototype.experienceAvailable; onClicked: exportDialog.open() }
                     MetalButton { text: root.tr("Очистить опыт"); enabled: prototype.experienceAvailable; onClicked: clearDialog.open() }
                 }
-                Item { Layout.fillHeight: true }
+
+            }
             }
             ColumnLayout {
                 RowLayout {
@@ -117,20 +129,41 @@ MetalPanel {
                     Text { anchors.centerIn: parent; visible: notices.count === 0; text: root.tr("Новых уведомлений нет"); color: "#b7ad9b" }
                 }
             }
-            ColumnLayout {
-                Text { text: "CoD2 Chat Translator · Qt Preview"; color: "#f5e7c9"; font.pixelSize: 20; font.bold: true }
+            Flickable {
+                id: aboutScroll
+                clip:true;contentWidth:width;contentHeight:aboutScrollContent.implicitHeight+8
+                boundsBehavior:Flickable.StopAtBounds
+                ScrollBar.vertical:MetalScrollBar { parent:aboutScroll;anchors.right:aboutScroll.right;anchors.top:aboutScroll.top;anchors.bottom:aboutScroll.bottom }
+                ColumnLayout {
+                    id: aboutScrollContent; width:aboutScroll.width-12
+                RowLayout {
+                    Layout.fillWidth:true;spacing:22
+                    Image {source:"command_logo.png";Layout.preferredWidth:230;Layout.preferredHeight:100;fillMode:Image.PreserveAspectFit}
+                    ColumnLayout {Layout.fillWidth:true
+                        Text {text:"CoD2 Chat Translator";color:"#f5e7c9";font.pixelSize:22;font.bold:true}
+                        Text {text:prototype.appVersion+" · kriskarter";color:"#d7b77d";font.pixelSize:15}
+                        Text {text:root.tr("Неофициальная утилита. Copyright © 2026 kriskarter. Все права защищены.");wrapMode:Text.WordWrap;Layout.fillWidth:true;color:"#bcb09a"}
+                        RowLayout {
+                            MetalButton {text:"GitHub";onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator")}
+                            MetalButton {text:root.tr("Поддержка проекта");onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator/issues")}
+                            MetalButton {text:root.tr("Лицензия");onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator/blob/main/COPYRIGHT.md")}
+                        }
+                    }
+                }
                 Text { text: root.tr("Изолированная тестовая версия. Стабильная установка не изменяется."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Text { text: root.tr("Обновления"); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
                 MetalButton { text: root.tr("Проверить обновления"); enabled: !prototype.maintenanceBusy; onClicked: prototype.checkUpdates() }
                 AmberButton { text: root.tr("Открыть страницу обновления"); visible: prototype.updateAvailable; onClicked: prototype.openUpdate() }
                 Text { text: prototype.updateMessage; color: "#e6d5b8"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Text { text: root.tr("Стабильный пакет не устанавливается поверх Qt Preview."); color: "#b7ad9b"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                Item { Layout.fillHeight: true }
+
+            }
             }
             ColumnLayout {
                 MetalButton { text: root.tr("Обновить статистику"); enabled: prototype.experienceAvailable; onClicked: prototype.refreshStats() }
                 ListView {
                     id: statsList; Layout.fillWidth: true; Layout.fillHeight: true; model: prototype.experienceStats; clip: true
+                    Text {anchors.centerIn:parent;visible:statsList.count===0;text:root.tr("Нет измерений. Включите локальный опыт и обновите статистику.");color:"#bcb09a";wrapMode:Text.WordWrap;width:parent.width*.8;horizontalAlignment:Text.AlignHCenter}
                     delegate: Rectangle {
                         required property var modelData
                         width: statsList.width; height: 40; color: "#232725"; radius: 4
@@ -155,6 +188,13 @@ MetalPanel {
                         MetalButton { text: root.tr("Тест оверлея"); enabled: prototype.overlayAvailable; onClicked: prototype.testHud() }
                         MetalButton { text: root.tr("Очистить"); onClicked: prototype.clearHud() }
                     }
+                    Rectangle {
+                        Layout.fillWidth:true;Layout.preferredHeight:72;radius:6;color:"#151b19";border.color:"#686b59"
+                        Image {anchors.fill:parent;source:"../assets/ui_premium/translation_card_source.jpg";fillMode:Image.PreserveAspectCrop;opacity:.42;clip:true}
+                        Rectangle {anchors.centerIn:parent;width:Math.min(parent.width-24,prototype.preferences.width);height:48;color:Qt.rgba(0,0,0,prototype.preferences.opacity);radius:4
+                            Text {anchors.centerIn:parent;text:"TEST · "+root.tr("Тест оверлея");color:"#f0e7d4";font.pixelSize:prototype.preferences.font+3}
+                        }
+                    }
                     GridLayout {
                         columns: 3; Layout.fillWidth: true
                         MetalButton { text: root.tr("Только текст"); Layout.fillWidth: true; onClicked: prototype.applyHudPreset("text") }
@@ -169,7 +209,7 @@ MetalPanel {
                                 required property var modelData
                                 Layout.fillWidth: true
                                 Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.preferredWidth: 145; elide: Text.ElideRight }
-                                Slider { from: modelData.lo; to: modelData.hi; stepSize: modelData.step; value: prototype.preferences[modelData.k]; Layout.fillWidth: true; onMoved: prototype.setHudValue(modelData.k,value) }
+                                MetalSlider { from: modelData.lo; to: modelData.hi; stepSize: modelData.step; value: prototype.preferences[modelData.k]; Layout.fillWidth: true; onMoved: prototype.setHudValue(modelData.k,value) }
                                 Text { text: modelData.k === "opacity" ? Math.round(prototype.preferences.opacity*100)+"%" : Math.round(prototype.preferences[modelData.k]); color: "#e4c291"; Layout.preferredWidth: 42 }
                             }
                         }
@@ -196,6 +236,7 @@ MetalPanel {
                 }
             }
         }
+        RowLayout {visible:["overlay","knowledge","notifications"].indexOf(root.page)>=0&&prototype.settingsWritable;Layout.fillWidth:true;Item {Layout.fillWidth:true} AmberButton {text:root.tr("Сохранить настройки");onClicked:prototype.saveSettings()} }
         Text { text: prototype.translationStatus; color: "#d4a75e"; elide: Text.ElideRight; Layout.fillWidth: true }
     }
 }

@@ -32,6 +32,7 @@ def wait(app, predicate, seconds=5):
 
 
 def click(window, name):
+    QTest.qWait(80)
     def find(item):
         if item.objectName() == name:
             return item
@@ -42,7 +43,9 @@ def click(window, name):
         return None
     item = find(window.contentItem())
     assert item is not None, name
+    assert item.isVisible() and item.width()>0 and item.height()>0, name
     point = item.mapToScene(QPointF(item.width()/2, item.height()/2))
+    assert 0 <= point.x() < window.width() and 0 <= point.y() < window.height(), (name,point)
     QTest.mouseClick(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
                      QPoint(round(point.x()), round(point.y())))
 

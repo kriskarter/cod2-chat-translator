@@ -8,6 +8,7 @@ MetalPanel {
     property string selectedAddress: prototype.selected
     property var record: prototype.serverRecords.find(r => r.address === selectedAddress)
     property string editingAddress: ""
+    property var selectedRow: prototype.rows.find(r=>r.address===selectedAddress)
     function loadEditor() {
         editingAddress = selectedAddress
         labelInput.text = record ? record.label : ""
@@ -26,16 +27,16 @@ MetalPanel {
         onAccepted: prototype.removeServer(address)
     }
     RowLayout {
-        anchors.fill: parent; anchors.margins: 26; spacing: 16
+        anchors.fill: parent; anchors.margins: 16; spacing: 12
         ColumnLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 390
+            Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 360
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Серверы CoD2")); font.bold: true; font.pixelSize: 22; color: "#fff0d1"; Layout.fillWidth: true }
                 FriendIndicator { count: prototype.friendCount }
             }
             Text { text: prototype.status; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
-            ServerTable { rows: prototype.rows; selected: prototype.selected; onChosen: address => prototype.select(address); Layout.fillWidth: true; Layout.fillHeight: true }
-            PlayerRoster { players: prototype.players; Layout.fillWidth: true; Layout.fillHeight: true }
+            ServerTable { rows: prototype.rows; selected: prototype.selected; onChosen: address => prototype.select(address); Layout.fillWidth: true; Layout.preferredHeight: Math.min(140, 30 + 30*Math.max(1,prototype.rows.length)) }
+            PlayerRoster { population:prototype.selectedPopulation; players: prototype.players; Layout.fillWidth: true; Layout.fillHeight: true }
             RowLayout {
                 MetalButton { text: (prototype.uiLanguage, prototype.trText("Добавить")); glyph: "icons/add.svg"; Layout.fillWidth: true; onClicked: root.addRequested() }
                 MetalButton { text: (prototype.uiLanguage, prototype.trText("Обновить")); glyph: "icons/refresh.svg"; Layout.fillWidth: true; onClicked: prototype.request("refresh") }
@@ -46,6 +47,12 @@ MetalPanel {
             Layout.preferredWidth: Math.min(330, root.width * .35); Layout.fillHeight: true; spacing: 8
             Text { text: (prototype.uiLanguage, prototype.trText("Настройки сервера")); color: "#f5e7c9"; font.pixelSize: 17; font.bold: true }
             Text { text: root.selectedAddress || (prototype.uiLanguage, prototype.trText("Выберите сервер")); color: "#bcb09a"; Layout.fillWidth: true; elide: Text.ElideRight }
+            Rectangle { visible:!!root.selectedRow;Layout.fillWidth:true;Layout.preferredHeight:66;radius:5;color:"#202621";border.color:"#675a44"
+                ColumnLayout { anchors.fill:parent;anchors.margins:7
+                    Text {text:root.selectedRow?root.selectedRow.name:"";textFormat:Text.PlainText;elide:Text.ElideRight;Layout.fillWidth:true;font.bold:true;color:"#e9d5ae"}
+                    Text {text:root.selectedRow?root.selectedRow.map+" · "+root.selectedRow.population+" · "+root.selectedRow.ping:"";color:"#bcb09a";elide:Text.ElideRight;Layout.fillWidth:true}
+                }
+            }
             MetalTextField { id: labelInput; enabled: !!root.record; placeholderText: (prototype.uiLanguage, prototype.trText("Название сервера")); Layout.fillWidth: true }
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Избранный сервер")); color: "#f5e7c9"; Layout.fillWidth: true }

@@ -26,6 +26,7 @@ ApplicationWindow {
     palette.highlightedText: "#fff1cd"
     MetalDialog {
         id: addDialog
+        objectName:"add_server_dialog"
         anchors.centerIn: parent
         title: (prototype.uiLanguage, prototype.trText("Добавить сервер"))
         standardButtons: Dialog.NoButton
@@ -51,13 +52,13 @@ ApplicationWindow {
         spacing: 0
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(window.width / 7.4, window.height * (window.shortWindow ? .19 : .26))
+            Layout.preferredHeight: window.activePage !== "home" ? Math.min(94, window.height * .16) : Math.min(window.width / 6.9, window.height * (window.shortWindow ? .20 : .25))
             clip: true
             Rectangle { anchors.fill: parent; color: "#25251e" }
             Image {
                 anchors.fill: parent
                 source: "../assets/ui_premium/command_panorama.jpg"
-                fillMode: Image.PreserveAspectFit
+                fillMode: Image.PreserveAspectCrop
             }
             Image {
                 anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
@@ -66,7 +67,13 @@ ApplicationWindow {
                 source: "command_logo.png"
                 fillMode: Image.PreserveAspectFit
             }
-            Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 8; text: "Intelligent Gaming Companion"; font.pixelSize: window.compact ? 10 : 14; font.letterSpacing: 3; font.italic: true; color: "#ead7ad" }
+            Row {
+                visible:window.activePage==="home"; anchors.horizontalCenter: parent.horizontalCenter; y: parent.height * .19
+                spacing: Math.min(parent.width*.26,parent.height*1.7)
+                Repeater { model: 2; Image { source:"icons/star.svg"; width:Math.max(16,Math.min(30,window.height*.035)); height:width } }
+            }
+            Rectangle { anchors.horizontalCenter: parent.horizontalCenter; y:parent.height*.80; width:Math.min(parent.width*.38, parent.height*3.0); height:1; color:"#d0a45d" }
+            Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: window.activePage === "home" ? 7 : 3; text: "Intelligent Gaming Companion"; font.pixelSize: window.compact || window.activePage !== "home" ? 10 : 14; font.letterSpacing: 3; font.italic: true; color: "#ead7ad" }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#a27c49" }
         }
         Rectangle {
@@ -110,19 +117,14 @@ ApplicationWindow {
                 spacing: 10
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F8"; heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
+                    keyName: "F8"; live: prototype.translationAvailable; heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
                     active: prototype.f8; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "../assets/ui_premium/translation_card_source.jpg"
                     onToggled: prototype.toggle("f8")
                 }
-                MetalButton {
-                    objectName: "manual_outgoing"
-                    visible: prototype.translationAvailable; Layout.fillWidth: true
-                    text: (prototype.uiLanguage, prototype.trText("Открыть ручной перевод")); onClicked: { window.activePage = "outgoing"; window.navIndex = -1 }
-                }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
+                    keyName: "F9"; live: prototype.translationAvailable; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
                     active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "../assets/ui_premium/tank_card.png"
                     onToggled: prototype.toggle("f9")
@@ -135,25 +137,28 @@ ApplicationWindow {
                 ColumnLayout {
                     anchors.fill: parent; anchors.leftMargin: window.shortWindow ? 10 : 18; anchors.rightMargin: anchors.leftMargin; anchors.topMargin: window.shortWindow ? 9 : 18; anchors.bottomMargin: anchors.topMargin; spacing: window.shortWindow ? 3 : 7
                     RowLayout {
+                        Image { source:"icons/antenna.svg"; Layout.preferredWidth:32; Layout.preferredHeight:32 }
                         Text { text: (prototype.uiLanguage, prototype.trText("Мониторинг серверов")); color: ink; font.pixelSize: window.compact ? 17 : 21; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
                         FriendIndicator { count: prototype.friendCount }
                     }
                     ServerTable {
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        Layout.minimumHeight: window.shortWindow ? 48 : 82
+                        Layout.fillWidth: true; Layout.fillHeight: false
+                        Layout.preferredHeight: Math.min(30 + Math.max(1, prototype.rows.length)*30, window.shortWindow ? 80 : 135)
+                        Layout.minimumHeight: 48
                         rows: prototype.rows; selected: prototype.selected
                         onChosen: address => prototype.select(address)
                     }
                     PlayerRoster {
+                        objectName:"home_roster"; population: prototype.selectedPopulation
                         Layout.fillWidth: true; Layout.fillHeight: true
                         Layout.minimumHeight: window.shortWindow ? 45 : 70
                         players: prototype.players
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        MetalButton { text: (prototype.uiLanguage, prototype.trText("Добавить сервер")); glyph: "icons/add.svg"; Layout.fillWidth: true; onClicked: { if (prototype.demo) prototype.request("add_server"); else addDialog.open() } }
+                        MetalButton { objectName:"add_server_button"; text: (prototype.uiLanguage, prototype.trText("Добавить сервер")); glyph: "icons/add.svg"; Layout.fillWidth: true; onClicked: { if (prototype.demo) prototype.request("add_server"); else addDialog.open() } }
                         MetalButton { text: (prototype.uiLanguage, prototype.trText("Обновить")); glyph: "icons/refresh.svg"; Layout.fillWidth: true; onClicked: prototype.request("refresh") }
-                        AmberButton { text: (prototype.uiLanguage, prototype.trText("Подключиться")); glyph: "icons/connect.svg"; Layout.fillWidth: true; enabled: prototype.canConnect; onClicked: prototype.request("connect") }
+                        AmberButton { objectName:"connect_button"; text: (prototype.uiLanguage, prototype.trText("Подключиться")); glyph: "icons/connect.svg"; Layout.fillWidth: true; enabled: prototype.canConnect; onClicked: prototype.request("connect") }
                     }
                 }
             }
@@ -165,18 +170,18 @@ ApplicationWindow {
             sourceComponent: window.activePage === "servers" ? serverPage : ["profiles","knowledge","notifications","about","stats","overlay"].indexOf(window.activePage) >= 0 ? operationsPage : translationPage
             Component { id: serverPage; ServerWorkspace { onAddRequested: addDialog.open() } }
             Component { id: translationPage; TranslationWorkspace { page: window.activePage; onNavigate: page => window.activePage = page } }
-            Component { id: operationsPage; OperationsWorkspace { page: window.activePage } }
+            Component { id: operationsPage; OperationsWorkspace { page: window.activePage; onBack:window.activePage="settings" } }
         }
         MetalPanel {
-            Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 50 : 66; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
+            Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 52 : 78; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
             Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.bottomMargin: 8
             RowLayout {
                 anchors.fill: parent; anchors.margins: window.shortWindow ? 8 : 14; spacing: 10
-                OverlayControl { Layout.fillWidth: true; active: prototype.overlay; controlsEnabled: prototype.demo || prototype.overlayAvailable; onToggled: prototype.toggle("overlay") }
+                OverlayControl { Layout.fillWidth: true; onConfigure: window.activePage = "overlay"; active: prototype.overlay; controlsEnabled: prototype.demo || prototype.overlayAvailable; onToggled: prototype.toggle("overlay") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
                 SmartEngineControl { Layout.fillWidth: true; active: prototype.smart; controlsEnabled: prototype.demo || prototype.translationAvailable; onToggled: prototype.toggle("smart") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
-                SystemStatusPanel { Layout.fillWidth: true; statusText: prototype.translationAvailable ? prototype.translationStatus : prototype.status; ready: !prototype.demo && prototype.translationAvailable && prototype.gameHotkeysReady }
+                SystemStatusPanel { Layout.fillWidth: true; statusText: prototype.translationAvailable ? prototype.translationStatus : prototype.status; ready: !prototype.demo && prototype.translationAvailable && prototype.engineReady && prototype.logReady; onConfigure: window.activePage = "settings" }
             }
         }
     }

@@ -12,6 +12,9 @@ from .common import PrototypeState, preview_state
 
 def main():
     app = QGuiApplication(sys.argv)
+    from PySide6.QtGui import QIcon
+    from .common import ROOT
+    app.setWindowIcon(QIcon(str(ROOT / "assets" / "app.ico")))
     if '--live-translation' in sys.argv:
         from .translation_runtime import TranslationState, read_translation_config
         config = Path(sys.argv[sys.argv.index('--config') + 1]) if '--config' in sys.argv else None
@@ -70,6 +73,23 @@ def main():
         return 1
     if not state.demo and state.translationAvailable and "--screenshot" not in sys.argv:
         state.attach_window(engine.rootObjects()[0])
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes import wintypes
+                fn = ctypes.windll.dwmapi.DwmSetWindowAttribute
+                fn.argtypes = [wintypes.HWND,wintypes.DWORD,ctypes.c_void_p,wintypes.DWORD]
+                fn.restype = ctypes.c_long
+                dark = ctypes.c_int(1)
+                hwnd = int(engine.rootObjects()[0].winId())
+                if fn(hwnd,20,ctypes.byref(dark),ctypes.sizeof(dark)) != 0:
+                    fn(hwnd,19,ctypes.byref(dark),ctypes.sizeof(dark))
+            except (OSError,AttributeError):
+                pass
+    if "--size" not in sys.argv and "--screenshot" not in sys.argv:
+        window = engine.rootObjects()[0]
+        area = app.primaryScreen().availableGeometry()
+        window.resize(min(1536,max(840,area.width()-24)),min(864,max(460,area.height()-48)))
     if '--size' in sys.argv:
         width, height = map(int, sys.argv[sys.argv.index('--size') + 1].split('x'))
         engine.rootObjects()[0].resize(width, height)

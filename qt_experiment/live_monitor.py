@@ -45,6 +45,9 @@ class LiveMonitorState(PrototypeState):
         self.snapshot_received.connect(self._apply_snapshot, Qt.ConnectionType.QueuedConnection)
         self.action.connect(self._dispatch)
 
+    def _is_friend(self, name):
+        return normalized_name(name) in {normalized_name(f) for f in self._settings["friends"]}
+
     def _is_favorite(self, address):
         return any(s.address == address and s.favorite for s in self._settings["servers"])
 
@@ -134,10 +137,11 @@ class LiveMonitorState(PrototypeState):
         if server is None:
             return
         self.update_snapshot(replace(snapshot, name=snapshot.name or server.label))
+        old_count, old_status = self._friend_count, self._status
         self._count_friends()
         count = sum(row.state == "online" for row in self._rows.values())
-        self._status = f"UDP: {count} из {len(self._rows)} онлайн"
-        self.changed.emit()
+        self._status = f"UDP: {count}/{len(self._rows)} " + self.trText("online")
+        if old_count != self._friend_count or old_status != self._status: self.changed.emit()
 
     @Slot(str)
     def _dispatch(self, name):

@@ -7,8 +7,7 @@ Dialog {
     padding: 20
     palette.windowText: "#f5e7c9"
     palette.text: "#f5e7c9"
-    background: BorderImage {
-        source: "command_frame.png"
-        border { left: 18; right: 18; top: 18; bottom: 18 }
-    }
+    background: Rectangle { radius:8; color:"#242824"; border.color:"#a18a65" }
+    palette.button: "#343730"
+    palette.buttonText:"#f5e7c9"
 }

@@ -16,7 +16,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 # Use the portable Qt base style before loading any QML Controls.
 QQuickStyle.setStyle("Basic")
 
-from server_monitor import Snapshot, color_runs, plain_name
+from server_monitor import Snapshot, color_runs, plain_name, player_ping_quality, normalized_name
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets" / "ui_wwii"
@@ -39,7 +39,7 @@ def row_from_snapshot(snapshot: Snapshot) -> MonitorRow:
         snapshot.address, snapshot.name or snapshot.address,
         snapshot.map_name or "—",
         f"{snapshot.clients}/{snapshot.max_clients}" if snapshot.clients is not None and snapshot.max_clients is not None else "—",
-        f"{snapshot.ping_ms} ms" if snapshot.ping_ms is not None else "—",
+        f"{snapshot.ping_ms} ms" if snapshot.ping_ms is not None and snapshot.ping_ms > 0 else "—",
         snapshot.state,
         tuple((p.raw_name, p.score, p.ping) for p in snapshot.players),
     )
@@ -67,7 +67,9 @@ class PrototypeState(QObject):
     def uiLanguage(self): return "ru"
 
     @Slot(str, result=str)
-    def trText(self, text): return text
+    def trText(self, text):
+        from .ui_text import translate
+        return translate(text,self.uiLanguage)
 
     @Property(bool, constant=True)
     def serverManagementAvailable(self): return False
@@ -110,6 +112,11 @@ class PrototypeState(QObject):
     def smart(self): return self._smart
 
     @Property(str, notify=changed)
+    def selectedPopulation(self):
+        row = self._rows.get(self._selected)
+        return row.population if row else "—"
+
+    @Property(str, notify=changed)
     def selected(self): return self._selected
 
     def _is_favorite(self, address):
@@ -121,13 +128,15 @@ class PrototypeState(QObject):
                      population=r.population, ping=r.ping, state=r.state, favorite=self._is_favorite(r.address))
                 for r in self._rows.values()]
 
+    def _is_friend(self, name): return False
+
     @Property('QVariantList', notify=changed)
     def players(self):
         row = self._rows.get(self._selected)
         return [dict(name=plain_name(name), rawName=name,
                      richName=''.join(f'<span style="color:{color}">{escape(part)}</span>' for part, color in color_runs(name)),
                      score=score if score is not None else '—',
-                     ping=ping if ping is not None else '—')
+                     ping=ping if ping is not None and ping > 0 else '—', pingQuality=player_ping_quality(ping), favorite=self._is_friend(name))
                 for name, score, ping in (row.players if row else ())]
 
     def update_snapshot(self, snapshot: Snapshot):
