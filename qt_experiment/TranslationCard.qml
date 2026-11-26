@@ -12,11 +12,11 @@ MetalPanel {
     signal toggled()
     clip: true
     Image {
-        anchors.fill: parent; anchors.margins: 18
-        source: root.artwork; fillMode: Image.PreserveAspectCrop; opacity: .57
+        anchors.fill: parent; anchors.margins: 8
+        source: root.artwork; fillMode: Image.PreserveAspectCrop; opacity: .72
     }
     Rectangle {
-        anchors.fill: parent; anchors.margins: 18
+        anchors.fill: parent; anchors.margins: 8
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0; color: "#bb171a1b" }
@@ -25,23 +25,23 @@ MetalPanel {
         }
     }
     RowLayout {
-        anchors.fill: parent; anchors.margins: root.compact ? 17 : 25
+        anchors.fill: parent; anchors.margins: root.compact ? 13 : 18
         spacing: root.compact ? 9 : 17
         KeycapButton {
             objectName: root.keyName.toLowerCase() + "Key"
             text: root.keyName; active: root.active; enabled: root.controlsEnabled
-            Layout.preferredWidth: root.compact ? 78 : 108
+            Layout.preferredWidth: root.compact ? 80 : 114
             Layout.preferredHeight: width
             onClicked: root.toggled()
         }
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
             Item { Layout.fillHeight: true }
-            Text { text: root.heading; color: "#fff0d1"; font.pixelSize: root.compact ? 14 : 21; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { text: root.heading; color: "#fff0d1"; font.pixelSize: root.compact ? 15 : 22; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
             Text { text: root.description; color: "#e8d4b3"; font.pixelSize: root.compact ? 11 : 13; elide: Text.ElideRight; Layout.fillWidth: true }
             RowLayout {
                 Rectangle { width: 8; height: 8; radius: 4; color: root.active ? "#b0db84" : "#847c6d" }
-                Text { text: !root.controlsEnabled ? "Не перенесён" : root.active ? "Активен" : "Выключен"; color: root.active ? "#b0db84" : "#bcb09a"; font.pixelSize: 12 }
+                Text { text: !root.controlsEnabled ? (prototype.uiLanguage, prototype.trText("Не перенесён")) : root.active ? (prototype.uiLanguage, prototype.trText("Активен")) : (prototype.uiLanguage, prototype.trText("Выключен")); color: root.active ? "#b0db84" : "#bcb09a"; font.pixelSize: 12 }
             }
             Item { Layout.fillHeight: true }
         }

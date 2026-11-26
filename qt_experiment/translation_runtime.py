@@ -16,10 +16,12 @@ from PySide6.QtCore import QTimer, Signal, Slot, Property
 from app import (ControlApp, DEFAULT_CONFIG, UI_STRINGS, TARGET_LANGUAGES,
                  SLANG_STYLES, LogTailer, TranslatorWorker,
                  TranslationWorkerSharedState, RecentDuplicateFilter,
-                 deep_merge, gaming_slang_transform)
+                 deep_merge, gaming_slang_transform, merge_server_profiles,
+                 discover_cod2_logs, choose_active_log_from_activity, activity_snapshot, APP_VERSION, _path_key)
 from outgoing_chat import (OutgoingTranslationDispatcher, OutgoingHttpTransport,
                            translate_outgoing_text)
 import knowledge_v2
+import translation_memory
 from .live_monitor import LiveMonitorState
 from .common import ROOT
 from .native_hud import NativeHud
@@ -46,7 +48,22 @@ class TranslationState(LiveMonitorState):
         super().__init__(load_settings(config.get("server_monitor")), game_exe)
         self._config = config
         self._store = settings_store
+        self._profiles = merge_server_profiles(config.get("server_profiles"), [])
+        self._auto_profile = bool(config.get("auto_detect_profile", True))
+        self._profile_activity = {}
+        self._pending_switch_positions = {}
+        self._notifications = deque(maxlen=80)
+        self._friend_presence = {}
+        self._friend_notice_at = {}
+        self._maintenance_busy = False
+        self._update_message = ""
+        self._update_url = ""
+        self._knowledge_writable = installed_knowledge is not None and Path(installed_knowledge).resolve() != (ROOT / "assets" / "knowledge_v2.json").resolve()
+        self._profile_timer = QTimer(self)
+        self._profile_timer.setInterval(2500)
+        self._profile_timer.timeout.connect(self._poll_profiles)
         self.ui_language = config.get("ui_language", "ru")
+        if self.ui_language not in ("ru", "uk", "en"): self.ui_language = "ru"
         self._translation_status = "Ожидание запуска"
         self._history = deque(maxlen=200)
         self._outgoing_result = ""
@@ -67,6 +84,10 @@ class TranslationState(LiveMonitorState):
         self._update_settings()
         raw_log = log_path or config.get("active_profile_path") or config.get("log_path")
         self._log_path = Path(raw_log).expanduser().resolve() if raw_log else None
+        if self._log_path:
+            self._profiles = merge_server_profiles(self._profiles, [self._log_path])
+        self._profile_activity = activity_snapshot([Path(r["path"]) for r in self._profiles])
+        self._resolve_game_exe()
         self.stop_event = threading.Event()
         self.translation_jobs = queue.Queue(maxsize=50)
         self.ui_queue = queue.Queue()
@@ -74,11 +95,22 @@ class TranslationState(LiveMonitorState):
         self._arrival_context = deque(maxlen=24)
         self._chat_epoch = 0
         self._hud = NativeHud(config.get("overlay", {}), config.get("show_original", False))
+        self._notifier = None
+        self._experience = None
+        self._previous_experience = translation_memory.RUNTIME
+        self._experience_stats = []
         self._knowledge_previous = knowledge_v2.RUNTIME
         bundled = ROOT / "assets" / "knowledge_v2.json"
         runtime = knowledge_v2.KnowledgeRuntime(bundled, installed_knowledge or bundled)
         runtime.enabled = bool(config.get("knowledge_v2_enabled", True))
         knowledge_v2.configure(runtime)
+        if self._store:
+            self._experience = translation_memory.LocalExperience(
+                self._store.path.parent / "translation_experience.sqlite3",
+                collect=bool(config.get("experience_collect", False)),
+                cache=bool(config.get("experience_cache", False)))
+            translation_memory.configure(self._experience)
+            if self._experience.cache: self._experience.set_options(self._experience.collect, True)
         self._shared = TranslationWorkerSharedState()
         self._workers = [TranslatorWorker(
             jobs=self.translation_jobs, ui_queue=self.ui_queue,
@@ -91,7 +123,8 @@ class TranslationState(LiveMonitorState):
             for _ in range(2)]
         self._tailer = LogTailer(lambda: self._log_path, self.on_log_message,
                                 lambda s: self.ui_queue.put(("status", s)),
-                                self.stop_event, self._on_log_control, self.t)
+                                self.stop_event, self._on_log_control, self.t,
+                                switch_position_getter=self._consume_switch_position)
         self._transport = OutgoingHttpTransport()
         self._dispatcher = OutgoingTranslationDispatcher(
             self._translate_outgoing, on_worker_exit=self._transport.close_current_thread)
@@ -164,7 +197,14 @@ class TranslationState(LiveMonitorState):
         config = dict(self._config)
         config.update(target_language=self._target, smart_engine_enabled=self._smart,
                       log_path=str(self._log_path or ""), active_profile_path=str(self._log_path or ""),
-                      server_monitor=dump_settings(self._settings))
+                      server_monitor=dump_settings(self._settings), ui_language=self.ui_language,
+                      server_profiles=self._profiles, auto_detect_profile=self._auto_profile,
+                      knowledge_v2_enabled=knowledge_v2.RUNTIME.enabled,
+                      hide_same_language=self._hide, gaming_slang=self._slang,
+                      deduplicate_messages=self._dedupe, slang_style=self._style,
+                      show_original=self._hud.show_original, overlay=dict(self._hud.config),
+                      experience_collect=bool(self._experience and self._experience.collect),
+                      experience_cache=bool(self._experience and self._experience.cache))
         try:
             self._store.save(config)
             self._config = config
@@ -175,6 +215,261 @@ class TranslationState(LiveMonitorState):
     def _settings_changed(self):
         # Save only on explicit user request, never from a network callback.
         pass
+
+    @Property(str, notify=translationChanged)
+    def uiLanguage(self): return self.ui_language
+
+    @Slot(str)
+    def setUiLanguage(self, code):
+        if code in ("ru", "uk", "en") and code != self.ui_language:
+            self.ui_language = code
+            self.translationChanged.emit()
+            self.changed.emit()
+
+    @Property('QVariantList', notify=translationChanged)
+    def profiles(self): return list(self._profiles)
+
+    @Property(bool, notify=translationChanged)
+    def autoProfile(self): return self._auto_profile
+
+    @Slot(bool)
+    def setAutoProfile(self, enabled):
+        self._auto_profile = enabled
+        self._profile_activity = activity_snapshot([Path(r["path"]) for r in self._profiles])
+        self.translationChanged.emit()
+
+    @Slot(str, str, result=bool)
+    def renameProfile(self, path, name):
+        name = name.strip()[:80]
+        if not name: return False
+        for record in self._profiles:
+            if record["path"] == path:
+                record["name"] = name
+                self.translationChanged.emit()
+                return True
+        return False
+
+    @Slot()
+    def rescanProfiles(self):
+        if self._maintenance_busy: return
+        self._maintenance_busy = True
+        self.translationChanged.emit()
+        roots = list(self._config.get("cod2_roots") or [])
+        def worker():
+            try: self.ui_queue.put(("qt_maintenance", "profiles", discover_cod2_logs(roots), ""))
+            except Exception as e: self.ui_queue.put(("qt_maintenance", "profiles", [], str(e)))
+        threading.Thread(target=worker, daemon=True, name="QtProfileScan").start()
+
+    def _resolve_game_exe(self):
+        if os.name != "nt" or self._game_exe: return
+        from app import infer_cod2_root
+        from server_catalog import find_multiplayer_executable
+        roots = [*self._config.get("cod2_roots", []), *(infer_cod2_root(r["path"]) for r in self._profiles)]
+        self._game_exe = find_multiplayer_executable(roots)
+        self._can_connect = self._game_exe is not None
+        self.changed.emit()
+
+    def _consume_switch_position(self, path):
+        return self._pending_switch_positions.pop(_path_key(path), None)
+
+    def _poll_profiles(self):
+        if not self._auto_profile or not self._profiles: return
+        previous = self._profile_activity
+        chosen, self._profile_activity = choose_active_log_from_activity(
+            [Path(r["path"]) for r in self._profiles], self._profile_activity, self._log_path)
+        if chosen:
+            before = previous.get(_path_key(chosen))
+            current = self._profile_activity.get(_path_key(chosen))
+            self._pending_switch_positions[_path_key(chosen)] = before[1] if before and current and current[1] >= before[1] else 0
+            self.setLogPath(str(chosen))
+
+    @Property(bool, notify=translationChanged)
+    def maintenanceBusy(self): return self._maintenance_busy
+
+    @Property('QStringList', notify=translationChanged)
+    def notifications(self): return list(self._notifications)
+
+    @Property(bool, notify=translationChanged)
+    def notifyFriends(self): return bool(self._settings["notify_friends"])
+
+    @Slot(bool)
+    def setNotifyFriends(self, enabled):
+        self._settings["notify_friends"] = enabled
+        self.translationChanged.emit()
+
+    @Slot(object)
+    def _apply_snapshot(self, snapshot):
+        super()._apply_snapshot(snapshot)
+        from server_monitor import normalized_name
+        import time
+        if snapshot.address not in self._rows: return
+        if snapshot.state != "online":
+            self._friend_presence.pop(snapshot.address, None)
+            return
+        friends = {normalized_name(n): n for n in self._settings["friends"]}
+        current = {normalized_name(p.name) for p in snapshot.players}
+        previous = self._friend_presence.get(snapshot.address)
+        self._friend_presence[snapshot.address] = current
+        if previous is None or not self.notifyFriends: return
+        for name in sorted((current - previous) & friends.keys()):
+            key = (snapshot.address, name)
+            now = time.monotonic()
+            if now - self._friend_notice_at.get(key, -1e9) < 600: continue
+            self._friend_notice_at[key] = now
+            title = self.trText("Друг в игре")
+            detail = friends[name] + " · " + (snapshot.name or snapshot.address)
+            self._notifications.appendleft(title + ": " + detail)
+            if self._notifier: self._notifier.show(title, detail)
+            self.translationChanged.emit()
+
+    @Property('QVariantMap', notify=translationChanged)
+    def preferences(self):
+        return {"hide": self._hide, "slang": self._slang, "dedupe": self._dedupe,
+                "original": self._hud.show_original, "style": self._style,
+                "font": self._hud.config.get("font_size", 10),
+                "ttl": self._hud.ttl,
+                "opacity": self._hud.config.get("background_opacity", .15)}
+
+    @Slot(str, bool)
+    def setPreference(self, key, value):
+        if key == "original":
+            self._hud.show_original = value
+            self._hud._render()
+        elif key in ("hide", "slang", "dedupe"):
+            setattr(self, "_" + key, value)
+            self._update_settings()
+            self._on_log_control("map_change", "settings_change")
+            if self._game: self._game.cancel()
+        else: return
+        self.translationChanged.emit()
+
+    @Slot(str)
+    def setSlangStyle(self, style):
+        if style in SLANG_STYLES.values():
+            self._style = style
+            self._update_settings()
+            self._on_log_control("map_change", "settings_change")
+            if self._game: self._game.cancel()
+            self.translationChanged.emit()
+
+    @Slot(str, float)
+    def setHudValue(self, key, value):
+        if key == "font":
+            self._hud.config["font_size"] = max(8, min(28, int(value)))
+        elif key == "ttl":
+            self._hud.ttl = max(1, min(120, value))
+            self._hud.config["message_ttl_seconds"] = self._hud.ttl
+        elif key == "opacity":
+            self._hud.config["background_opacity"] = max(0, min(.9, value))
+        else: return
+        self._hud._render()
+        self.translationChanged.emit()
+
+    def attach_window(self, window):
+        if os.name == "nt":
+            from windows_friend_notice import FriendNotice
+            self._notifier = FriendNotice(int(window.winId()))
+
+    @Property(bool, constant=True)
+    def experienceAvailable(self): return self._experience is not None
+
+    @Property(bool, notify=translationChanged)
+    def experienceCollect(self): return bool(self._experience and self._experience.collect)
+
+    @Property(bool, notify=translationChanged)
+    def experienceCache(self): return bool(self._experience and self._experience.cache)
+
+    @Slot(str, bool)
+    def setExperienceOption(self, key, enabled):
+        if not self._experience: return
+        if key == "collect":
+            self._experience.set_options(enabled, self.experienceCache)
+        elif key == "cache":
+            self._experience.set_options(self.experienceCollect, enabled)
+        self.translationChanged.emit()
+
+    @Property('QVariantList', notify=translationChanged)
+    def experienceStats(self): return list(self._experience_stats)
+
+    @Slot()
+    def refreshStats(self):
+        if self._experience:
+            self._experience.stats(lambda ok, data: self.ui_queue.put(("experience_action", "stats", ok, data)))
+
+    @Slot()
+    def clearExperience(self):
+        if self._experience:
+            self._experience.clear(lambda ok, data: self.ui_queue.put(("experience_action", "clear", ok, data)))
+
+    @Slot(str)
+    def exportExperience(self, filename):
+        if not self._experience or not filename.strip(): return
+        path = Path(filename).expanduser().resolve()
+        if path.suffix.lower() != ".zip" or path.exists():
+            self.game_status(self.trText("Укажите новый ZIP-файл"))
+            return
+        self._experience.export(path, lambda ok, data: self.ui_queue.put(("experience_action", "export", ok, data)))
+
+    @Property(bool, notify=translationChanged)
+    def knowledgeEnabled(self): return bool(knowledge_v2.RUNTIME.enabled)
+
+    @Property(int, notify=translationChanged)
+    def knowledgeVersion(self): return knowledge_v2.RUNTIME.version
+
+    @Property(int, notify=translationChanged)
+    def knowledgeCount(self): return knowledge_v2.RUNTIME.pack.count
+
+    @Property(bool, constant=True)
+    def knowledgeWritable(self): return self._knowledge_writable
+
+    @Slot(bool)
+    def setKnowledgeEnabled(self, enabled):
+        knowledge_v2.RUNTIME.enabled = enabled
+        self._on_log_control("map_change", "knowledge_toggle")
+        self.translationChanged.emit()
+
+    @Slot()
+    def refreshKnowledge(self):
+        if self._maintenance_busy or not self._knowledge_writable: return
+        self._maintenance_busy = True
+        self.translationChanged.emit()
+        runtime = knowledge_v2.RUNTIME
+        def worker():
+            try: self.ui_queue.put(("qt_maintenance", "knowledge", runtime.refresh(), ""))
+            except Exception as e: self.ui_queue.put(("qt_maintenance", "knowledge", False, str(e)))
+        threading.Thread(target=worker, daemon=True, name="QtKnowledgeUpdate").start()
+
+    @Property(str, notify=translationChanged)
+    def updateMessage(self): return self._update_message
+
+    @Property(bool, notify=translationChanged)
+    def updateAvailable(self): return bool(self._update_url)
+
+    @Slot()
+    def openUpdate(self):
+        if self._update_url:
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl(self._update_url))
+
+    @Slot()
+    def checkUpdates(self):
+        if self._maintenance_busy: return
+        self._maintenance_busy = True
+        self._update_url = ""
+        self.translationChanged.emit()
+        def worker():
+            from .preview_updates import check_preview_release
+            try:
+                self.ui_queue.put(("qt_maintenance", "updates", check_preview_release(), ""))
+            except Exception as e:
+                self.ui_queue.put(("qt_maintenance", "updates", None, str(e)))
+        threading.Thread(target=worker, daemon=True, name="QtUpdateCheck").start()
+
+    @Slot(str, result=str)
+    def trText(self, text):
+        from .ui_text import translate
+        return translate(text, self.ui_language)
 
     @Property('QVariantList', constant=True)
     def languages(self):
@@ -219,6 +514,7 @@ class TranslationState(LiveMonitorState):
             worker.start()
         self._tailer.start()
         self._timer.start()
+        self._profile_timer.start()
         if self._game: self._game.start()
 
     def stop(self):
@@ -226,10 +522,16 @@ class TranslationState(LiveMonitorState):
             return
         self.enabled = False
         self._timer.stop()
+        self._profile_timer.stop()
         self.stop_event.set()
         self._dispatcher.close()
         if self._game: self._game.close()
         self._hud.close()
+        if self._notifier: self._notifier.close()
+        if self._experience:
+            self._experience.close()
+            if translation_memory.RUNTIME is self._experience:
+                translation_memory.configure(self._previous_experience)
         super().stop()
         # No unbounded join on the GUI thread. Workers are daemon threads and
         # the program exits; do not mutate their global knowledge until stopped.
@@ -240,6 +542,8 @@ class TranslationState(LiveMonitorState):
     def setLogPath(self, value):
         path = Path(value).expanduser().resolve() if value.strip() else None
         self._log_path = path
+        if path: self._profiles = merge_server_profiles(self._profiles, [path])
+        self._resolve_game_exe()
         self._on_log_control("map_change", "log_switch")
         self.translationChanged.emit()
 
@@ -317,6 +621,44 @@ class TranslationState(LiveMonitorState):
             except queue.Empty:
                 break
             kind = event[0]
+            if kind == "experience_action":
+                _, task, ok, data = event
+                if not ok:
+                    self._translation_status = self.trText("Ошибка") + ": " + str(data)
+                elif task == "stats":
+                    count, total, metrics = data
+                    self._experience_stats = [dict(group="Total", samples=total, failed=0, p50_ms="—", p95_ms="—")]
+                    self._experience_stats.extend(dict(group=group, **values) for group, values in sorted(metrics.items()))
+                elif task == "clear":
+                    self._experience_stats = []
+                    self._translation_status = self.trText("Локальный опыт очищен")
+                elif task == "export":
+                    self._translation_status = self.trText("Экспорт сохранён") + ": " + str(data)
+                changed = True
+                continue
+            if kind == "qt_maintenance":
+                _, task, result, error = event
+                self._maintenance_busy = False
+                if error:
+                    self._translation_status = self.trText("Ошибка") + ": " + error
+                    if task == "updates": self._update_message = self._translation_status
+                elif task == "profiles":
+                    self._profiles = merge_server_profiles(self._profiles, result)
+                    self._resolve_game_exe()
+                    if not self._log_path and self._profiles:
+                        self.setLogPath(self._profiles[0]["path"])
+                    elif self._auto_profile:
+                        self._poll_profiles()
+                    else:
+                        self._profile_activity = activity_snapshot([Path(r["path"]) for r in self._profiles])
+                    self._translation_status = self.trText("Профили обновлены")
+                elif task == "knowledge":
+                    self._translation_status = self.trText("База знаний обновлена" if result else "База знаний актуальна")
+                elif task == "updates":
+                    self._update_url = result["url"] if result else ""
+                    self._update_message = (self.trText("Доступно обновление Qt") + ": " + result["tag"]) if result else self.trText("Новых версий Qt нет")
+                changed = True
+                continue
             if kind in ("screenshot_saved", "screenshot_error"):
                 self._translation_status = self._screenshot_status("saved", path=event[1]) if kind == "screenshot_saved" else self._screenshot_status("error", error=event[1])
                 changed = True

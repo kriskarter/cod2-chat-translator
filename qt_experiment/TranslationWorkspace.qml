@@ -5,10 +5,13 @@ import QtQuick.Layouts
 MetalPanel {
     id: root
     property string page: "history"
+    signal navigate(string page)
+    property string uiLocale: prototype.uiLanguage
+    function tr(s) { let l = uiLocale; return prototype.trText(s) }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 30; spacing: 12
         Text {
-            text: root.page === "settings" ? "Настройки перевода" : root.page === "outgoing" ? "Исходящий перевод · ручной режим" : "История входящего перевода"
+            text: root.page === "settings" ? (prototype.uiLanguage, prototype.trText("Настройки перевода")) : root.page === "outgoing" ? (prototype.uiLanguage, prototype.trText("Исходящий перевод · ручной режим")) : (prototype.uiLanguage, prototype.trText("История входящего перевода"))
             color: "#fff0d1"; font.bold: true; font.pixelSize: 22
         }
         Text { text: prototype.translationStatus; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
@@ -16,13 +19,30 @@ MetalPanel {
             Layout.fillWidth: true; Layout.fillHeight: true
             currentIndex: root.page === "settings" ? 0 : root.page === "outgoing" ? 1 : 2
             ColumnLayout {
-                Text { text: "Журнал CoD2 (console_mp.log)"; color: "#f5e7c9" }
                 RowLayout {
                     Layout.fillWidth: true
-                    TextField { id: logInput; text: prototype.logPath; placeholderText: "Путь к console_mp.log"; Layout.fillWidth: true; selectByMouse: true }
-                    MetalButton { text: "Применить"; onClicked: prototype.setLogPath(logInput.text) }
+                    MetalButton { text: root.tr("Профили"); Layout.fillWidth: true; onClicked: root.navigate("profiles") }
+                    MetalButton { text: root.tr("База знаний"); Layout.fillWidth: true; onClicked: root.navigate("knowledge") }
+                    MetalButton { text: root.tr("Уведомления"); Layout.fillWidth: true; onClicked: root.navigate("notifications") }
+                    MetalButton { text: root.tr("Статистика"); Layout.fillWidth: true; onClicked: root.navigate("stats") }
+                    MetalButton { text: root.tr("Оверлей"); Layout.fillWidth: true; onClicked: root.navigate("overlay") }
                 }
-                Text { text: "Язык входящего перевода"; color: "#f5e7c9" }
+                RowLayout {
+                    Text { text: root.tr("Язык интерфейса"); color: "#f5e7c9" }
+                    LanguageSelector {
+                        model: ["ru","uk","en"]
+                        Component.onCompleted: currentIndex = find(prototype.uiLanguage)
+                        onActivated: prototype.setUiLanguage(currentText)
+                        Layout.preferredWidth: 120
+                    }
+                }
+                Text { text: (prototype.uiLanguage, prototype.trText("Журнал CoD2 (console_mp.log)")); color: "#f5e7c9" }
+                RowLayout {
+                    Layout.fillWidth: true
+                    MetalTextField { id: logInput; text: prototype.logPath; placeholderText: (prototype.uiLanguage, prototype.trText("Путь к console_mp.log")); Layout.fillWidth: true; selectByMouse: true }
+                    MetalButton { text: (prototype.uiLanguage, prototype.trText("Применить")); onClicked: prototype.setLogPath(logInput.text) }
+                }
+                Text { text: (prototype.uiLanguage, prototype.trText("Язык входящего перевода")); color: "#f5e7c9" }
                 LanguageSelector {
                     model: prototype.languages
                     textRole: "label"; valueRole: "code"
@@ -34,35 +54,56 @@ MetalPanel {
                     Text { text: "Smart Engine"; color: "#f5e7c9" }
                     TacticalSwitch { checked: prototype.smart; onClicked: prototype.toggle("smart") }
                 }
-                AmberButton { text: "Сохранить настройки"; visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
-                Text { text: prototype.settingsWritable ? "Настройки сохраняются в отдельном Qt-файле." : "Изменения действуют в этой сессии. Существующие файлы настроек не изменяются."; color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                RowLayout {
+                    Text { text: root.tr("Стили перевода"); color: "#f5e7c9" }
+                    LanguageSelector {
+                        model: ["clear","live","raw"]
+                        Component.onCompleted: currentIndex = find(prototype.preferences.style)
+                        onActivated: prototype.setSlangStyle(currentText)
+                        Layout.preferredWidth: 120
+                    }
+                }
+                AmberButton { text: (prototype.uiLanguage, prototype.trText("Сохранить настройки")); visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
+                Text { text: prototype.settingsWritable ? (prototype.uiLanguage, prototype.trText("Настройки сохраняются в отдельном Qt-файле.")) : (prototype.uiLanguage, prototype.trText("Изменения действуют в этой сессии. Существующие файлы настроек не изменяются.")); color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                GridLayout {
+                    columns: 2; Layout.fillWidth: true; columnSpacing: 12; rowSpacing: 2
+                    Repeater {
+                        model: [{key:"original", label:"Показывать оригинал"}, {key:"hide", label:"Скрывать выбранный язык"}, {key:"slang", label:"Игровой сленг"}, {key:"dedupe", label:"Убирать повторы"}]
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.fillWidth: true; elide: Text.ElideRight }
+                            TacticalSwitch { checked: !!prototype.preferences[modelData.key]; onClicked: prototype.setPreference(modelData.key, checked) }
+                        }
+                    }
+                }
                 Item { Layout.fillHeight: true }
             }
             ColumnLayout {
-                Text { text: "Перевод текста без отправки в игру"; color: "#f5e7c9" }
+                Text { text: (prototype.uiLanguage, prototype.trText("Перевод текста без отправки в игру")); color: "#f5e7c9" }
                 ScrollView {
                     Layout.fillWidth: true; Layout.preferredHeight: 85
-                    TextArea { id: outgoingInput; placeholderText: "Введите сообщение"; wrapMode: TextEdit.Wrap; selectByMouse: true }
+                    MetalTextArea { id: outgoingInput; placeholderText: (prototype.uiLanguage, prototype.trText("Введите сообщение")); wrapMode: TextEdit.Wrap; selectByMouse: true }
                 }
                 RowLayout {
                     LanguageSelector { id: sourceLanguage; model: ["auto","ru","uk","en","de","pl","fr"]; Layout.preferredWidth: 130 }
                     LanguageSelector { id: destLanguage; model: ["en","ru","uk","de","pl","fr"]; Layout.preferredWidth: 130 }
                     AmberButton {
-                        text: prototype.outgoingBusy ? "Перевод…" : "Перевести"
+                        text: prototype.outgoingBusy ? (prototype.uiLanguage, prototype.trText("Перевод…")) : (prototype.uiLanguage, prototype.trText("Перевести"))
                         enabled: prototype.f9 && !prototype.outgoingBusy && outgoingInput.text.trim().length > 0
                         onClicked: prototype.submitOutgoing(outgoingInput.text, sourceLanguage.currentText, destLanguage.currentText)
                     }
                 }
                 ScrollView {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    TextArea { text: prototype.outgoingResult; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap }
+                    MetalTextArea { text: prototype.outgoingResult; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap }
                 }
                 Text {
-                    text: prototype.gameHotkeysReady ? "Игровые F8/F9/F10 подключены · F9 и Enter отправляют только в активную CoD2." :
-                          prototype.gameHotkeysEnabled ? "Игровой keyboard hook ещё не готов." : "Игровые клавиши выключены в этом запуске."
+                    text: prototype.gameHotkeysReady ? (prototype.uiLanguage, prototype.trText("Игровые F8/F9/F10 подключены · F9 и Enter отправляют только в активную CoD2.")) :
+                          prototype.gameHotkeysEnabled ? (prototype.uiLanguage, prototype.trText("Игровой keyboard hook ещё не готов.")) : (prototype.uiLanguage, prototype.trText("Игровые клавиши выключены в этом запуске."))
                     color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                 }
-                Text { text: "Ручной режим не отправляет сообщения в игру."; color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Text { text: (prototype.uiLanguage, prototype.trText("Ручной режим не отправляет сообщения в игру.")); color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             }
             ListView {
                 id: history
@@ -80,7 +121,7 @@ MetalPanel {
                         Text { text: modelData.translated || modelData.outcome; textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     }
                 }
-                Text { anchors.centerIn: parent; visible: history.count === 0; text: "Новые сообщения появятся здесь"; color: "#bcb09a" }
+                Text { anchors.centerIn: parent; visible: history.count === 0; text: (prototype.uiLanguage, prototype.trText("Новые сообщения появятся здесь")); color: "#bcb09a" }
             }
         }
     }

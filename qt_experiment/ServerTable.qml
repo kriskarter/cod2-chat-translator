@@ -22,7 +22,7 @@ ColumnLayout {
     }
     Item {
         Layout.fillWidth: true; Layout.preferredHeight: 24
-        Cells { anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 21; header: true; values: ["Сервер", "Карта", "Игроки", "Пинг", "Статус"] }
+        Cells { anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 21; header: true; values: [(prototype.uiLanguage, prototype.trText("Сервер")), (prototype.uiLanguage, prototype.trText("Карта")), (prototype.uiLanguage, prototype.trText("Игроки")), (prototype.uiLanguage, prototype.trText("Пинг")), (prototype.uiLanguage, prototype.trText("Статус"))] }
     }
     ListView {
         id: table

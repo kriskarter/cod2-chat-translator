@@ -1,0 +1,93 @@
+name: Qt Preview Windows installer (PR 9 only)
+on:
+  push:
+    branches: ['experiment/qt-premium-game-ui']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-build.txt PySide6==6.8.3 pytest psutil
+      - run: python -m pytest -q
+      - name: Freeze isolated Qt executable
+        shell: pwsh
+        run: |
+          @{ tag = "qt-preview-" + $env:GITHUB_SHA.Substring(0,12); sha = $env:GITHUB_SHA } | ConvertTo-Json -Compress | Set-Content -Encoding utf8NoBOM qt_build.json
+          pyinstaller --noconfirm --clean --paths . --onedir --windowed --name CoD2ChatTranslatorQt --icon assets/app.ico --add-data "assets;assets" --add-data "qt_build.json;." --add-data "qt_experiment;qt_experiment" --hidden-import PySide6.QtQuick --hidden-import PySide6.QtQuickControls2 --hidden-import PySide6.QtQml qt_experiment/rc_entry.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Smoke test actual frozen EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force qt-evidence | Out-Null
+          $root = Join-Path $PWD "qt-evidence"
+          $config = Join-Path $root "fixture.json"
+          '{"server_monitor":{"servers":[]},"ui_language":"en","auto_detect_profile":false}' | Set-Content -Encoding utf8NoBOM $config
+          foreach ($page in @("home","servers","settings","history","outgoing","profiles","knowledge","notifications","about","stats","overlay")) {
+            $out = Join-Path $root "$page.png"
+            $settings = Join-Path $root "qt_settings.json"
+            $exe = Join-Path $PWD "dist\CoD2ChatTranslatorQt\CoD2ChatTranslatorQt.exe"
+            $args = @("--config", "`"$config`"", "--settings-file", "`"$settings`"", "--page", $page, "--size", "1366x768", "--screenshot", "`"$out`"")
+            $p = Start-Process -FilePath $exe -ArgumentList $args -PassThru
+            if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Frozen smoke timed out: $page" }
+            if ($p.ExitCode -ne 0 -or !(Test-Path $out) -or (Get-Item $out).Length -lt 5000) { throw "Frozen smoke failed: $page" }
+          }
+      - name: Build isolated multilingual installer
+        shell: pwsh
+        run: |
+          choco install innosetup --version=6.7.1 --no-progress -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\CoD2ChatTranslatorQtPreview.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = "release-qt\CoD2ChatTranslator_QtPreview_Setup.exe"
+          if (!(Test-Path $setup)) { throw "Installer missing" }
+          (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower() + "  CoD2ChatTranslator_QtPreview_Setup.exe" | Set-Content -Encoding ascii release-qt\SHA256SUMS.txt
+      - name: Test installed application
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "cod2-qt-install"
+          $setup = Join-Path $PWD "release-qt\CoD2ChatTranslator_QtPreview_Setup.exe"
+          $p = Start-Process $setup -ArgumentList @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LANG=ukrainian","/DIR=`"$dir`"") -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "Installation failed: $($p.ExitCode)" }
+          $out = Join-Path $PWD "qt-evidence\installed_home.png"
+          $exe = Join-Path $dir "CoD2ChatTranslatorQt.exe"
+          $p = Start-Process $exe -ArgumentList @("--size","1366x768","--screenshot","`"$out`"") -PassThru
+          if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Installed EXE timeout" }
+          if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Installed EXE failed" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qt-preview-windows-installer
+          path: release-qt/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qt-preview-frozen-ui-evidence
+          path: qt-evidence/*.png
+          if-no-files-found: error
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: qt-preview-windows-installer
+          path: release-qt
+      - name: Publish isolated prerelease (never latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="qt-preview-${GITHUB_SHA:0:12}"
+          gh release create "$tag" release-qt/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "CoD2 Chat Translator Qt Preview $tag" --notes "PR #9 isolated Qt preview. Native gameplay/DPI acceptance pending. Does not replace stable."

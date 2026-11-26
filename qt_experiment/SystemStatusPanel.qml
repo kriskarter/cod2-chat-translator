@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 RowLayout {
     id: root
-    property string statusText: "Режим сравнения"
+    property string statusText: (prototype.uiLanguage, prototype.trText("Режим сравнения"))
     property bool ready: false
     spacing: 8
     Rectangle { width: 9; height: 9; radius: 5; color: root.ready ? "#b0db84" : "#d4a75e" }

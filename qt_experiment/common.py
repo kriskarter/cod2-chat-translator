@@ -63,6 +63,12 @@ class PrototypeState(QObject):
         self._selected = rows[0].address if rows else ""
         self._rows = {row.address: row for row in rows}
 
+    @Property(str, notify=changed)
+    def uiLanguage(self): return "ru"
+
+    @Slot(str, result=str)
+    def trText(self, text): return text
+
     @Property(bool, constant=True)
     def serverManagementAvailable(self): return False
 

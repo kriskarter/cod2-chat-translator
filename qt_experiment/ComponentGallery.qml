@@ -9,7 +9,7 @@ ApplicationWindow {
     color: "#161818"
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 20; spacing: 12
-        Text { text: "Компоненты: визуальная проверка"; color: "#f5e7c9"; font.bold: true; font.pixelSize: 24 }
+        Text { text: (prototype.uiLanguage, prototype.trText("Компоненты: визуальная проверка")); color: "#f5e7c9"; font.bold: true; font.pixelSize: 24 }
         MetalPanel {
             Layout.fillWidth: true; Layout.preferredHeight: 110
             RowLayout {
@@ -17,7 +17,7 @@ ApplicationWindow {
                 MetalButton { text: "MetalButton"; Layout.fillWidth: true }
                 AmberButton { text: "AmberButton"; Layout.fillWidth: true }
                 NavigationTab { text: "NavigationTab"; selected: true; glyph: "icons/home.svg"; Layout.fillWidth: true }
-                LanguageSelector { model: ["Русский", "Українська", "English"]; Layout.preferredWidth: 150 }
+                LanguageSelector { model: [(prototype.uiLanguage, prototype.trText("Русский")), (prototype.uiLanguage, prototype.trText("Українська")), "English"]; Layout.preferredWidth: 150 }
             }
         }
         RowLayout {
@@ -54,7 +54,7 @@ ApplicationWindow {
         width: 360
         title: "MetalDialog"
         standardButtons: Dialog.Close
-        Text { text: "Отдельная проверка диалога"; color: "#f5e7c9" }
+        Text { text: (prototype.uiLanguage, prototype.trText("Отдельная проверка диалога")); color: "#f5e7c9" }
     }
     Component.onCompleted: sample.open()
 }

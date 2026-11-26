@@ -5,8 +5,8 @@ MetalPanel {
     id: root
     property var players: []
     ColumnLayout {
-        anchors.fill: parent; anchors.leftMargin: 19; anchors.rightMargin: 19; anchors.topMargin: 20; anchors.bottomMargin: 17; spacing: 5
-        Text { text: "Игроки на сервере"; color: "#d4a75e"; font.pixelSize: 13; font.bold: true }
+        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; anchors.topMargin: 12; anchors.bottomMargin: 10; spacing: 5
+        Text { text: (prototype.uiLanguage, prototype.trText("Игроки на сервере")); color: "#d4a75e"; font.pixelSize: 13; font.bold: true }
         ListView {
             id: roster
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true

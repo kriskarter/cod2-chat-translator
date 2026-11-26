@@ -7,7 +7,7 @@ Dialog {
     palette.windowText: "#f5e7c9"
     palette.text: "#f5e7c9"
     background: BorderImage {
-        source: "../assets/ui_wwii/premium_generic_frame.png"
-        border { left: 42; right: 42; top: 42; bottom: 42 }
+        source: "command_frame.png"
+        border { left: 18; right: 18; top: 18; bottom: 18 }
     }
 }
