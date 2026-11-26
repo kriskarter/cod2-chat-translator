@@ -162,6 +162,7 @@ class PremiumHome:
         txt(head,local(a,"Мониторинг серверов","Моніторинг серверів","Server Monitor"),13 if self.large_dpi else 16,bold=True,bg=CARD).pack(side="left",padx=4)
         self.friends_badge=txt(head,"",9 if self.large_dpi else 10,GREEN,bold=True)
         self.friends_badge.pack(side="right",padx=5 if self.large_dpi else 12)
+        tk.Label(head,image=ui_photo(head,"quick_friends.png"),bg=CARD).pack(side="right",padx=(0,3))
         style=ttk.Style()
         # The clam theme's default field element draws a light system rim.
         # Keep its real keyboard-aware Treeview but remove that field border.
@@ -174,8 +175,14 @@ class PremiumHome:
                         bordercolor="#665C4B",lightcolor="#44494A",darkcolor="#202325",
                         font=(FONT,8 if self.large_dpi else 9,"bold"),padding=(3,5))
         style.map("Monitor.Treeview.Heading",background=[("active","#565148")])
-        style.map("Monitor.Treeview",background=[("selected","#65523B")],
-                  foreground=[("selected","#FFF0CF")])
+        if "Monitor.selection" not in style.element_names():
+            style.element_create("Monitor.selection", "image",
+                                 ui_photo(head,"premium_selection_clear.png"),
+                                 ("selected",ui_photo(head,"premium_selection.png")),
+                                 border=(7,4,7,4),sticky="nsew")
+        style.layout("Monitor.Treeview.Cell",[("Monitor.selection",{"sticky":"nsew",
+            "children":[("Treeitem.text",{"sticky":"nsew"})]})])
+        style.map("Monitor.Treeview",foreground=[("selected","#FFF0CF")])
         style.configure("Monitor.Treeview.Heading",relief="flat",borderwidth=0)
         area=tk.Frame(box,bg=BG)
         area.pack(fill="x",padx=8,pady=(1,2))
@@ -185,7 +192,7 @@ class PremiumHome:
         names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
                local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
                local(a,"Статус","Стан","Status"))
-        widths=(30,140,95,75,75,92) if self.large_dpi else (30,140,80,75,60,80)
+        widths=(30,140,95,75,75,105) if self.large_dpi else (30,140,80,75,60,88)
         for key,title,width in zip(columns,names,widths):
             self.tree.heading(key,text=title,command=lambda k=key:self._sort(k))
             self.tree.column(key,width=width,minwidth=width,stretch=key=="name",
@@ -347,9 +354,9 @@ class PremiumHome:
         for s in self.app.monitor_settings["servers"]:
             snap=self.app.monitor.snapshots.get(s.address)
             state=snap.state if snap else "waiting"
-            status=local(self.app,"Онлайн","Онлайн","Online") if state=="online" else (
-                local(self.app,"Частично","Частково","Partial") if state=="limited" else
-                local(self.app,"Нет ответа","Немає відповіді","No response") if state=="offline" else "…")
+            status=("● "+local(self.app,"Онлайн","Онлайн","Online")) if state=="online" else (
+                "◐ "+local(self.app,"Частично","Частково","Partial") if state=="limited" else
+                "○ "+local(self.app,"Нет ответа","Немає відповіді","No response") if state=="offline" else "…")
             values=("★" if s.favorite else "☆",s.label or (snap.name if snap else "") or s.address,
                     snap.map_name if snap else "—",
                     f"{snap.clients if snap.clients is not None else '—'}/{snap.max_clients if snap.max_clients is not None else '—'}" if snap else "—",

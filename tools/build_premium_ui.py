@@ -140,6 +140,27 @@ def main():
     sd.polygon(outline,fill=(217,169,92,230))
     sd.line(outline+[outline[0]],fill=(255,226,163,245),width=1)
     star.save(OUT / "quick_star.png",optimize=True)
+    friends = Image.new("RGBA", (28, 28))
+    fd = ImageDraw.Draw(friends)
+    fd.ellipse((3, 4, 12, 13), fill=(171, 195, 149, 240))
+    fd.ellipse((16, 4, 25, 13), fill=(171, 195, 149, 240))
+    fd.rounded_rectangle((1, 16, 13, 25), radius=4,
+                         fill=(99, 143, 105, 235), outline=gold)
+    fd.rounded_rectangle((15, 16, 27, 25), radius=4,
+                         fill=(99, 143, 105, 235), outline=gold)
+    friends.save(OUT / "quick_friends.png", optimize=True)
+
+    # A subdued selection wash for the real Treeview cells.  The ttk cell
+    # element stretches this strip; captions and server values stay live.
+    selection = Image.new("RGBA", (120, 29))
+    sd = ImageDraw.Draw(selection, "RGBA")
+    for y in range(29):
+        distance = abs(y - 12) / 17
+        sd.line((0, y, 119, y), fill=(87, 69, 43, round(185 - 65 * distance)))
+    sd.line((0, 0, 119, 0), fill=(202, 153, 82, 125), width=1)
+    sd.line((0, 28, 119, 28), fill=(16, 18, 17, 205), width=1)
+    selection.save(OUT / "premium_selection.png", optimize=True)
+    Image.new("RGBA", (120, 29)).save(OUT / "premium_selection_clear.png", optimize=True)
 
     for name in ("servers", "history", "translation", "overlay"):
         icon = Image.new("RGBA", (28, 28))
