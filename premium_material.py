@@ -121,7 +121,7 @@ class MetalCanvas(tk.Canvas):
         self._size = size
         if self._pending is not None:
             self.after_cancel(self._pending)
-        self._pending = self.after(45, self._redraw)
+        self._pending = self.after(140, self._redraw)
 
     def _redraw(self):
         self._pending = None

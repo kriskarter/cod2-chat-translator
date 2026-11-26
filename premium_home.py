@@ -127,17 +127,18 @@ class PremiumHome:
         combo_id=card.create_window(0,0,window=combo,anchor="nw")
         def position(event):
             left=148 if self.compact or self.large_dpi else 165
-            card.coords(title_id,left,20 if self.compact else 24)
+            shift=max(0,(event.height-(149 if self.compact else 190))//2)
+            card.coords(title_id,left,(20 if self.compact else 24)+shift)
             for size in range(12 if self.large_dpi else 14 if self.compact else 17,8,-1):
                 card.itemconfigure(title_id,font=(FONT,size,"bold"))
                 if card.bbox(title_id)[2] <= event.width-19:
                     break
-            card.coords(note_id,left,47 if self.compact else 58)
-            controls_y=72 if self.compact else 92
+            card.coords(note_id,left,(47 if self.compact else 58)+shift)
+            controls_y=(72 if self.compact else 92)+shift
             card.coords(switch_id,left,controls_y)
             card.coords(combo_id,left+94,controls_y)
             # Show the full translation route below controls; no opaque strip.
-            card.coords(detail_id,left,108 if self.compact else 135)
+            card.coords(detail_id,left,(108 if self.compact else 135)+shift)
             combo.configure(width=12 if event.width<530 else 17)
         card.bind("<Configure>",position,add="+")
         # Full translation controls live in the Settings/Translation section.

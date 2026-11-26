@@ -23,6 +23,8 @@ class TranslationConsole:
         self.photo = None
         self.widgets = {}
         self.labels = {}
+        self._pending_layout = None
+        self._layout_size = None
         self._build()
         self.canvas.bind("<Configure>", self._layout)
 
@@ -89,8 +91,17 @@ class TranslationConsole:
         self.widget("route", route)
 
     def _layout(self, event):
-        w = max(1, event.width)
+        if self._pending_layout is not None:
+            self.canvas.after_cancel(self._pending_layout)
+        self._pending_layout = self.canvas.after(120, self._draw_layout)
+
+    def _draw_layout(self):
+        self._pending_layout = None
+        w = max(1, self.canvas.winfo_width())
         h = max(360, min(420, round(w * .30)))
+        if (w,h) == self._layout_size:
+            return
+        self._layout_size = (w,h)
         if self.canvas.cget("height") != str(h):
             self.canvas.configure(height=h)
         self.photo = ImageTk.PhotoImage(
