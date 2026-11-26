@@ -85,7 +85,7 @@ def home_banner_height(root):
     if screen>=1000:
         return 270
     if screen>=850:
-        return 218
+        return 198 if float(root.tk.call("tk","scaling"))>=1.65 else 218
     return 145 if float(root.tk.call("tk","scaling"))>=1.95 else 185
 
 
@@ -152,7 +152,7 @@ class WWIIDashboard(Dashboard):
                                    round(y+sin(angle)*radius)))
                 header.coords(star,*points)
             rule_y=min(height-22,logo_y+logo_height-2)
-            caption_y=min(height-13,rule_y+16)
+            caption_y=min(height-(19 if height<160 else 13),rule_y+16)
             header.coords(logo_rule,logo_x+40,rule_y,
                           logo_x+logo_width-40,rule_y)
             header.coords(tagline_shadow,round(width*.55)+1,caption_y+1)

@@ -103,6 +103,8 @@ class PremiumHome:
         note=local(a,"Перевод чата игроков","Переклад чату гравців","Translate player chat") if kind=="f8" else local(a,"Перевод ваших сообщений","Переклад ваших повідомлень","Translate your messages")
         # Draw captions on the artwork itself. Tk frames are always opaque and
         # used to obscure almost all of both illustrated cards on Windows.
+        title_shadow=card.create_text(0,0,text=title,anchor="nw",fill="#111211",
+                    font=(FONT,12 if self.large_dpi else 14 if self.compact else 17,"bold"))
         title_id=card.create_text(0,0,text=title,anchor="nw",fill="#FFF1D4",
                     font=(FONT,12 if self.large_dpi else 14 if self.compact else 17,"bold"))
         note_id=card.create_text(0,0,text=note,anchor="nw",fill="#E3C8A3",font=(FONT,10))
@@ -130,8 +132,10 @@ class PremiumHome:
             left=148 if self.compact or self.large_dpi else 165
             shift=max(0,(event.height-(149 if self.compact else 190))//2)
             card.coords(title_id,left,(20 if self.compact else 24)+shift)
+            card.coords(title_shadow,left+2,(22 if self.compact else 26)+shift)
             for size in range(12 if self.large_dpi else 14 if self.compact else 17,8,-1):
                 card.itemconfigure(title_id,font=(FONT,size,"bold"))
+                card.itemconfigure(title_shadow,font=(FONT,size,"bold"))
                 if card.bbox(title_id)[2] <= event.width-19:
                     break
             card.coords(note_id,left,(47 if self.compact else 58)+shift)
@@ -196,7 +200,7 @@ class PremiumHome:
         names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
                local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
                local(a,"Статус","Стан","Status"))
-        widths=(30,140,95,75,75,105) if self.large_dpi else (30,140,80,75,60,88)
+        widths=(30,140,110,85,90,115) if self.dpi>=1.6 else (30,140,85,75,74,95)
         for key,title,width in zip(columns,names,widths):
             self.tree.heading(key,text=title,command=lambda k=key:self._sort(k))
             self.tree.column(key,width=width,minwidth=width,stretch=key=="name",
@@ -299,21 +303,27 @@ class PremiumHome:
             rail.coords("overlay_title",72,31+dy)
             rail.coords("overlay_note",70,51+dy)
             rail.coords(overlay_switch,round(third-88),25+dy)
-            rail.coords(overlay_edit,35,70+dy)
-            rail.coords(overlay_config,151,70+dy)
+            action_y=52 if a.root.winfo_screenheight()<850 else 54 if a.root.winfo_screenheight()<1000 else 70
+            rail.coords(overlay_edit,35,action_y+dy)
+            rail.coords(overlay_config,151,action_y+dy)
             rail.coords(engine_icon,round(third+43),37+dy)
             rail.coords("engine_title",round(third+72),31+dy)
             rail.coords("engine_note",round(third+70),51+dy)
             rail.coords(engine_control,round(third*2-88),25+dy)
-            rail.coords(self.dashboard.engine_engine_bullet.item,round(third+39),76+dy)
-            rail.coords(self.dashboard.engine_engine_label.item,round(third+58),76+dy)
+            rail.coords(self.dashboard.engine_engine_bullet.item,round(third+39),
+                        (68 if self.compact else 76)+dy)
+            rail.coords(self.dashboard.engine_engine_label.item,round(third+58),
+                        (68 if self.compact else 76)+dy)
             rail.coords(self.dashboard.engine_pack_label.item,
-                        round(third+176 if self.large_dpi else third+145),76+dy)
+                        round(third+176 if self.large_dpi else third+145),
+                        (68 if self.compact else 76)+dy)
             rail.coords("status_icon",round(third*2+28),19+dy,
                         round(third*2+63),54+dy)
             rail.coords("status_title",round(third*2+75),31+dy)
-            rail.coords(self.system_status.item,round(third*2+70),64+dy)
-            rail.coords(self.game_status.item,round(third*2+70),84+dy)
+            rail.coords(self.system_status.item,round(third*2+70),
+                        (54 if self.compact else 62)+dy)
+            rail.coords(self.game_status.item,round(third*2+70),
+                        (74 if self.compact else 82)+dy)
         rail.bind("<Configure>",layout,add="+")
 
     def _hide_tip(self):
@@ -422,13 +432,17 @@ class PremiumHome:
         if not enabled:
             status=local(self.app,"Перевод выключен","Переклад вимкнено","Translation off")
         elif not log_available:
-            status=local(self.app,"Движок готов · журнал не найден",
-                         "Рушій готовий · журнал не знайдено",
-                         "Engine ready · game log missing")
+            status=(local(self.app,"Игровой журнал не найден","Ігровий журнал не знайдено",
+                          "Game log missing") if self.large_dpi else
+                    local(self.app,"Движок готов · журнал не найден",
+                          "Рушій готовий · журнал не знайдено",
+                          "Engine ready · game log missing"))
         else:
-            status=local(self.app,"Журнал доступен · перевод активен",
-                         "Журнал доступний · переклад активний",
-                         "Game log found · translation active")
+            status=(local(self.app,"Перевод активен","Переклад активний",
+                          "Translation active") if self.large_dpi else
+                    local(self.app,"Журнал доступен · перевод активен",
+                          "Журнал доступний · переклад активний",
+                          "Game log found · translation active"))
         self.system_status.configure(text=status, fg=GREEN if enabled and log_available else AMBER if enabled else MUTED)
         self.status_surface.itemconfigure("status_icon",
             fill=GREEN if enabled and log_available else AMBER if enabled else MUTED,
