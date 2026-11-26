@@ -37,11 +37,14 @@ class ServerPage:
         outer.pack(fill="both",expand=True,padx=16,pady=12)
         txt(outer,local(a,"СЕРВЕРЫ И ИГРОКИ","СЕРВЕРИ ТА ГРАВЦІ","SERVERS AND PLAYERS"),19,AMBER,True,bg=BG).pack(anchor="w",pady=(0,10))
         toolbar=tk.Frame(outer,bg=BG)
-        toolbar.pack(fill="x",pady=(0,9))
+        stacked=float(a.root.tk.call("tk","scaling"))>=1.65
+        toolbar.pack(fill="x",pady=(0,3 if stacked else 9))
         txt(toolbar,local(a,"Поиск","Пошук","Search"),10,bg=BG).pack(side="left",padx=(0,6))
         entry=ttk.Entry(toolbar,textvariable=self.filter,width=30)
-        entry.pack(side="left",padx=(0,12))
+        entry.pack(side="left",fill="x",expand=stacked,padx=(0,12))
         self.filter.trace_add("write",lambda *_:self.render())
+        actions=tk.Frame(outer,bg=BG) if stacked else toolbar
+        if stacked:actions.pack(fill="x",pady=(0,9))
         for caption,command,primary in (
             (local(a,"Добавить","Додати","Add"),self.add,True),
             (local(a,"Изменить","Змінити","Edit"),self.edit,False),
@@ -49,7 +52,8 @@ class ServerPage:
             (local(a,"★ Избранное","★ Обране","★ Favorite"),self.favorite,False),
             (local(a,"Обновить","Оновити","Refresh"),a.monitor.refresh,False),
         ):
-            tactical_action(toolbar,caption,command,primary=primary).pack(side="left",padx=3)
+            tactical_action(actions,caption,command,primary=primary).pack(
+                side="left",fill="x",expand=stacked,padx=2 if stacked else 3)
         body=SteelFrame(outer,bg=BG)
         body.pack(fill="both",expand=True)
         body.columnconfigure(0,weight=3)

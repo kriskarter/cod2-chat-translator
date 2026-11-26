@@ -326,7 +326,7 @@ class PremiumHome:
             rail.coords("overlay_title",72,23+dy)
             rail.coords("overlay_note",70,42+dy)
             rail.coords(overlay_switch,round(third-88),19+dy)
-            action_y=max(44,event.height-49-dy)
+            action_y=max(39,event.height-54-dy)
             rail.coords(overlay_edit,35,action_y+dy)
             rail.coords(overlay_config,151,action_y+dy)
             rail.coords(engine_icon,round(third+43),37+dy)
