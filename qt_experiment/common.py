@@ -9,7 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from html import escape
 
+from .font_setup import prepare_font_environment, ensure_ui_font
+prepare_font_environment()
+
 from PySide6.QtCore import QObject, Property, Signal, Slot
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtQuickControls2 import QQuickStyle
 
 # The native Windows style does not support our custom control backgrounds.
@@ -55,6 +59,7 @@ class PrototypeState(QObject):
 
     def __init__(self, rows: tuple[MonitorRow, ...] = ()):
         super().__init__()
+        ensure_ui_font(QGuiApplication.instance())
         self._f8 = True
         self._f9 = True
         self._overlay = True

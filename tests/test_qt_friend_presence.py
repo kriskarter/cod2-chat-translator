@@ -135,6 +135,9 @@ def test_qml_stars_context_presence_and_persistence(tmp_path):
     errors=[]
     engine.warnings.connect(lambda items:errors.extend(x.toString() for x in items))
     engine.rootContext().setContextProperty("prototype",state)
+    from qt_experiment.font_setup import ensure_ui_font, font_has_ui_glyphs
+    assert ensure_ui_font(app), "UI font missing Latin/Cyrillic glyphs"
+    assert font_has_ui_glyphs(app.font())
     engine.load(QUrl.fromLocalFile(str(ROOT/"qt_experiment/Home.qml")))
     assert engine.rootObjects()
     window=engine.rootObjects()[0]

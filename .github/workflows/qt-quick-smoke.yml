@@ -12,6 +12,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
       QT_QUICK_BACKEND: software
+      QT_QPA_FONTDIR: C:\Windows\Fonts
     steps:
       - uses: actions/checkout@v4
         with:

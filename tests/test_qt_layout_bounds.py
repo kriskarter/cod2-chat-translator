@@ -36,6 +36,8 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
     config.update(server_monitor={"servers":[]},auto_detect_profile=False)
     previous=knowledge_v2.RUNTIME
     state=TranslationState(config,settings_store=SettingsStore(tmp_path/"qt.json"))
+    from qt_experiment.font_setup import ensure_ui_font
+    assert ensure_ui_font(app), "Missing UI font glyphs"
     engine=QQmlApplicationEngine()
     errors=[]
     engine.warnings.connect(lambda items:errors.extend(x.toString() for x in items))

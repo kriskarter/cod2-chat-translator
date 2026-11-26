@@ -12,6 +12,11 @@ from .common import PrototypeState, preview_state
 
 def main():
     app = QGuiApplication(sys.argv)
+    from .font_setup import ensure_ui_font
+    fonts_ready = ensure_ui_font(app)
+    if "--screenshot" in sys.argv and not fonts_ready:
+        print("Qt UI font missing Latin or Cyrillic glyphs; screenshot rejected",file=sys.stderr)
+        return 4
     from PySide6.QtGui import QIcon
     from .common import ROOT
     app.setWindowIcon(QIcon(str(ROOT / "assets" / "app.ico")))
