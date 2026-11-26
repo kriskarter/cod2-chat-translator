@@ -45,7 +45,9 @@ class PremiumHome:
         self.sort_key="favorite"
         self.reverse=False
         self.dpi=float(self.app.root.tk.call("tk","scaling"))
-        self.compact=self.app.root.winfo_height()<=760 or self.app.root.winfo_screenheight()<=800
+        client_height=self.app.root.winfo_height()
+        self.compact=(client_height<=760 if client_height>1 else
+                      self.app.root.winfo_screenheight()<=800)
         self.large_dpi=self.dpi>=1.95
         self.photos={}
         from app import resource_path
@@ -73,8 +75,11 @@ class PremiumHome:
             self.canvas.itemconfigure(item,width=width)
             # Fit to the real client viewport. Scrollbars float above the
             # content and cannot change its width or feed Configure cycles.
-            rail_height=100 if self.compact else 112
+            rail_height=100 if height<520 else 112
             if int(self.rail.cget("height"))!=rail_height:self.rail.configure(height=rail_height)
+            monitor_height=330 if height<520 else 423 if height<650 else 545
+            if int(self._monitor_box.cget("height"))!=monitor_height:
+                self._monitor_box.configure(height=monitor_height)
             card_height=max(145,min(190,(height-rail_height-43)//2))
             for card in getattr(self,"_cards",()):
                 if int(card.cget("height"))!=card_height:card.configure(height=card_height)
@@ -178,6 +183,7 @@ class PremiumHome:
                      else 545 if self.app.root.winfo_screenheight()>=1000 else
                      423 if self.app.root.winfo_screenheight()>=850 else
                      492 if self.large_dpi else 390)
+        self._monitor_box=box
         box.pack(fill="both",expand=True,padx=10,pady=10)
         box.pack_propagate(False)
         head=tk.Frame(box,bg=CARD,height=40)
