@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import queue
 import threading
+import time
 from PySide6.QtGui import QGuiApplication
 from outgoing_chat import (KeyboardCapture, OutgoingTranslationDispatcher,
                            OutgoingHttpTransport, translate_outgoing_text,
@@ -34,6 +35,9 @@ class GameControls:
         self.ready = False
         self.buffer = ""
         self.generation = 0
+        self.preview_due = None
+        self.preview_inflight = False
+        self.preview_result = ""
         self.closed = threading.Event()
 
     def _focused(self):
@@ -55,15 +59,19 @@ class GameControls:
     def cancel(self, message=""):
         self.generation += 1
         self.active = self.pending = False
+        self.preview_due = None
+        self.preview_inflight = False
+        self.preview_result = ""
         self.buffer = ""
         self.keyboard.set_active(False)
         self.hud.enable(False)
         if message:
             self.state.game_status(message)
 
-    def _display(self, caption):
+    def _display(self, caption, translation=""):
         self.hud.items.clear()
-        self.hud.add("F9 · " + caption, self.buffer, self.buffer or "Введите сообщение…")
+        tr = getattr(self.state, "trText", lambda value: value)
+        self.hud.add("F9 · " + tr(caption), self.buffer, translation or self.buffer or tr("Введите сообщение…"))
         if not self.hud.enabled:
             self.cancel("F9 HUD недоступен: " + self.hud.last_error)
 
@@ -78,26 +86,55 @@ class GameControls:
         self.keyboard.set_active(True)
         self._display("Enter — отправить · Esc — отменить")
 
+    def _edit(self):
+        # Every edit invalidates a previous translation before another job is queued.
+        self.generation += 1
+        self.preview_inflight = False
+        self.preview_result = ""
+        self.preview_due = time.monotonic() + .32 if self.buffer.strip() else None
+        self._display("Enter — отправить · Esc — отменить")
+
+    def _request_preview(self):
+        text = normalize_outgoing_text(self.buffer)
+        self.preview_due = None
+        if not text or not self.active:
+            return
+        self.preview_inflight = True
+        self.dispatcher.submit(self.generation, text, self.state._f8_settings, self.source, self.target)
+
     def submit(self):
         if not self.active or self.pending or not self._focused():
             return
-        text = normalize_outgoing_text(self.buffer)
-        if not text:
+        if not normalize_outgoing_text(self.buffer):
+            return
+        if self.preview_result:
+            self._begin_send(self.preview_result)
             return
         self.pending = True
-        self.generation += 1
         self._display("Перевод… Esc — отменить")
-        if self.active:
-            self.dispatcher.submit(self.generation, text, self.state._f8_settings)
+        if self.active and not self.preview_inflight:
+            self._request_preview()
 
-    def _translate(self, generation, text, settings):
+    def _translate(self, generation, text, settings, source, target):
         try:
-            result = self.translator(text, self.target, self.source, style=settings[3],
+            result = self.translator(text, target, source, style=settings[3],
                                      slang_enabled=settings[2], smart_enabled=settings[4],
                                      legacy_transform=gaming_slang_transform, transport=self.transport)
+            if not result or not result.strip():
+                raise ValueError("Пустой перевод")
             self.events.put(("result", (generation, True, result)))
         except Exception as error:
             self.events.put(("result", (generation, False, str(error))))
+
+    def _begin_send(self, result):
+        if not self.active or not self._focused() or not self.state.f9:
+            self.cancel("F9: фокус CoD2 потерян")
+            return
+        self.cancel()
+        self.sending = True
+        self.state.game_status("F9: отправка в CoD2")
+        threading.Thread(target=self._send, args=(result,), daemon=True,
+                         name="QtCoD2GameSend").start()
 
     def _send(self, text):
         try:
@@ -141,20 +178,21 @@ class GameControls:
                 self.submit()
             elif event == "result":
                 generation, ok, result = value
-                if not self.active or not self.pending or generation != self.generation:
+                if not self.active or generation != self.generation:
                     continue
+                self.preview_inflight = False
                 if not self._focused() or not self.state.f9:
                     self.cancel("F9: фокус CoD2 потерян")
                 elif not ok:
                     self.pending = False
+                    self.preview_result = ""
                     self._display("Ошибка перевода · повторите Enter")
                     self.state.game_status(result)
+                elif self.pending:
+                    self._begin_send(result)
                 else:
-                    self.cancel()
-                    self.sending = True
-                    self.state.game_status("F9: отправка в CoD2")
-                    threading.Thread(target=self._send, args=(result,), daemon=True,
-                                     name="QtCoD2GameSend").start()
+                    self.preview_result = result
+                    self._display("Enter — отправить · Esc — отменить", result)
             elif event == "sent":
                 self.sending = False
                 ok, error = value
@@ -168,4 +206,6 @@ class GameControls:
                     self.buffer = (self.buffer + QGuiApplication.clipboard().text())[:500]
                 else:
                     continue
-                self._display("Enter — отправить · Esc — отменить")
+                self._edit()
+        if self.active and not self.pending and self.preview_due is not None and time.monotonic() >= self.preview_due:
+            self._request_preview()

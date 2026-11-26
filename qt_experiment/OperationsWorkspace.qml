@@ -26,6 +26,14 @@ MetalPanel {
             }
         }
     }
+    MetalDialog {
+        id: loggingDialog
+        anchors.centerIn: parent
+        title: root.tr("Журнал игры")
+        standardButtons: Dialog.Yes | Dialog.No
+        Text { width: 335; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Включить logfile 2 в конфигурациях CoD2? Файлы запущенной игры не изменяются.") }
+        onAccepted: prototype.enableGameLogging()
+    }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 24; spacing: 10
         Text { text: root.tr(({profiles:"Профили",knowledge:"База знаний",notifications:"Уведомления",about:"О программе",stats:"Статистика",overlay:"Настройки оверлея"})[root.page] || (prototype.uiLanguage, prototype.trText("О программе"))); font.pixelSize: 23; font.bold: true; color: "#f5e7c9" }
@@ -38,6 +46,7 @@ MetalPanel {
                     Text { text: root.tr("Автоматический выбор активного профиля"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.autoProfile; onClicked: prototype.setAutoProfile(checked) }
                     MetalButton { text: root.tr("Найти профили"); enabled: !prototype.maintenanceBusy; onClicked: prototype.rescanProfiles() }
+                    MetalButton { text: root.tr("Журнал игры"); enabled: !prototype.maintenanceBusy; onClicked: loggingDialog.open() }
                 }
                 ListView {
                     id: profiles
@@ -133,28 +142,58 @@ MetalPanel {
                     }
                 }
             }
-            ColumnLayout {
-                RowLayout {
-                    Text { text: root.tr("Оверлей"); color: "#f5e7c9"; Layout.fillWidth: true }
-                    TacticalSwitch { checked: prototype.overlay; enabled: prototype.overlayAvailable; onClicked: prototype.toggle("overlay") }
+            Flickable {
+                id: hudScroll
+                clip: true; contentWidth: width; contentHeight: hudContent.implicitHeight + 4
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: MetalScrollBar { parent: hudScroll; anchors.right: hudScroll.right; anchors.top: hudScroll.top; anchors.bottom: hudScroll.bottom }
+                ColumnLayout {
+                    id: hudContent; width: hudScroll.width - 15; spacing: 8
+                    RowLayout {
+                        Text { text: root.tr("Оверлей"); color: "#e4c291"; font.bold: true; Layout.fillWidth: true }
+                        TacticalSwitch { checked: prototype.overlay; enabled: prototype.overlayAvailable; onClicked: prototype.toggle("overlay") }
+                        MetalButton { text: root.tr("Тест оверлея"); enabled: prototype.overlayAvailable; onClicked: prototype.testHud() }
+                        MetalButton { text: root.tr("Очистить"); onClicked: prototype.clearHud() }
+                    }
+                    GridLayout {
+                        columns: 3; Layout.fillWidth: true
+                        MetalButton { text: root.tr("Только текст"); Layout.fillWidth: true; onClicked: prototype.applyHudPreset("text") }
+                        MetalButton { text: root.tr("Минимальный"); Layout.fillWidth: true; onClicked: prototype.applyHudPreset("minimal") }
+                        MetalButton { text: root.tr("Читаемый"); Layout.fillWidth: true; onClicked: prototype.applyHudPreset("readable") }
+                    }
+                    GridLayout {
+                        Layout.fillWidth: true; columns: width < 650 ? 1 : 2; columnSpacing: 18; rowSpacing: 4
+                        Repeater {
+                            model: [{k:"font",label:"Размер текста",lo:8,hi:20,step:1},{k:"ttl",label:"Время показа",lo:1,hi:120,step:1},{k:"opacity",label:"Прозрачность фона",lo:0,hi:.9,step:.05},{k:"messages",label:"Количество сообщений",lo:1,hi:10,step:1},{k:"width",label:"Ширина",lo:200,hi:1200,step:10},{k:"height",label:"Высота",lo:46,hi:600,step:10}]
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.preferredWidth: 145; elide: Text.ElideRight }
+                                Slider { from: modelData.lo; to: modelData.hi; stepSize: modelData.step; value: prototype.preferences[modelData.k]; Layout.fillWidth: true; onMoved: prototype.setHudValue(modelData.k,value) }
+                                Text { text: modelData.k === "opacity" ? Math.round(prototype.preferences.opacity*100)+"%" : Math.round(prototype.preferences[modelData.k]); color: "#e4c291"; Layout.preferredWidth: 42 }
+                            }
+                        }
+                        Repeater {
+                            model: [{k:"fade",label:"Плавное исчезновение"},{k:"compact",label:"Компактный фон"},{k:"onlyMessages",label:"Фон только с сообщениями"},{k:"autoHeight",label:"Автоматическая высота"}]
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.fillWidth: true; elide: Text.ElideRight }
+                                TacticalSwitch { checked: !!prototype.preferences[modelData.k]; onClicked: prototype.setPreference(modelData.k,checked) }
+                            }
+                        }
+                    }
+                    RowLayout {
+                        Text { text: "X"; color: "#e4c291" }
+                        MetalTextField { id: hudX; text: String(prototype.preferences.x); Layout.preferredWidth: 90; validator: IntValidator { bottom: -6000; top: 6000 } }
+                        Text { text: "Y"; color: "#e4c291" }
+                        MetalTextField { id: hudY; text: String(prototype.preferences.y); Layout.preferredWidth: 90; validator: IntValidator { bottom: -6000; top: 6000 } }
+                        MetalButton { text: root.tr("Применить"); enabled: hudX.acceptableInput && hudY.acceptableInput; onClicked: { prototype.setHudValue("x",Number(hudX.text)); prototype.setHudValue("y",Number(hudY.text)) } }
+                        MetalButton { text: root.tr("Сбросить позицию"); onClicked: prototype.resetHudPosition() }
+                        Item { Layout.fillWidth: true }
+                        AmberButton { text: root.tr("Сохранить настройки"); visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
+                    }
                 }
-                RowLayout {
-                    Text { text: root.tr("Размер текста"); color: "#f5e7c9"; Layout.preferredWidth: 180 }
-                    Slider { from: 8; to: 28; stepSize: 1; value: prototype.preferences.font; Layout.fillWidth: true; onMoved: prototype.setHudValue("font", value) }
-                    Text { text: prototype.preferences.font; color: "#e4c291" }
-                }
-                RowLayout {
-                    Text { text: root.tr("Время показа"); color: "#f5e7c9"; Layout.preferredWidth: 180 }
-                    Slider { from: 1; to: 120; stepSize: 1; value: prototype.preferences.ttl; Layout.fillWidth: true; onMoved: prototype.setHudValue("ttl", value) }
-                    Text { text: prototype.preferences.ttl + " s"; color: "#e4c291" }
-                }
-                RowLayout {
-                    Text { text: root.tr("Прозрачность фона"); color: "#f5e7c9"; Layout.preferredWidth: 180 }
-                    Slider { from: 0; to: .9; stepSize: .05; value: prototype.preferences.opacity; Layout.fillWidth: true; onMoved: prototype.setHudValue("opacity", value) }
-                    Text { text: Math.round(prototype.preferences.opacity * 100) + "%"; color: "#e4c291" }
-                }
-                AmberButton { text: root.tr("Сохранить настройки"); visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
-                Item { Layout.fillHeight: true }
             }
         }
         Text { text: prototype.translationStatus; color: "#d4a75e"; elide: Text.ElideRight; Layout.fillWidth: true }

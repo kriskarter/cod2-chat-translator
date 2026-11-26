@@ -144,3 +144,22 @@ def test_real_windows_layered_surface():
         hud.clear()
     finally:
         hud.close()
+
+
+def test_hud_fade_resets_on_new_message():
+    from qt_experiment.native_hud import NativeHud
+    from unittest.mock import Mock
+    now = [0.]
+    surface = Mock()
+    hud = NativeHud({"message_ttl_seconds": 5, "fade_ms": 400, "fade_enabled": True}, factory=lambda: surface, clock=lambda: now[0])
+    try:
+        assert hud.enable(True)
+        hud.add("A", "one", "один")
+        now[0] = 4.8
+        hud.tick()
+        assert .45 < hud._alpha < .55
+        surface.set_alpha.assert_called()
+        hud.add("B", "two", "два")
+        assert hud._alpha == 1.
+    finally:
+        hud.close()

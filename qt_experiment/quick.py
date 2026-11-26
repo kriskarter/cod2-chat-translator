@@ -61,6 +61,8 @@ def main():
         state = preview_state()
         state.action.connect(lambda name: print('Prototype action:', name, flush=True))
     engine = QQmlApplicationEngine()
+    qml_warnings = []
+    engine.warnings.connect(lambda items: qml_warnings.extend(item.toString() for item in items))
     engine.rootContext().setContextProperty('prototype', state)
     engine.load(QUrl.fromLocalFile(str(Path(__file__).with_name('ComponentGallery.qml' if '--gallery' in sys.argv else 'Home.qml'))))
     if not engine.rootObjects():
@@ -82,8 +84,11 @@ def main():
         window.close()
         if not state.demo: state.stop()
         del engine
-        return 0 if saved else 2
-    return app.exec()
+        return 0 if saved and not qml_warnings else 2
+    code = app.exec()
+    if not state.demo: state.stop()
+    del engine
+    return code
 
 
 if __name__ == '__main__':

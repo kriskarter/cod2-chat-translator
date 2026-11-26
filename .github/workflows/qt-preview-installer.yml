@@ -43,6 +43,34 @@ jobs:
             if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Frozen smoke timed out: $page" }
             if ($p.ExitCode -ne 0 -or !(Test-Path $out) -or (Get-Item $out).Length -lt 5000) { throw "Frozen smoke failed: $page" }
           }
+      - name: Frozen EXE scale and locale matrix (simulated DPI)
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "qt-evidence"
+          $exe = Join-Path $PWD "dist\CoD2ChatTranslatorQt\CoD2ChatTranslatorQt.exe"
+          $config = Join-Path $root "fixture.json"
+          $settings = Join-Path $root "qt_settings.json"
+          foreach ($scale in @(1.0,1.25,1.5)) {
+            $env:QT_SCALE_FACTOR = $scale.ToString([Globalization.CultureInfo]::InvariantCulture)
+            foreach ($resolution in @("1366x768","1536x864","1920x1080")) {
+              $parts = $resolution.Split("x")
+              $w = [int][Math]::Floor([int]$parts[0]/$scale)
+              $h = [int][Math]::Floor([int]$parts[1]/$scale)
+              $size = "${w}x${h}"
+              $out = Join-Path $root "scale_${scale}_${resolution}.png"
+              $args = @("--config","`"$config`"","--settings-file","`"$settings`"","--size",$size,"--page","home","--screenshot","`"$out`"")
+              $p = Start-Process $exe -ArgumentList $args -PassThru
+              if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Scale smoke timeout" }
+              if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Scale smoke failed: $scale $resolution" }
+            }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR -ErrorAction SilentlyContinue
+          foreach ($lang in @("ru","uk","en")) {
+            $out = Join-Path $root "locale_${lang}.png"
+            $p = Start-Process $exe -ArgumentList @("--config","`"$config`"","--settings-file","`"$settings`"","--page","settings","--ui-language",$lang,"--size","1366x768","--screenshot","`"$out`"") -PassThru
+            if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Locale smoke timeout" }
+            if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Locale smoke failed: $lang" }
+          }
       - name: Build isolated multilingual installer
         shell: pwsh
         run: |

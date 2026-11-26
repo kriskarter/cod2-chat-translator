@@ -90,3 +90,26 @@ def test_native_keyboard_hook_starts_and_stops():
         if hook._thread:
             hook._thread.join(5)
     assert not hook._thread.is_alive()
+
+
+def test_live_preview_never_sends_until_enter():
+    state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
+                            game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
+    surface = Mock()
+    sender = Mock(return_value=(True, ""))
+    translator = Mock(return_value="cover me")
+    game = GameControls(state, {}, "ru", "en", foreground=lambda: True,
+                        keyboard_factory=Keyboard, hud_factory=lambda cfg, original: NativeHud(cfg, original, factory=lambda: surface),
+                        translator=translator, sender=sender)
+    try:
+        game.events.put(("toggle_popup", None))
+        game.events.put(("text", "прикрой меня"))
+        wait(game, lambda: game.preview_result == "cover me")
+        assert game.hud.items[0].translated == "cover me"
+        sender.assert_not_called()
+        game.events.put(("submit", None))
+        wait(game, lambda: sender.called and not game.sending)
+        sender.assert_called_once_with("cover me")
+        translator.assert_called_once()
+    finally:
+        game.close()

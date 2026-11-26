@@ -16,6 +16,7 @@ class NativeHud:
         self.surface = None
         self.enabled = False
         self.last_error = ""
+        self._alpha = 1.0
 
     @property
     def available(self):
@@ -55,7 +56,8 @@ class NativeHud:
             if not self.items and self.config.get("background_only_with_messages", True):
                 self.surface.hide()
                 return
-            self.surface.render(list(self.items), self.config, self.show_original)
+            self._alpha = 1.0
+            self.surface.render(list(self.items), self.config, self.show_original, alpha=self._alpha)
             self.surface.show()
         except Exception as error:
             self._fail(error)
@@ -64,6 +66,11 @@ class NativeHud:
         if not self.enabled:
             return
         self.items.appendleft(OverlayItem(nickname, original, translated, self.clock()))
+        self._render()
+
+    def resize_buffer(self, count):
+        self.items = deque(list(self.items)[:count], maxlen=count)
+        self.config["max_messages"] = count
         self._render()
 
     def clear(self):
@@ -76,6 +83,18 @@ class NativeHud:
             self.items.pop()
         if before != len(self.items):
             self._render()
+        if not self.enabled or not self.surface or not self.items:
+            return
+        # Fade the whole layered HUD only when the newest item approaches expiry.
+        fade = max(.08, min(2.0, float(self.config.get("fade_ms", 220)) / 1000))
+        remaining = self.ttl - (self.clock() - self.items[0].created_at)
+        alpha = max(0., min(1., remaining / fade)) if self.config.get("fade_enabled", True) else 1.
+        if abs(alpha - self._alpha) > .025:
+            try:
+                self.surface.set_alpha(alpha)
+                self._alpha = alpha
+            except Exception as error:
+                self._fail(error)
 
     def close(self):
         self.enabled = False

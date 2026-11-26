@@ -46,7 +46,7 @@ ColumnLayout {
             }
             Cells {
                 anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 9
-                values: [line.modelData.name, line.modelData.map, line.modelData.population, line.modelData.ping, line.modelData.state]
+                values: [line.modelData.name, line.modelData.map, line.modelData.population, line.modelData.ping, (prototype.uiLanguage, prototype.trText(line.modelData.state))]
                 favorite: !!line.modelData.favorite
                 online: line.modelData.state === "online"
             }

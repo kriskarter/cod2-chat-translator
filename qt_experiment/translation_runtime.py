@@ -9,6 +9,7 @@ import json
 import os
 import queue
 import threading
+import time
 from collections import deque
 from pathlib import Path
 
@@ -52,6 +53,7 @@ class TranslationState(LiveMonitorState):
         self._auto_profile = bool(config.get("auto_detect_profile", True))
         self._profile_activity = {}
         self._pending_switch_positions = {}
+        self._last_profile_scan = time.monotonic()
         self._notifications = deque(maxlen=80)
         self._friend_presence = {}
         self._friend_notice_at = {}
@@ -64,7 +66,7 @@ class TranslationState(LiveMonitorState):
         self._profile_timer.timeout.connect(self._poll_profiles)
         self.ui_language = config.get("ui_language", "ru")
         if self.ui_language not in ("ru", "uk", "en"): self.ui_language = "ru"
-        self._translation_status = "Ожидание запуска"
+        self._translation_status = self.trText("Ожидание запуска")
         self._history = deque(maxlen=200)
         self._outgoing_result = ""
         self._outgoing_busy = False
@@ -171,7 +173,7 @@ class TranslationState(LiveMonitorState):
             self._screenshot_in_progress = False
 
     def game_status(self, text):
-        self._translation_status = text
+        self._translation_status = self.trText(text)
         self.translationChanged.emit()
 
     def capture_game_screenshot(self):
@@ -215,7 +217,7 @@ class TranslationState(LiveMonitorState):
             self._config = config
             self.game_status("Настройки сохранены")
         except (OSError, RuntimeError) as error:
-            self.game_status("Ошибка сохранения: " + str(error))
+            self.game_status(self.trText("Ошибка сохранения") + ": " + str(error))
 
     def _settings_changed(self):
         # Save only on explicit user request, never from a network callback.
@@ -258,12 +260,29 @@ class TranslationState(LiveMonitorState):
     def rescanProfiles(self):
         if self._maintenance_busy: return
         self._maintenance_busy = True
+        self._last_profile_scan = time.monotonic()
         self.translationChanged.emit()
         roots = list(self._config.get("cod2_roots") or [])
         def worker():
             try: self.ui_queue.put(("qt_maintenance", "profiles", discover_cod2_logs(roots), ""))
             except Exception as e: self.ui_queue.put(("qt_maintenance", "profiles", [], str(e)))
         threading.Thread(target=worker, daemon=True, name="QtProfileScan").start()
+
+    @Slot()
+    def enableGameLogging(self):
+        if self._maintenance_busy: return
+        self._maintenance_busy = True
+        self.translationChanged.emit()
+        roots = list(self._config.get("cod2_roots") or [])
+        def worker():
+            try:
+                from app import discover_cod2_game_roots, discover_running_cod2_roots, ensure_cod2_console_logging
+                roots_found = discover_cod2_game_roots(roots)
+                summary = ensure_cod2_console_logging(roots_found, running_roots=discover_running_cod2_roots())
+                self.ui_queue.put(("qt_maintenance", "logging", summary, ""))
+            except Exception as error:
+                self.ui_queue.put(("qt_maintenance", "logging", None, str(error)))
+        threading.Thread(target=worker, daemon=True, name="QtEnableGameLogging").start()
 
     def _resolve_game_exe(self):
         if os.name != "nt" or self._game_exe: return
@@ -278,7 +297,10 @@ class TranslationState(LiveMonitorState):
         return self._pending_switch_positions.pop(_path_key(path), None)
 
     def _poll_profiles(self):
-        if not self._auto_profile or not self._profiles: return
+        if not self._auto_profile: return
+        if self._started and not self._maintenance_busy and time.monotonic() - self._last_profile_scan > 45:
+            self.rescanProfiles()
+        if not self._profiles: return
         previous = self._profile_activity
         chosen, self._profile_activity = choose_active_log_from_activity(
             [Path(r["path"]) for r in self._profiles], self._profile_activity, self._log_path)
@@ -333,12 +355,22 @@ class TranslationState(LiveMonitorState):
                 "original": self._hud.show_original, "style": self._style,
                 "font": self._hud.config.get("font_size", 10),
                 "ttl": self._hud.ttl,
-                "opacity": self._hud.config.get("background_opacity", .15)}
+                "opacity": self._hud.config.get("background_opacity", .15),
+                "width": self._hud.config.get("width", 500), "height": self._hud.config.get("height", 150),
+                "x": self._hud.config.get("x", 8), "y": self._hud.config.get("y", 360),
+                "messages": self._hud.items.maxlen,
+                "fade": self._hud.config.get("fade_enabled", True),
+                "compact": self._hud.config.get("compact_background", True),
+                "onlyMessages": self._hud.config.get("background_only_with_messages", True),
+                "autoHeight": self._hud.config.get("auto_height", True)}
 
     @Slot(str, bool)
     def setPreference(self, key, value):
         if key == "original":
             self._hud.show_original = value
+            self._hud._render()
+        elif key in ("fade", "compact", "onlyMessages", "autoHeight"):
+            self._hud.config[{"fade":"fade_enabled","compact":"compact_background","onlyMessages":"background_only_with_messages","autoHeight":"auto_height"}[key]] = value
             self._hud._render()
         elif key in ("hide", "slang", "dedupe"):
             setattr(self, "_" + key, value)
@@ -360,15 +392,54 @@ class TranslationState(LiveMonitorState):
     @Slot(str, float)
     def setHudValue(self, key, value):
         if key == "font":
-            self._hud.config["font_size"] = max(8, min(28, int(value)))
+            self._hud.config["font_size"] = max(8, min(20, int(value)))
         elif key == "ttl":
             self._hud.ttl = max(1, min(120, value))
             self._hud.config["message_ttl_seconds"] = self._hud.ttl
         elif key == "opacity":
             self._hud.config["background_opacity"] = max(0, min(.9, value))
+        elif key in ("width", "height", "x", "y"):
+            lo, hi = {"width":(200, 1200),"height":(46, 600),"x":(-6000, 6000),"y":(-6000, 6000)}[key]
+            self._hud.config[key] = max(lo, min(hi, int(value)))
+        elif key == "messages":
+            self._hud.resize_buffer(max(1, min(10, int(value))))
         else: return
         self._hud._render()
         self.translationChanged.emit()
+
+    @Slot(str)
+    def applyHudPreset(self, preset):
+        values = {"text":(420,120,9,0.),"minimal":(420,120,9,.15),"readable":(500,150,10,.12)}.get(preset)
+        if values is None: return
+        w,h,font,opacity = values
+        self._hud.config.update(width=w,height=h,font_size=font,background_opacity=opacity,
+                                background_only_with_messages=True, compact_background=True,
+                                fade_enabled=True, auto_height=True, message_ttl_seconds=10)
+        self._hud.ttl = 10
+        self._hud.resize_buffer(4)
+        self.translationChanged.emit()
+
+    @Slot()
+    def resetHudPosition(self):
+        from PySide6.QtGui import QGuiApplication
+        from app import default_overlay_position
+        screen = QGuiApplication.primaryScreen().geometry()
+        x,y = default_overlay_position(screen.width(),screen.height(),
+                                       self.preferences["width"],self.preferences["height"])
+        self._hud.config.update(x=x+screen.x(),y=y+screen.y())
+        self._hud._render()
+        self.translationChanged.emit()
+
+    @Slot()
+    def testHud(self):
+        if not self._hud.available: return
+        if not self._overlay: self.toggle("overlay")
+        if self._hud.enabled:
+            self._hud.add("TEST · CoD2", "Cover me", self.trText("Тест оверлея"))
+
+    @Slot()
+    def clearHud(self):
+        self._hud.clear()
 
     def attach_window(self, window):
         if os.name == "nt":
@@ -590,7 +661,7 @@ class TranslationState(LiveMonitorState):
         if key == "f8":
             self._f8 = self.enabled = not self._f8
             self._on_log_control("map_change", "f8_toggle")
-            self._translation_status = "Входящий перевод включён" if self._f8 else "Входящий перевод выключен"
+            self._translation_status = self.trText("Входящий перевод включён" if self._f8 else "Входящий перевод выключен")
         elif key == "f9":
             self._f9 = not self._f9
             if self._game and not self._f9: self._game.cancel()
@@ -619,7 +690,7 @@ class TranslationState(LiveMonitorState):
         if not self._f9 or self.stop_event.is_set():
             return
         if not text.strip() or len(text) > 500 or target not in OUTGOING_LANGUAGES.values():
-            self._outgoing_result = "Некорректный текст или язык"
+            self._outgoing_result = self.trText("Некорректный текст или язык")
             self.translationChanged.emit()
             return
         if source != "auto" and source not in OUTGOING_LANGUAGES.values():
@@ -682,6 +753,8 @@ class TranslationState(LiveMonitorState):
                     else:
                         self._profile_activity = activity_snapshot([Path(r["path"]) for r in self._profiles])
                     self._translation_status = self.trText("Профили обновлены")
+                elif task == "logging":
+                    self._translation_status = self.trText("Журнал игры") + f": {result.enabled_count}/{result.configs_found}; " + self.trText("После выхода из игры") + f": {result.deferred_count}; " + self.trText("Ошибка") + f": {result.failed_count}"
                 elif task == "knowledge":
                     self._translation_status = self.trText("База знаний обновлена" if result else "База знаний актуальна")
                 elif task == "updates":

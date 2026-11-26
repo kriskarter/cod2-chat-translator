@@ -38,6 +38,10 @@ def test_operations_and_localization(tmp_path):
         state.setAutoProfile(False)
         state.setNotifyFriends(True)
         state.setPreference("original", True)
+        state.applyHudPreset("text")
+        assert state.preferences["opacity"] == 0 and state.preferences["width"] == 420
+        state.setHudValue("messages", 7)
+        state.setPreference("fade", False)
         state.setHudValue("font", 18)
         state.setKnowledgeEnabled(False)
         state.setUiLanguage("uk")
@@ -51,6 +55,7 @@ def test_operations_and_localization(tmp_path):
         assert saved["auto_detect_profile"] is False
         assert saved["server_monitor"]["notify_friends"] is True
         assert saved["show_original"] is True and saved["overlay"]["font_size"] == 18
+        assert saved["overlay"]["max_messages"] == 7 and saved["overlay"]["fade_enabled"] is False
         assert saved["knowledge_v2_enabled"] is False
         assert saved["ui_language"] == "uk"
         assert saved["outgoing_source_language"] == "uk" and saved["outgoing_target_language"] == "de"
