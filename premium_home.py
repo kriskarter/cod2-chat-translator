@@ -277,7 +277,8 @@ class PremiumHome:
         rail.create_text(0,0,text=local(a,"Оверлей","Оверлей","Overlay"),anchor="w",
                          fill=TEXT,font=(FONT,12,"bold"),tags="overlay_title")
         rail.create_text(0,0,text=local(a,"Перевод поверх игры","Переклад поверх гри",
-                         "Translation over the game"),anchor="w",
+                         "Translation over the game") if not self.large_dpi else
+                         local(a,"в игре","у грі","in game"),anchor="w",
                          fill=MUTED,font=(FONT,9),tags="overlay_note")
         rail.create_text(0,0,text="Smart Engine",anchor="w",
                          fill=TEXT,font=(FONT,12,"bold"),tags="engine_title")
@@ -324,7 +325,8 @@ class PremiumHome:
                 rail.coords(item,x,13,x,event.height-13)
             rail.coords(overlay_icon,43,33+dy)
             rail.coords("overlay_title",72,23+dy)
-            rail.coords("overlay_note",70,42+dy)
+            rail.coords("overlay_note",252 if self.large_dpi else 70,
+                        (23 if self.large_dpi else 42)+dy)
             rail.coords(overlay_switch,round(third-88),19+dy)
             action_y=max(39,event.height-54-dy)
             rail.coords(overlay_edit,35,action_y+dy)
