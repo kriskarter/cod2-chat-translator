@@ -25,7 +25,7 @@ jobs:
         shell: pwsh
         run: |
           @{ tag = "qt-preview-" + $env:GITHUB_SHA.Substring(0,12); sha = $env:GITHUB_SHA } | ConvertTo-Json -Compress | Set-Content -Encoding utf8NoBOM qt_build.json
-          pyinstaller --noconfirm --clean --paths . --onedir --windowed --name CoD2ChatTranslatorQt --icon assets/app.ico --add-data "assets;assets" --add-data "qt_build.json;." --add-data "qt_experiment;qt_experiment" --hidden-import PySide6.QtQuick --hidden-import PySide6.QtQuickControls2 --hidden-import PySide6.QtQml qt_experiment/rc_entry.py
+          pyinstaller --noconfirm --clean --paths . --onedir --windowed --name CoD2ChatTranslatorQt --icon assets/app.ico --add-data "assets;assets" --add-data "qt_build.json;." --add-data "qt_experiment;qt_experiment" --hidden-import PySide6.QtQuick --hidden-import PySide6.QtQuickControls2 --hidden-import PySide6.QtQml --hidden-import PySide6.QtTest qt_experiment/rc_entry.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Smoke test actual frozen EXE
         shell: pwsh
@@ -70,6 +70,30 @@ jobs:
             $p = Start-Process $exe -ArgumentList @("--config","`"$config`"","--settings-file","`"$settings`"","--page","settings","--ui-language",$lang,"--size","1366x768","--screenshot","`"$out`"") -PassThru
             if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Locale smoke timeout" }
             if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Locale smoke failed: $lang" }
+          }
+      - name: Frozen compact pages and actual dialogs
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "qt-evidence"
+          $exe = Join-Path $PWD "dist\CoD2ChatTranslatorQt\CoD2ChatTranslatorQt.exe"
+          $config = Join-Path $root "fixture.json"
+          $settings = Join-Path $root "qt_settings.json"
+          $env:QT_SCALE_FACTOR = "1.5"
+          foreach ($page in @("servers","settings","history","outgoing","profiles","knowledge","notifications","about","stats","overlay")) {
+            $out = Join-Path $root "compact_$page.png"
+            $args = @("--config","`"$config`"","--settings-file","`"$settings`"","--size","910x512","--page",$page,"--screenshot","`"$out`"")
+            $p = Start-Process $exe -ArgumentList $args -PassThru
+            if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Compact page timeout" }
+            if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Compact page failed: $page" }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR -ErrorAction SilentlyContinue
+          foreach ($entry in @("home:add_server_dialog","servers:server_remove_dialog","history:history_clear_dialog","knowledge:knowledge_clear_dialog","profiles:game_logging_dialog")) {
+            $parts = $entry.Split(":")
+            $out = Join-Path $root "dialog_$($parts[1]).png"
+            $args = @("--config","`"$config`"","--settings-file","`"$settings`"","--size","1366x768","--page",$parts[0],"--dialog",$parts[1],"--screenshot","`"$out`"")
+            $p = Start-Process $exe -ArgumentList $args -PassThru
+            if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Dialog timeout" }
+            if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Dialog failed: $entry" }
           }
       - name: Build isolated multilingual installer
         shell: pwsh

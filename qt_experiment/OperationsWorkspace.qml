@@ -4,6 +4,8 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 MetalPanel {
     id: root
+    function showEvidenceDialog(name) { if (name==="knowledge_clear_dialog") clearDialog.open(); else if (name==="game_logging_dialog") loggingDialog.open() }
+    clip:true; objectName:"operations_workspace"
     property string page: "profiles"
     signal back()
     property string uiLocale: prototype.uiLanguage
@@ -17,7 +19,7 @@ MetalPanel {
         }
     }
     MetalDialog {
-        id: clearDialog; title: root.tr("Очистить опыт"); anchors.centerIn: parent
+        id: clearDialog; objectName:"knowledge_clear_dialog"; title: root.tr("Очистить опыт"); anchors.centerIn: parent
         standardButtons: Dialog.NoButton
         ColumnLayout {
             Text { text: root.tr("Удалить только локальный опыт и кэш?"); color: "#f5e7c9" }
@@ -29,6 +31,7 @@ MetalPanel {
     }
     MetalDialog {
         id: loggingDialog
+        objectName:"game_logging_dialog"
         anchors.centerIn: parent
         title: root.tr("Журнал игры")
         standardButtons: Dialog.Yes | Dialog.No
@@ -43,7 +46,7 @@ MetalPanel {
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: "#786342" }
         StackLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true
+            Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight:0
             currentIndex: root.page === "profiles" ? 0 : root.page === "knowledge" ? 1 : root.page === "notifications" ? 2 : root.page === "stats" ? 4 : root.page === "overlay" ? 5 : 3
             ColumnLayout {
                 RowLayout {
@@ -117,6 +120,7 @@ MetalPanel {
                     Text { text: root.tr("Сообщать о появлении друзей в игре"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.notifyFriends; onClicked: prototype.setNotifyFriends(checked) }
                 }
+                Text {text:root.tr("Оповещение при появлении избранного игрока. Первый опрос сервера не вызывает уведомление.");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true}
                 ListView {
                     id: notices
                     Layout.fillHeight: true; Layout.fillWidth: true; clip: true; spacing: 5
@@ -189,10 +193,27 @@ MetalPanel {
                         MetalButton { text: root.tr("Очистить"); onClicked: prototype.clearHud() }
                     }
                     Rectangle {
-                        Layout.fillWidth:true;Layout.preferredHeight:72;radius:6;color:"#151b19";border.color:"#686b59"
-                        Image {anchors.fill:parent;source:"../assets/ui_premium/translation_card_source.jpg";fillMode:Image.PreserveAspectCrop;opacity:.42;clip:true}
-                        Rectangle {anchors.centerIn:parent;width:Math.min(parent.width-24,prototype.preferences.width);height:48;color:Qt.rgba(0,0,0,prototype.preferences.opacity);radius:4
-                            Text {anchors.centerIn:parent;text:"TEST · "+root.tr("Тест оверлея");color:"#f0e7d4";font.pixelSize:prototype.preferences.font+3}
+                        id:hudStage
+                        Layout.fillWidth:true;Layout.preferredHeight:132;radius:6;color:"#151b19";border.color:"#686b59";clip:true
+                        Image {anchors.fill:parent;source:"../assets/ui_premium/translation_card_source.jpg";fillMode:Image.PreserveAspectCrop;opacity:.48;clip:true}
+                        Text {anchors.right:parent.right;anchors.top:parent.top;anchors.margins:6;text:root.tr("Перетащите тестовый HUD");color:"#e8d9ba";font.pixelSize:11}
+                        Rectangle {
+                            id:hudSample
+                            property real editX:0
+                            property real editY:0
+                            width:Math.max(110,Math.min(parent.width-12,parent.width*prototype.hudPosition.width));height:Math.max(34,Math.min(parent.height-8,parent.height*prototype.hudPosition.height))
+                            x:dragArea.pressed?editX:prototype.hudPosition.x*Math.max(0,parent.width-width)
+                            y:dragArea.pressed?editY:prototype.hudPosition.y*Math.max(0,parent.height-height)
+                            color:Qt.rgba(0,0,0,prototype.preferences.opacity);radius:4;border.color:"#d0af72"
+                            Text {anchors.centerIn:parent;text:"TEST · "+root.tr("Тест оверлея");color:"#f0e7d4";font.pixelSize:Math.min(16,prototype.preferences.font+1);width:parent.width-8;elide:Text.ElideRight;horizontalAlignment:Text.AlignHCenter}
+                            MouseArea {
+                                id:dragArea;anchors.fill:parent;cursorShape:Qt.SizeAllCursor
+                                property real dx
+                                property real dy
+                                onPressed:mouse=>{hudSample.editX=prototype.hudPosition.x*Math.max(0,hudStage.width-hudSample.width);hudSample.editY=prototype.hudPosition.y*Math.max(0,hudStage.height-hudSample.height);dx=mouse.x;dy=mouse.y}
+                                onPositionChanged:mouse=>{if(pressed){hudSample.editX=Math.max(0,Math.min(hudStage.width-hudSample.width,hudSample.editX+mouse.x-dx));hudSample.editY=Math.max(0,Math.min(hudStage.height-hudSample.height,hudSample.editY+mouse.y-dy))}}
+                                onReleased:prototype.setHudPositionNormalized(hudSample.editX/Math.max(1,hudStage.width-hudSample.width),hudSample.editY/Math.max(1,hudStage.height-hudSample.height))
+                            }
                         }
                     }
                     GridLayout {
@@ -231,7 +252,7 @@ MetalPanel {
                         MetalButton { text: root.tr("Применить"); enabled: hudX.acceptableInput && hudY.acceptableInput; onClicked: { prototype.setHudValue("x",Number(hudX.text)); prototype.setHudValue("y",Number(hudY.text)) } }
                         MetalButton { text: root.tr("Сбросить позицию"); onClicked: prototype.resetHudPosition() }
                         Item { Layout.fillWidth: true }
-                        AmberButton { text: root.tr("Сохранить настройки"); visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
+
                     }
                 }
             }

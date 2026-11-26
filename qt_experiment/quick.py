@@ -99,6 +99,16 @@ def main():
         state.setUiLanguage(sys.argv[sys.argv.index("--ui-language") + 1])
     if '--screenshot' in sys.argv:
         app.processEvents()
+        if "--dialog" in sys.argv:
+            from PySide6.QtTest import QTest
+            QTest.qWait(60)
+            name = sys.argv[sys.argv.index("--dialog")+1]
+            if name not in ("add_server_dialog","server_remove_dialog","history_clear_dialog","knowledge_clear_dialog","game_logging_dialog"):
+                if not state.demo: state.stop()
+                del engine
+                return 3
+            engine.rootObjects()[0].setProperty("evidenceDialog",name)
+            QTest.qWait(120)
         window = engine.rootObjects()[0]
         saved = window.grabWindow().save(sys.argv[sys.argv.index('--screenshot') + 1])
         window.close()

@@ -64,7 +64,11 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
                 window.setProperty("activePage","settings");QTest.qWait(60)
                 save=find_visible(content,"save_settings")
                 assert save is not None
-                inside(save,content)
+                inside(save,find_visible(content,"translation_workspace"))
+                window.setProperty("activePage","servers");QTest.qWait(60)
+                inside(find_visible(content,"server_save"),find_visible(content,"server_workspace"))
+                window.setProperty("activePage","outgoing");QTest.qWait(60)
+                inside(find_visible(content,"save_settings"),find_visible(content,"translation_workspace"))
         assert not errors,errors
     finally:
         window.close();state.stop();del engine;knowledge_v2.configure(previous)

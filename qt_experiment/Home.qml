@@ -14,6 +14,11 @@ ApplicationWindow {
     property color ink: "#f5e7c9"
     property int navIndex: 0
     property string activePage: "home"
+    property string evidenceDialog: ""
+    onEvidenceDialogChanged: {
+        if (evidenceDialog === "add_server_dialog") addDialog.open()
+        else if (workspaceLoader.item && workspaceLoader.item.showEvidenceDialog) workspaceLoader.item.showEvidenceDialog(evidenceDialog)
+    }
     property string uiLocale: prototype.uiLanguage
     function tr(s) { let l = uiLocale; return prototype.trText(s) }
     palette.window: "#171b1c"
@@ -117,14 +122,14 @@ ApplicationWindow {
                 spacing: 10
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F8"; live: prototype.translationAvailable; heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
+                    keyName: "F8"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f8?"Выключен":prototype.logReady?"Ожидание сообщений":"Журнал не выбран") : ""; heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
                     active: prototype.f8; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "../assets/ui_premium/translation_card_source.jpg"
                     onToggled: prototype.toggle("f8")
                 }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; live: prototype.translationAvailable; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
+                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f9?"Выключен":prototype.gameHotkeysReady?"Активен":"Ручной режим") : ""; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
                     active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "../assets/ui_premium/tank_card.png"
                     onToggled: prototype.toggle("f9")
@@ -164,6 +169,7 @@ ApplicationWindow {
             }
         }
         Loader {
+            id:workspaceLoader; objectName:"active_workspace"; Layout.minimumHeight:0
             active: prototype.serverManagementAvailable && window.activePage === "servers" || prototype.translationAvailable && window.activePage !== "home"
             visible: active; Layout.fillWidth: true; Layout.fillHeight: true
             Layout.margins: 17
@@ -173,6 +179,8 @@ ApplicationWindow {
             Component { id: operationsPage; OperationsWorkspace { page: window.activePage; onBack:window.activePage="settings" } }
         }
         MetalPanel {
+            objectName:"system_bar"
+            visible:window.activePage==="home" || !window.shortWindow
             Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 52 : 78; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
             Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.bottomMargin: 8
             RowLayout {

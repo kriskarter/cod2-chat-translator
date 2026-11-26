@@ -101,6 +101,7 @@ class TranslationState(LiveMonitorState):
         self._arrival_context = deque(maxlen=24)
         self._chat_epoch = 0
         self._hud = NativeHud(config.get("overlay", {}), config.get("show_original", False))
+        self._overlay_on_start = bool(config.get("qt_overlay_enabled", True))
         self._notifier = None
         self._experience = None
         self._previous_experience = translation_memory.RUNTIME
@@ -201,7 +202,7 @@ class TranslationState(LiveMonitorState):
             return
         config = dict(self._config)
         config.update(target_language=self._target, smart_engine_enabled=self._smart,
-                      qt_f8_enabled=self._f8, outgoing_enabled=self._f9,
+                      qt_f8_enabled=self._f8, qt_overlay_enabled=self._overlay, outgoing_enabled=self._f9,
                       outgoing_source_language=self._out_source, outgoing_target_language=self._out_target,
                       log_path=str(self._log_path or ""), active_profile_path=str(self._log_path or ""),
                       server_monitor=dump_settings(self._settings), ui_language=self.ui_language,
@@ -419,6 +420,35 @@ class TranslationState(LiveMonitorState):
         self._hud.resize_buffer(4)
         self.translationChanged.emit()
 
+    def _hud_screen_rect(self):
+        if os.name == "nt":
+            # Existing layered HUD uses Win32 desktop coordinates, not Qt DIPs.
+            import ctypes
+            metrics = ctypes.windll.user32.GetSystemMetrics
+            return tuple(metrics(code) for code in (76,77,78,79))
+        from PySide6.QtGui import QGuiApplication
+        rect = QGuiApplication.primaryScreen().geometry()
+        return rect.x(),rect.y(),rect.width(),rect.height()
+
+    @Property('QVariantMap', notify=translationChanged)
+    def hudPosition(self):
+        x,y,w,h = self._hud_screen_rect()
+        cfg = self._hud.config
+        span_x,span_y = max(1,w-int(cfg.get("width",500))),max(1,h-int(cfg.get("height",150)))
+        return {"x":max(0.,min(1.,(int(cfg.get("x",8))-x)/span_x)),
+                "y":max(0.,min(1.,(int(cfg.get("y",360))-y)/span_y)),
+                "width":min(1.,int(cfg.get("width",500))/max(1,w)),
+                "height":min(1.,int(cfg.get("height",150))/max(1,h))}
+
+    @Slot(float,float)
+    def setHudPositionNormalized(self, nx, ny):
+        x,y,w,h = self._hud_screen_rect()
+        cfg = self._hud.config
+        cfg.update(x=x+round(max(0.,min(1.,nx))*max(0,w-int(cfg.get("width",500)))),
+                   y=y+round(max(0.,min(1.,ny))*max(0,h-int(cfg.get("height",150)))))
+        self._hud._render()
+        self.translationChanged.emit()
+
     @Slot()
     def resetHudPosition(self):
         from PySide6.QtGui import QGuiApplication
@@ -445,6 +475,10 @@ class TranslationState(LiveMonitorState):
         if os.name == "nt":
             from windows_friend_notice import FriendNotice
             self._notifier = FriendNotice(int(window.winId()))
+            if self._overlay_on_start:
+                self._overlay = self._hud.enable(True)
+                self.changed.emit()
+                self.translationChanged.emit()
 
     @Property(bool, constant=True)
     def experienceAvailable(self): return self._experience is not None
@@ -608,6 +642,25 @@ class TranslationState(LiveMonitorState):
 
     @Property('QVariantList', notify=translationChanged)
     def history(self): return list(self._history)
+
+    @Slot(str, result=bool)
+    def exportHistory(self, filename):
+        # No automatic recording or upload. Explicit new-file export only.
+        try:
+            path = Path(filename).expanduser()
+            if path.suffix.casefold() != ".json": path = path.with_suffix(".json")
+            with path.open("x",encoding="utf-8") as stream:
+                json.dump({"version":1,"received_time_basis":"local","messages":list(self._history)},stream,ensure_ascii=False,indent=2)
+            self.game_status(self.trText("Экспорт сохранён") + ": " + str(path))
+            return True
+        except OSError as error:
+            self.game_status(self.trText("Ошибка") + ": " + str(error))
+            return False
+
+    @Slot()
+    def clearHistory(self):
+        self._history.clear()
+        self.translationChanged.emit()
 
     @Property(str, notify=translationChanged)
     def outgoingResult(self): return self._outgoing_result

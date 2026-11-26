@@ -4,6 +4,8 @@ import QtQuick.Layouts
 
 MetalPanel {
     id: root
+    function showEvidenceDialog(name) { if (name==="server_remove_dialog") { removeDialog.address=selectedAddress; removeDialog.open() } }
+    clip:true;objectName:"server_workspace"
     signal addRequested()
     property string selectedAddress: prototype.selected
     property var record: prototype.serverRecords.find(r => r.address === selectedAddress)
@@ -19,6 +21,7 @@ MetalPanel {
 
     MetalDialog {
         id: removeDialog
+        objectName:"server_remove_dialog"
         title: (prototype.uiLanguage, prototype.trText("Удаление сервера"))
         anchors.centerIn: parent
         property string address
@@ -26,8 +29,16 @@ MetalPanel {
         Text { text: (prototype.uiLanguage, prototype.trText("Удалить выбранный сервер из списка?")); color: "#f5e7c9" }
         onAccepted: prototype.removeServer(address)
     }
-    RowLayout {
-        anchors.fill: parent; anchors.margins: 16; spacing: 12
+    ColumnLayout {
+        anchors.fill:parent;anchors.margins:14;spacing:5
+        Flickable {
+            id: serverScroll
+            Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0
+            clip:true;contentWidth:width;contentHeight:serverBody.height;boundsBehavior:Flickable.StopAtBounds
+            ScrollBar.vertical:MetalScrollBar {parent:serverScroll;anchors.top:serverScroll.top;anchors.bottom:serverScroll.bottom;anchors.right:serverScroll.right}
+            RowLayout {
+        id:serverBody
+        width:serverScroll.width-12;height:Math.max(serverScroll.height,350);spacing:12
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 360
             RowLayout {
@@ -80,8 +91,14 @@ MetalPanel {
                     MetalButton { text: (prototype.uiLanguage, prototype.trText("Убрать")); onClicked: prototype.removeFriend(modelData) }
                 }
             }
-            AmberButton { text: (prototype.uiLanguage, prototype.trText("Сохранить настройки")); visible: prototype.settingsWritable; Layout.fillWidth: true; onClicked: prototype.saveSettings() }
+
             Text { visible: !prototype.settingsWritable; text: (prototype.uiLanguage, prototype.trText("Изменения только в этой сессии")); color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+        }
+    }
+        }
+        RowLayout {visible:prototype.settingsWritable;Layout.fillWidth:true
+            Item {Layout.fillWidth:true}
+            AmberButton {objectName:"server_save";text:(prototype.uiLanguage,prototype.trText("Сохранить настройки"));onClicked:prototype.saveSettings()}
         }
     }
 }

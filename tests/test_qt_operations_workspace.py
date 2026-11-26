@@ -118,3 +118,30 @@ def test_preview_channel_never_returns_stable_or_external_link():
         {"tag_name":"qt-preview-abcdef123456","prerelease":True,"assets":assets,"html_url":"https://example.org"}
     ])
     assert result == {"tag":"qt-preview-abcdef123456","url":"https://github.com/kriskarter/cod2-chat-translator/releases/tag/qt-preview-abcdef123456"}
+
+
+def test_history_export_is_explicit_and_hud_position_is_bounded(tmp_path):
+    app=QGuiApplication.instance() or QGuiApplication([])
+    previous=knowledge_v2.RUNTIME
+    config=read_translation_config(None)
+    config["server_monitor"]={"servers":[]}
+    state=TranslationState(config)
+    try:
+        state._history.appendleft(dict(nickname="Test",original="hello",translated="привет",received="12:00:00",elapsed=12))
+        assert not list(tmp_path.iterdir())
+        destination=tmp_path/"history.json"
+        assert state.exportHistory(str(destination))
+        original=destination.read_bytes()
+        assert json.loads(original)["messages"][0]["nickname"]=="Test"
+        assert not state.exportHistory(str(destination))
+        assert destination.read_bytes()==original
+        state.clearHistory()
+        assert not state.history
+        assert destination.read_bytes()==original
+        state.setHudPositionNormalized(.5,.5)
+        assert 0<=state.hudPosition["x"]<=1 and 0<=state.hudPosition["y"]<=1
+        state.setHudPositionNormalized(-1,2)
+        assert state.hudPosition["x"]==0
+        assert state.hudPosition["y"]>=.99 or state.hudPosition["height"]>=.99
+    finally:
+        state.stop();knowledge_v2.configure(previous)

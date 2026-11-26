@@ -236,3 +236,14 @@ LABELS.update({
 })
 
 LABELS.update({"Назад":("Back","Назад"),"Понятный":("Clear","Зрозумілий"),"Живой":("Natural","Живий"),"Без цензуры":("Uncensored","Без цензури"),"Профили пока не найдены. Автоматический поиск проверяет установленные игры и журналы. Можно указать путь вручную.":("No profiles found yet. Automatic search checks game installations and logs. You can enter a path manually.","Профілі поки не знайдено. Автоматичний пошук перевіряє встановлені ігри та журнали. Можна вказати шлях вручну."),"Неофициальная утилита. Copyright © 2026 kriskarter. Все права защищены.":("Unofficial utility. Copyright © 2026 kriskarter. All rights reserved.","Неофіційна утиліта. Copyright © 2026 kriskarter. Усі права захищено."),"Поддержка проекта":("Project support","Підтримка проєкту"),"Лицензия":("License","Ліцензія"),"Нет измерений. Включите локальный опыт и обновите статистику.":("No measurements. Enable local experience and refresh statistics.","Немає вимірювань. Увімкніть локальний досвід та оновіть статистику.")})
+
+LABELS.update({
+"Перетащите тестовый HUD":("Drag test HUD","Перетягніть тестовий HUD"),
+"Оповещение при появлении избранного игрока. Первый опрос сервера не вызывает уведомление.":("Notify when a favorite player joins. The first server poll does not trigger a notice.","Сповіщати при появі обраного гравця. Перше опитування сервера не викликає сповіщення."),
+"История текущей сессии · экспорт содержит никнеймы и текст":("Current session history · export includes nicknames and text","Історія поточної сесії · експорт містить нікнейми й текст"),
+"Экспорт JSON":("Export JSON","Експорт JSON"),
+"Очистить историю?":("Clear history?","Очистити історію?"),
+"Удаляются только сообщения текущей сессии.":("Only current-session messages are removed.","Видаляються лише повідомлення поточної сесії."),
+"Ожидание сообщений":("Waiting for messages","Очікування повідомлень"),
+"Ручной режим":("Manual mode","Ручний режим"),
+})

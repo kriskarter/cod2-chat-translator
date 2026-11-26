@@ -1,22 +1,40 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 MetalPanel {
     id: root
+    function showEvidenceDialog(name) { if (name==="history_clear_dialog") historyClear.open() }
+    objectName:"translation_workspace"; clip:true
     property string page: "history"
     signal navigate(string page)
     property string uiLocale: prototype.uiLanguage
     function tr(s) { let l = uiLocale; return prototype.trText(s) }
+    FileDialog {
+        id:historyExport;fileMode:FileDialog.SaveFile;nameFilters:["JSON (*.json)"];defaultSuffix:"json"
+        onAccepted:{let path=decodeURIComponent(selectedFile.toString().replace(/^file:\/\//,""));if(Qt.platform.os==="windows"&&path.startsWith("/"))path=path.substring(1);prototype.exportHistory(path)}
+    }
+    MetalDialog {
+        id:historyClear;objectName:"history_clear_dialog";title:root.tr("Очистить историю?");anchors.centerIn:parent;standardButtons:Dialog.Yes|Dialog.No
+        Text {text:root.tr("Удаляются только сообщения текущей сессии.");color:"#f5e7c9"}
+        onAccepted:prototype.clearHistory()
+    }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: root.height < 350 ? 14 : 22; spacing: 8
         Text {
             text: root.page === "settings" ? (prototype.uiLanguage, prototype.trText("Настройки перевода")) : root.page === "outgoing" ? (prototype.uiLanguage, prototype.trText("Исходящий перевод · ручной режим")) : (prototype.uiLanguage, prototype.trText("История входящего перевода"))
             color: "#fff0d1"; font.bold: true; font.pixelSize: 22
         }
+        RowLayout {
+            visible:root.page==="history";Layout.fillWidth:true
+            Text {text:root.tr("История текущей сессии · экспорт содержит никнеймы и текст");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true}
+            MetalButton {text:root.tr("Экспорт JSON");enabled:prototype.history.length>0;onClicked:historyExport.open()}
+            MetalButton {text:root.tr("Очистить");enabled:prototype.history.length>0;onClicked:historyClear.open()}
+        }
         Text { text: prototype.translationStatus; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
         StackLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true
+            Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight:0
             currentIndex: root.page === "settings" ? 0 : root.page === "outgoing" ? 1 : 2
             Flickable {
                 id: settingsScroll
@@ -119,7 +137,13 @@ MetalPanel {
                     }
                 }
             }
-            ColumnLayout {
+            Flickable {
+                id:outgoingScroll
+                clip:true;contentWidth:width;contentHeight:outgoingContent.implicitHeight+8
+                boundsBehavior:Flickable.StopAtBounds
+                ScrollBar.vertical:MetalScrollBar {parent:outgoingScroll;anchors.top:outgoingScroll.top;anchors.bottom:outgoingScroll.bottom;anchors.right:outgoingScroll.right}
+                ColumnLayout {
+                    id:outgoingContent; width:outgoingScroll.width-12
                 Text { text: (prototype.uiLanguage, prototype.trText("Перевод текста без отправки в игру")); color: "#f5e7c9" }
                 ScrollView {
                     Layout.fillWidth: true; Layout.preferredHeight: 85
@@ -145,7 +169,7 @@ MetalPanel {
                     }
                 }
                 ScrollView {
-                    Layout.fillWidth: true; Layout.fillHeight: true
+                    Layout.fillWidth: true; Layout.preferredHeight:100
                     MetalTextArea { text: prototype.outgoingResult; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap }
                 }
                 Text {
@@ -153,8 +177,9 @@ MetalPanel {
                           prototype.gameHotkeysEnabled ? (prototype.uiLanguage, prototype.trText("Игровой keyboard hook ещё не готов.")) : (prototype.uiLanguage, prototype.trText("Игровые клавиши выключены в этом запуске."))
                     color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                 }
-                AmberButton { text: root.tr("Сохранить настройки"); visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
+
                 Text { text: (prototype.uiLanguage, prototype.trText("Ручной режим не отправляет сообщения в игру.")); color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            }
             }
             ListView {
                 id: history
@@ -176,7 +201,7 @@ MetalPanel {
             }
         }
         RowLayout {
-            visible:root.page==="settings"&&prototype.settingsWritable
+            visible:(root.page==="settings"||root.page==="outgoing")&&prototype.settingsWritable
             Layout.fillWidth:true
             Item { Layout.fillWidth:true }
             AmberButton {objectName:"save_settings";text:root.tr("Сохранить настройки");onClicked:prototype.saveSettings()}
