@@ -68,14 +68,12 @@ class PremiumHome:
             if needed and not bar.winfo_manager():bar.pack(side="right",fill="y")
             elif not needed and bar.winfo_manager():bar.pack_forget()
         self.content.bind("<Configure>",measure)
-        self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(
-            item,width=e.width,height=max(e.height,self.content.winfo_reqheight())),measure()))
+        self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(item,width=e.width),measure()))
         columns=SteelFrame(self.content,bg=BG)
         columns.pack(fill="both",expand=True,padx=14,
                      pady=(4,2) if self.compact else (8,5))
         columns.columnconfigure(0,weight=44,uniform="command",minsize=380)
         columns.columnconfigure(1,weight=56,uniform="command",minsize=520)
-        columns.rowconfigure(0,weight=1)
         left=SteelFrame(columns,bg=BG)
         right=SteelFrame(columns,bg=BG)
         left.grid(row=0,column=0,sticky="nsew",padx=(0,7))
@@ -89,11 +87,14 @@ class PremiumHome:
     def _translator(self,parent,kind):
         a=self.app
         from wwii_dashboard import tactical_switch
-        height=(162 if self.large_dpi else 149) if self.compact else 244 if self.large_dpi else 190
+        height=((162 if self.large_dpi else 149) if self.compact else
+                265 if self.app.root.winfo_screenheight()>=1000 else
+                202 if self.app.root.winfo_screenheight()>=850 else
+                244 if self.large_dpi else 190)
         scene=("assets/ui_premium/translation_card_source.jpg" if kind=="f8"
                else "assets/ui_premium/tank_card.png")
         card=MetalCanvas(parent,scene=scene,height=height)
-        card.pack(fill="both",expand=True,pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
+        card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
         key=CanvasKeycap(card,kind.upper(),lambda:switch.invoke(),size=100 if self.compact else 116)
         setattr(self,kind+"_key",key)
@@ -147,7 +148,9 @@ class PremiumHome:
         border=MetalCanvas(parent)
         border.pack(fill="both",expand=True)
         box=tk.Frame(border,bg=CARD,height=(370 if self.large_dpi else 348) if self.compact
-                     else 492 if self.large_dpi else 390)
+                     else 545 if self.app.root.winfo_screenheight()>=1000 else
+                     423 if self.app.root.winfo_screenheight()>=850 else
+                     492 if self.large_dpi else 390)
         box.pack(fill="both",expand=True,padx=10,pady=10)
         box.pack_propagate(False)
         head=tk.Frame(box,bg=CARD,height=40)
