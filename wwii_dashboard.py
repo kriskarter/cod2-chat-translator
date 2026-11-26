@@ -93,7 +93,7 @@ class WWIIDashboard(Dashboard):
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header_height=185 if self.root.winfo_screenheight()<=800 else 198
+        header_height=(145 if float(self.root.tk.call("tk","scaling"))>=1.95 else 185) if self.root.winfo_screenheight()<=800 else 198
         header=tk.Canvas(outer,height=header_height,bg="#171A1D",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
@@ -274,8 +274,9 @@ class WWIIDashboard(Dashboard):
         if name not in self.pages:return False
         self.page=name
         self.pages[name].tkraise()
-        self.header_widget.configure(height=185 if name=="home" and self.root.winfo_screenheight()<=800
-                                     else 198 if name=="home" else 155)
+        self.header_widget.configure(height=(145 if float(self.root.tk.call("tk","scaling"))>=1.95
+                              else 185) if name=="home" and self.root.winfo_screenheight()<=800
+                              else 198 if name=="home" else 155)
         if name=="stats":self.request_stats()
         if name=="servers" and add:self.root.after_idle(self.server_page.add)
         for key,button in self.nav_buttons.items():

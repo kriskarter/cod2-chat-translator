@@ -45,7 +45,7 @@ class PremiumHome:
         self.sort_key="favorite"
         self.reverse=False
         self.dpi=float(self.app.root.tk.call("tk","scaling"))
-        self.compact=self.app.root.winfo_screenheight()<=800 and self.dpi<1.85
+        self.compact=self.app.root.winfo_screenheight()<=800
         self.large_dpi=self.dpi>=1.95
         self.photos={}
         from app import resource_path
@@ -87,7 +87,7 @@ class PremiumHome:
     def _translator(self,parent,kind):
         a=self.app
         from wwii_dashboard import tactical_switch
-        height=149 if self.compact else 244 if self.large_dpi else 190
+        height=(162 if self.large_dpi else 149) if self.compact else 244 if self.large_dpi else 190
         scene=("assets/ui_premium/translation_card_source.jpg" if kind=="f8"
                else "assets/ui_premium/tank_card.png")
         card=MetalCanvas(parent,scene=scene,height=height)
@@ -144,7 +144,8 @@ class PremiumHome:
         from wwii_dashboard import tactical_action
         border=MetalCanvas(parent)
         border.pack(fill="both",expand=True)
-        box=tk.Frame(border,bg=CARD,height=348 if self.compact else 492 if self.large_dpi else 390)
+        box=tk.Frame(border,bg=CARD,height=(370 if self.large_dpi else 348) if self.compact
+                     else 492 if self.large_dpi else 390)
         box.pack(fill="both",expand=True,padx=10,pady=10)
         box.pack_propagate(False)
         head=tk.Frame(box,bg=CARD,height=40)
@@ -201,7 +202,7 @@ class PremiumHome:
         self.last_update.pack(side="right",padx=7)
         self.players=PlayerRoster(box,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
                     local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),
-                    rows=2 if self.compact and self.dpi>=1.65 else 5 if self.compact else 4,
+                    rows=3 if self.compact and self.dpi>=1.65 else 5 if self.compact else 4,
                     zero_hint=local(a,"Сервер сообщил 0 ms; задержка неизвестна",
                                     "Сервер повідомив 0 ms; затримка невідома",
                                     "Server reported 0 ms; actual ping unknown"))
