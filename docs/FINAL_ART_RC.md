@@ -23,12 +23,12 @@ Python/Tk under 1366×768 Xvfb with empty isolated configuration. CPU measures s
 
 | Phase | Previous RC `b2018feb` | This pass |
 | --- | ---: | ---: |
-| Startup wall time | 5.686 s | 3.345 s |
-| Startup CPU time | 3.221 s | 2.805 s |
-| Startup peak RSS | 134.2 MiB | 143.5 MiB |
-| Four seconds idle, CPU | 0.593 s | 0.791 s |
-| Peak RSS after idle | 142.0 MiB | 150.6 MiB |
-| Four seconds following manual refresh, CPU | 0.158 s | 0.157 s |
-| Peak RSS following refresh | 142.0 MiB | 150.6 MiB |
+| Startup wall time | 5.686 s | 3.594 s |
+| Startup CPU time | 3.221 s | 3.039 s |
+| Startup peak RSS | 134.2 MiB | 141.6 MiB |
+| Four seconds idle, CPU | 0.593 s | 0.619 s |
+| Peak RSS after idle | 142.0 MiB | 149.6 MiB |
+| Four seconds following manual refresh, CPU | 0.158 s | 0.153 s |
+| Peak RSS following refresh | 142.0 MiB | 149.6 MiB |
 
-The additional independent full-height church asset increases resident memory by about 9 MiB in this sample; no continuous full-frame animation was added. Native Windows idle, in-game CPU and graphics memory remain unmeasured.
+The additional independent full-height church asset increases resident memory by about 8 MiB in this sample; no continuous full-frame animation was added. Native Windows idle, in-game CPU and graphics memory remain unmeasured.

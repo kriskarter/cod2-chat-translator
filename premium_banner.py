@@ -44,14 +44,14 @@ def compose_banner(width, height):
 
     # Preserve head, torso and pack while easing the rectangular boundary.
     soldier=source.crop((0,0,round(sx*.33),round(sy*.98)))
-    soldier_h=height+35
+    soldier_h=round(height*1.65)
     soldier_w=round(soldier.width*soldier_h/soldier.height)
     soldier=soldier.resize((soldier_w,soldier_h),Image.Resampling.LANCZOS)
     alpha=Image.new("L",(soldier_w,1))
     alpha.putdata([max(0,min(255,round(255*(soldier_w-x)/(soldier_w*.45))))
                    for x in range(soldier_w)])
     soldier.putalpha(alpha.resize((soldier_w,soldier_h)))
-    result.alpha_composite(soldier,(round(width*.018),0))
+    result.alpha_composite(soldier,(-8,0))
 
     church=_source("church_subject.png")
     church=church.crop(church.getbbox())
