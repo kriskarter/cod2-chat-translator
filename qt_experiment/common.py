@@ -16,7 +16,8 @@ from PySide6.QtQuickControls2 import QQuickStyle
 # Use the portable Qt base style before loading any QML Controls.
 QQuickStyle.setStyle("Basic")
 
-from server_monitor import Snapshot, color_runs, plain_name, player_ping_quality, normalized_name
+from server_monitor import Snapshot, color_runs, plain_name, player_ping_quality
+from .friend_presence import display_name, rich_name
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets" / "ui_wwii"
@@ -48,6 +49,8 @@ def row_from_snapshot(snapshot: Snapshot) -> MonitorRow:
 class PrototypeState(QObject):
     changed = Signal()
     rowsChanged = Signal()
+    friendsChanged = Signal()
+    friendNotice = Signal(str,str)
     action = Signal(str)
 
     def __init__(self, rows: tuple[MonitorRow, ...] = ()):
@@ -92,6 +95,29 @@ class PrototypeState(QObject):
     @Property(int, notify=changed)
     def friendCount(self): return self._friend_count
 
+    @Property("QVariantList", notify=friendsChanged)
+    def friendRows(self): return []
+
+    @Property(str, notify=friendsChanged)
+    def friendSaveError(self): return ""
+
+    @Slot(str, result=str)
+    def friendDisplayName(self, raw): return display_name(raw)
+
+    @Slot(str, result=bool)
+    def isFriend(self, raw): return self._is_friend(raw)
+
+    @Slot(str, result=bool)
+    def toggleFriend(self, raw): return False
+
+    @Slot(str, result=bool)
+    def connectServer(self, address): return False
+
+    @Slot(str)
+    def copyText(self, value):
+        from PySide6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().setText(value)
+
     @Property(bool, notify=changed)
     def canConnect(self): return self._can_connect
 
@@ -133,8 +159,8 @@ class PrototypeState(QObject):
     @Property('QVariantList', notify=changed)
     def players(self):
         row = self._rows.get(self._selected)
-        return [dict(name=plain_name(name), rawName=name,
-                     richName=''.join(f'<span style="color:{color}">{escape(part)}</span>' for part, color in color_runs(name)),
+        return [dict(name=display_name(name), rawName=name, address=self._selected,
+                     richName=rich_name(name),
                      score=score if score is not None else '—',
                      ping=ping if ping is not None and ping > 0 else '—', pingQuality=player_ping_quality(ping), favorite=self._is_friend(name))
                 for name, score, ping in (row.players if row else ())]

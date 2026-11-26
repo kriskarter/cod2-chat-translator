@@ -48,13 +48,13 @@ MetalPanel {
      objectName:root.keyName.toLowerCase()+"Language"
      model:root.keyName==="F8"?prototype.languages:prototype.outgoingLanguages
      textRole:"label";valueRole:"code";Layout.fillWidth:true;Layout.minimumWidth:0
-     currentIndex:indexOfValue(root.keyName==="F8"?prototype.targetLanguage:prototype.outgoingSource)
+     currentIndex:model?model.findIndex(item=>item.code===(root.keyName==="F8"?prototype.targetLanguage:prototype.outgoingSource)):-1
      onActivated:if(root.keyName==="F8")prototype.setTargetLanguage(currentValue);else prototype.setOutgoingRoute(currentValue,prototype.outgoingTarget)
     }
     Text {visible:root.keyName==="F9";text:"→";color:"#d9b477"}
     LanguageSelector {
      objectName:root.keyName.toLowerCase()+"Target";visible:root.keyName==="F9";model:prototype.outgoingLanguages;textRole:"label";valueRole:"code";Layout.fillWidth:true;Layout.minimumWidth:0
-     currentIndex:indexOfValue(prototype.outgoingTarget)
+     currentIndex:model?model.findIndex(item=>item.code===prototype.outgoingTarget):-1
      onActivated:prototype.setOutgoingRoute(prototype.outgoingSource,currentValue)
     }
    }

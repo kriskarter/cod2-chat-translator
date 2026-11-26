@@ -7,6 +7,7 @@ MetalPanel {
     function showEvidenceDialog(name) { if (name==="server_remove_dialog") { removeDialog.address=selectedAddress; removeDialog.open() } }
     clip:true;objectName:"server_workspace"
     signal addRequested()
+    signal openFriends()
     property string selectedAddress: prototype.selected
     property var record: prototype.serverRecords.find(r => r.address === selectedAddress)
     property string editingAddress: ""
@@ -43,7 +44,7 @@ MetalPanel {
             Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 360
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Серверы CoD2")); font.bold: true; font.pixelSize: 22; color: "#fff0d1"; Layout.fillWidth: true }
-                FriendIndicator { count: prototype.friendCount }
+                FriendIndicator { count: prototype.friendCount;onOpenFriends:root.openFriends() }
             }
             Text { text: prototype.status; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
             ServerTable { rows: prototype.rows; selected: prototype.selected; onChosen: address => prototype.select(address); Layout.fillWidth: true; Layout.preferredHeight: Math.min(140, 30 + 30*Math.max(1,prototype.rows.length)) }
@@ -79,6 +80,7 @@ MetalPanel {
                 MetalTextField { id: friendInput; placeholderText: (prototype.uiLanguage, prototype.trText("Ник игрока")); Layout.fillWidth: true }
                 MetalButton { text: "+"; Layout.preferredWidth: 36; onClicked: if (prototype.addFriend(friendInput.text)) friendInput.clear() }
             }
+            Text {visible:prototype.friendSaveError.length>0;text:prototype.friendSaveError;color:"#e99b83";wrapMode:Text.WordWrap;Layout.fillWidth:true}
             ListView {
                 id: friendList
                 Layout.fillWidth: true; Layout.fillHeight: true
@@ -87,7 +89,7 @@ MetalPanel {
                 delegate: RowLayout {
                     required property string modelData
                     width: friendList.width - 12
-                    Text { text: modelData; textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Text { text: prototype.friendDisplayName(modelData); textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; elide: Text.ElideRight }
                     MetalButton { text: (prototype.uiLanguage, prototype.trText("Убрать")); onClicked: prototype.removeFriend(modelData) }
                 }
             }

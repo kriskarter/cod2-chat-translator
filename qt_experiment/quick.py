@@ -103,7 +103,7 @@ def main():
             from PySide6.QtTest import QTest
             QTest.qWait(60)
             name = sys.argv[sys.argv.index("--dialog")+1]
-            if name not in ("add_server_dialog","server_remove_dialog","history_clear_dialog","knowledge_clear_dialog","game_logging_dialog"):
+            if name not in ("add_server_dialog","server_remove_dialog","history_clear_dialog","knowledge_clear_dialog","game_logging_dialog","friends_panel"):
                 if not state.demo: state.stop()
                 del engine
                 return 3

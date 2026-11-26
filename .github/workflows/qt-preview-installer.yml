@@ -20,7 +20,13 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-build.txt PySide6==6.8.3 pytest psutil
-      - run: python -m pytest -q
+      - name: Regression and Qt friend interaction screenshots
+        env:
+          COD2_QT_TEST_SCREENSHOTS: qt-evidence
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force qt-evidence | Out-Null
+          python -m pytest -q
       - name: Freeze isolated Qt executable
         shell: pwsh
         run: |
@@ -87,9 +93,9 @@ jobs:
             if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Compact page failed: $page" }
           }
           Remove-Item Env:QT_SCALE_FACTOR -ErrorAction SilentlyContinue
-          foreach ($entry in @("home:add_server_dialog","servers:server_remove_dialog","history:history_clear_dialog","knowledge:knowledge_clear_dialog","profiles:game_logging_dialog")) {
+          foreach ($entry in @("home:add_server_dialog","servers:server_remove_dialog","history:history_clear_dialog","knowledge:knowledge_clear_dialog","profiles:game_logging_dialog","home:friends_panel","servers:friends_panel")) {
             $parts = $entry.Split(":")
-            $out = Join-Path $root "dialog_$($parts[1]).png"
+            $out = Join-Path $root "dialog_$($parts[0])_$($parts[1]).png"
             $args = @("--config","`"$config`"","--settings-file","`"$settings`"","--size","1366x768","--page",$parts[0],"--dialog",$parts[1],"--screenshot","`"$out`"")
             $p = Start-Process $exe -ArgumentList $args -PassThru
             if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Dialog timeout" }

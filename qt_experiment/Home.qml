@@ -16,7 +16,8 @@ ApplicationWindow {
     property string activePage: "home"
     property string evidenceDialog: ""
     onEvidenceDialogChanged: {
-        if (evidenceDialog === "add_server_dialog") addDialog.open()
+        if (evidenceDialog === "friends_panel") friendsPanel.open()
+        else if (evidenceDialog === "add_server_dialog") addDialog.open()
         else if (workspaceLoader.item && workspaceLoader.item.showEvidenceDialog) workspaceLoader.item.showEvidenceDialog(evidenceDialog)
     }
     property string uiLocale: prototype.uiLanguage
@@ -29,6 +30,23 @@ ApplicationWindow {
     palette.buttonText: "#f5e7c9"
     palette.highlight: "#88622d"
     palette.highlightedText: "#fff1cd"
+    FriendPanel {id:friendsPanel}
+    Rectangle {
+        id:notice;objectName:"friend_notice";parent:window.contentItem;z:100
+        anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:18
+        width:Math.min(390,parent.width-36);height:noticeBody.implicitHeight+22
+        radius:7;color:"#252d24";border.color:"#b09862";visible:noticeTimer.running
+        ColumnLayout {id:noticeBody;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;anchors.margins:11
+            RowLayout {Layout.fillWidth:true
+                Image {source:"icons/friends.svg";Layout.preferredWidth:22;Layout.preferredHeight:22}
+                Text {id:noticeTitle;color:"#d6e9aa";font.bold:true;Layout.fillWidth:true;wrapMode:Text.WordWrap}
+                MetalButton {text:"×";implicitWidth:28;implicitHeight:26;onClicked:noticeTimer.stop()}
+            }
+            Text {id:noticeDetail;textFormat:Text.PlainText;color:"#e5d5b5";Layout.fillWidth:true;wrapMode:Text.WordWrap}
+        }
+        Timer {id:noticeTimer;interval:5500;repeat:false}
+        Connections {target:prototype;function onFriendNotice(title,detail){noticeTitle.text=title;noticeDetail.text=detail;noticeTimer.restart()}}
+    }
     MetalDialog {
         id: addDialog
         objectName:"add_server_dialog"
@@ -144,7 +162,7 @@ ApplicationWindow {
                     RowLayout {
                         Image { source:"icons/antenna.svg"; Layout.preferredWidth:32; Layout.preferredHeight:32 }
                         Text { text: (prototype.uiLanguage, prototype.trText("Мониторинг серверов")); color: ink; font.pixelSize: window.compact ? 17 : 21; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                        FriendIndicator { count: prototype.friendCount }
+                        FriendIndicator { count: prototype.friendCount;onOpenFriends:friendsPanel.open() }
                     }
                     ServerTable {
                         Layout.fillWidth: true; Layout.fillHeight: false
@@ -174,7 +192,7 @@ ApplicationWindow {
             visible: active; Layout.fillWidth: true; Layout.fillHeight: true
             Layout.margins: 17
             sourceComponent: window.activePage === "servers" ? serverPage : ["profiles","knowledge","notifications","about","stats","overlay"].indexOf(window.activePage) >= 0 ? operationsPage : translationPage
-            Component { id: serverPage; ServerWorkspace { onAddRequested: addDialog.open() } }
+            Component { id: serverPage; ServerWorkspace { onAddRequested: addDialog.open();onOpenFriends:friendsPanel.open() } }
             Component { id: translationPage; TranslationWorkspace { page: window.activePage; onNavigate: page => window.activePage = page } }
             Component { id: operationsPage; OperationsWorkspace { page: window.activePage; onBack:window.activePage="settings" } }
         }

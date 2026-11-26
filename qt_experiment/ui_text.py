@@ -18,8 +18,8 @@ LABELS = {
     "Новых стабильных версий нет": ("No newer stable release", "Нових стабільних версій немає"),
 }
 def translate(text, language):
-    if language == "ru" and text in ("online","offline","waiting","limited"):
-        return {"online":"Онлайн","offline":"Офлайн","waiting":"Ожидание","limited":"Ограничено"}[text]
+    if language == "ru" and text in ("online","offline","waiting","limited","unknown"):
+        return {"online":"Онлайн","offline":"Офлайн","waiting":"Ожидание","limited":"Ограничено","unknown":"Неизвестно"}[text]
     values = LABELS.get(text)
     return values[0 if language == "en" else 1] if values and language in ("en", "uk") else text
 
@@ -247,3 +247,7 @@ LABELS.update({
 "Ожидание сообщений":("Waiting for messages","Очікування повідомлень"),
 "Ручной режим":("Manual mode","Ручний режим"),
 })
+
+LABELS.update({"Закрыть":["Close","Закрити"],"Поиск по никнейму, а не по уникальному ID. Одинаковые имена могут принадлежать разным игрокам.":["Nickname matching, not unique ID. Identical names can belong to different players.","Пошук за нікнеймом, а не за унікальним ID. Однакові імена можуть належати різним гравцям."],"Добавить в друзья":["Add friend","Додати в друзі"],"Удалить из друзей":["Remove friend","Видалити з друзів"],"Копировать никнейм":["Copy nickname","Копіювати нікнейм"],"Копировать адрес сервера":["Copy server address","Копіювати адресу сервера"],"Подключиться к серверу":["Connect to server","Підключитися до сервера"],"Нет полной информации о серверах":["Incomplete server information","Неповна інформація про сервери"],"Не найден на отслеживаемых серверах":["Not found on tracked servers","Не знайдено на відстежуваних серверах"],"Несколько совпадений никнейма":["Multiple nickname matches","Кілька збігів нікнейма"],"Добавьте друзей звёздочкой в списке игроков или по никнейму.":["Add friends with a star in the roster or by nickname.","Додайте друзів зірочкою у списку гравців або за нікнеймом."],"Уведомления о друзьях":["Friend notifications","Сповіщення про друзів"],"Друг появился":["Friend appeared","Друг з’явився"],"Друг покинул сервер":["Friend left server","Друг залишив сервер"],"Возможный переход друга":["Possible friend server move","Можливий перехід друга"],"Звук уведомлений":["Notification sound","Звук сповіщень"],"Изменения подтверждаются двумя опросами. Недоступность сервера не считается выходом игрока.":["Changes require two polls. An unreachable server is not treated as a player leaving.","Зміни підтверджуються двома опитуваннями. Недоступність сервера не вважається виходом гравця."],"unknown":["Unknown","Невідомо"]})
+
+LABELS.update({"Некорректный никнейм, повтор или лимит друзей":("Invalid nickname, duplicate or friend limit","Некоректний нікнейм, повтор або ліміт друзів")})

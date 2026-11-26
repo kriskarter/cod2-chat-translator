@@ -257,9 +257,10 @@ def dump_settings(settings: dict) -> dict:
 
 class Monitor:
     """One daemon worker; query never blocks Tk or translation workers."""
-    def __init__(self, settings: dict, callback: Callable[[Snapshot], None]):
+    def __init__(self, settings: dict, callback: Callable[[Snapshot], None], *, round_callback=None):
         self.settings = settings
         self.callback = callback
+        self.round_callback = round_callback
         self.snapshots: dict[str, Snapshot] = {}
         self._lock = threading.Lock()
         self._wake = threading.Event()
@@ -286,6 +287,7 @@ class Monitor:
             with self._lock:
                 servers = tuple(self.settings["servers"])
                 interval = self.settings["refresh_seconds"]
+            round_snapshots = []
             for server in servers:
                 if self._stop.is_set():
                     break
@@ -295,5 +297,8 @@ class Monitor:
                     snapshot = replace(snapshot, last_success=old.last_success)
                 self.snapshots[server.address] = snapshot
                 self.callback(snapshot)
+                round_snapshots.append(snapshot)
+            if self.round_callback is not None and not self._stop.is_set():
+                self.round_callback(tuple(round_snapshots))
             self._wake.wait(interval)
             self._wake.clear()

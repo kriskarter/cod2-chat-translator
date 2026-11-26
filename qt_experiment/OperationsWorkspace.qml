@@ -116,11 +116,20 @@ MetalPanel {
             }
             }
             ColumnLayout {
-                RowLayout {
-                    Text { text: root.tr("Сообщать о появлении друзей в игре"); color: "#e6d5b8"; Layout.fillWidth: true }
-                    TacticalSwitch { checked: prototype.notifyFriends; onClicked: prototype.setNotifyFriends(checked) }
+                GridLayout {
+                    Layout.fillWidth:true;columns:root.width<680?1:2;columnSpacing:20;rowSpacing:3
+                    Repeater {
+                        model:[{key:"friends",label:"Уведомления о друзьях"},{key:"join",label:"Друг появился"},{key:"leave",label:"Друг покинул сервер"},{key:"move",label:"Возможный переход друга"},{key:"sound",label:"Звук уведомлений"}]
+                        delegate:RowLayout {
+                            required property var modelData
+                            Layout.fillWidth:true
+                            Text {text:root.tr(modelData.label);color:"#e6d5b8";Layout.fillWidth:true;elide:Text.ElideRight}
+                            TacticalSwitch {checked:!!prototype.friendNotificationOptions[modelData.key];enabled:modelData.key==="friends"||prototype.notifyFriends;onClicked:prototype.setFriendNotification(modelData.key,checked)}
+                        }
+                    }
                 }
-                Text {text:root.tr("Оповещение при появлении избранного игрока. Первый опрос сервера не вызывает уведомление.");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true}
+                Text {text:root.tr("Изменения подтверждаются двумя опросами. Недоступность сервера не считается выходом игрока.");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true}
+                Text {visible:prototype.friendSaveError.length>0;text:prototype.friendSaveError;color:"#e99b83";wrapMode:Text.WordWrap;Layout.fillWidth:true}
                 ListView {
                     id: notices
                     Layout.fillHeight: true; Layout.fillWidth: true; clip: true; spacing: 5

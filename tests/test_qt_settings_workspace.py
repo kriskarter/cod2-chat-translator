@@ -46,13 +46,16 @@ def test_server_workspace_and_explicit_save(tmp_path):
         capture = os.environ.get("COD2_QT_TEST_SCREENSHOTS")
         if capture:
             assert window.grabWindow().save(str(Path(capture) / "server_workspace.png"))
-        assert not target.exists()
+        assert target.exists()
+        auto_saved=json.loads(target.read_text(encoding="utf-8"))
+        assert auto_saved["server_monitor"]["friends"] == ["^2Medic"]
+        assert auto_saved["server_monitor"]["servers"] == []
         state.setTargetLanguage("uk")
         state.saveSettings()
         saved = json.loads(target.read_text(encoding="utf-8"))
         assert saved["target_language"] == "uk"
         assert saved["server_monitor"]["servers"][0]["favorite"]
-        assert saved["server_monitor"]["friends"] == ["Medic"]
+        assert saved["server_monitor"]["friends"] == ["^2Medic"]
         assert saved["custom_key"] == "preserve"
         assert original.read_bytes() == source_bytes
         assert state.removeServer("127.0.0.1:28960")

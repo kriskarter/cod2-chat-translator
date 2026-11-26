@@ -92,7 +92,9 @@ def test_automatic_profile_keeps_first_message_and_notifications(tmp_path):
         assert state._tailer.position == 3
         addr = "127.0.0.1:28960"
         def snapshot(players=(), status="online"):
-            state._apply_snapshot(Snapshot(address=addr, state=status, players=players))
+            value=Snapshot(address=addr, state=status, players=players)
+            state._apply_snapshot(value)
+            state._apply_presence_round((value,))
         player = Player("^2Medic", 1, 42)
         snapshot()
         snapshot(status="offline")
@@ -100,10 +102,15 @@ def test_automatic_profile_keeps_first_message_and_notifications(tmp_path):
         assert not state.notifications
         snapshot()
         snapshot((player,))
-        assert len(state.notifications) == 1
+        assert not state.notifications  # one transient change is not a departure
         snapshot()
-        snapshot((player,))
+        snapshot()
         assert len(state.notifications) == 1
+        snapshot((player,))
+        snapshot((player,))
+        assert len(state.notifications) == 2
+        snapshot((player,))
+        assert len(state.notifications) == 2
     finally:
         state.stop()
         knowledge_v2.configure(previous)

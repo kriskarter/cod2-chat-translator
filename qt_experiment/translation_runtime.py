@@ -6,6 +6,7 @@ runtime is opt-in, reads the supplied configuration, and never writes it.
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 import os
 import queue
 import threading
@@ -24,6 +25,7 @@ from outgoing_chat import (OutgoingTranslationDispatcher, OutgoingHttpTransport,
 import knowledge_v2
 import translation_memory
 from .live_monitor import LiveMonitorState
+from .friend_presence import qt_monitor_settings, dump_qt_monitor_settings, display_name
 from .common import ROOT
 from .native_hud import NativeHud
 from server_monitor import load_settings, dump_settings
@@ -46,7 +48,7 @@ class TranslationState(LiveMonitorState):
     _on_log_control = ControlApp._on_log_control
 
     def __init__(self, config, game_exe=None, log_path=None, installed_knowledge=None, game_hotkeys=False, settings_store=None):
-        super().__init__(load_settings(config.get("server_monitor")), game_exe)
+        super().__init__(qt_monitor_settings(config.get("server_monitor")), game_exe)
         self._config = config
         self._store = settings_store
         self._profiles = merge_server_profiles(config.get("server_profiles"), [])
@@ -55,8 +57,8 @@ class TranslationState(LiveMonitorState):
         self._pending_switch_positions = {}
         self._last_profile_scan = time.monotonic()
         self._notifications = deque(maxlen=80)
-        self._friend_presence = {}
-        self._friend_notice_at = {}
+        self._notice_window = None
+        self._last_friend_sound_at = -1e9
         self._maintenance_busy = False
         self._update_message = ""
         self._update_url = ""
@@ -205,7 +207,7 @@ class TranslationState(LiveMonitorState):
                       qt_f8_enabled=self._f8, qt_overlay_enabled=self._overlay, outgoing_enabled=self._f9,
                       outgoing_source_language=self._out_source, outgoing_target_language=self._out_target,
                       log_path=str(self._log_path or ""), active_profile_path=str(self._log_path or ""),
-                      server_monitor=dump_settings(self._settings), ui_language=self.ui_language,
+                      server_monitor=dump_qt_monitor_settings(self._settings), ui_language=self.ui_language,
                       server_profiles=self._profiles, auto_detect_profile=self._auto_profile,
                       knowledge_v2_enabled=knowledge_v2.RUNTIME.enabled,
                       hide_same_language=self._hide, gaming_slang=self._slang,
@@ -223,6 +225,26 @@ class TranslationState(LiveMonitorState):
     def _settings_changed(self):
         # Save only on explicit user request, never from a network callback.
         pass
+
+    def _save_friend_settings(self):
+        if self._store is None: return True
+        # Auto-save only explicit friend mutations/preferences, not unrelated
+        # unsaved edits or network callbacks. Keep the legacy import read-only.
+        try:
+            config=deepcopy(self._store.load(self._config))
+            monitor=config.get("server_monitor")
+            monitor=dict(monitor) if isinstance(monitor,dict) else {}
+            for key in ("friends","notify_friends","notify_join","notify_leave","notify_move","notify_sound"):
+                monitor[key]=deepcopy(self._settings[key])
+            config["server_monitor"]=monitor
+            self._store.save(config)
+            self._config=config
+            return True
+        except (OSError,RuntimeError,ValueError) as error:
+            self._friend_error=self.trText("Ошибка сохранения")+": "+str(error)
+            self.game_status(self._friend_error)
+            self.friendNotice.emit(self.trText("Ошибка сохранения"),str(error))
+            return False
 
     @Property(str, notify=translationChanged)
     def uiLanguage(self): return self.ui_language
@@ -322,33 +344,57 @@ class TranslationState(LiveMonitorState):
 
     @Slot(bool)
     def setNotifyFriends(self, enabled):
-        self._settings["notify_friends"] = enabled
+        self.setFriendNotification("friends",enabled)
+
+    @Property("QVariantMap", notify=translationChanged)
+    def friendNotificationOptions(self):
+        return {key:bool(self._settings["notify_"+key]) for key in ("friends","join","leave","move","sound")}
+
+    @Slot(str,bool,result=bool)
+    def setFriendNotification(self,key,enabled):
+        if key not in ("friends","join","leave","move","sound"): return False
+        option="notify_"+key
+        previous=self._settings[option]
+        self._settings[option]=enabled
+        self._friend_error=""
+        if not self._save_friend_settings():
+            self._settings[option]=previous
+            self.friendsChanged.emit()
+            self.translationChanged.emit()
+            return False
+        self.translationChanged.emit()
+        self.friendsChanged.emit()
+        return True
+
+    def _on_presence_event(self,event):
+        if not self.notifyFriends or not self._settings["notify_"+event.kind]: return
+        labels={r.address:r.name for r in self._rows.values()}
+        title=self.trText({"join":"Друг появился","leave":"Друг покинул сервер","move":"Возможный переход друга"}[event.kind])
+        name=display_name(event.name)
+        old=labels.get(event.old_address,event.old_address)
+        new=labels.get(event.new_address,event.new_address)
+        detail=name+" · "+(old+" → "+new if event.kind=="move" else new or old)
+        self._notifications.appendleft(title+": "+detail)
+        self.friendNotice.emit(title,detail)
+        # In-app notification is custom QML. When not active use native
+        # notification delivery; its sound flag is controlled independently.
+        active=bool(self._notice_window and self._notice_window.isActive())
+        sound=bool(self._settings["notify_sound"])
+        if self._notifier and not active:
+            self._notifier.show(title,detail,sound=False)
+        now=time.monotonic()
+        if sound and now-self._last_friend_sound_at>=2.5:
+            self._last_friend_sound_at=now
+            self._play_friend_sound()
         self.translationChanged.emit()
 
-    @Slot(object)
-    def _apply_snapshot(self, snapshot):
-        super()._apply_snapshot(snapshot)
-        from server_monitor import normalized_name
-        import time
-        if snapshot.address not in self._rows: return
-        if snapshot.state != "online":
-            self._friend_presence.pop(snapshot.address, None)
-            return
-        friends = {normalized_name(n): n for n in self._settings["friends"]}
-        current = {normalized_name(p.name) for p in snapshot.players}
-        previous = self._friend_presence.get(snapshot.address)
-        self._friend_presence[snapshot.address] = current
-        if previous is None or not self.notifyFriends: return
-        for name in sorted((current - previous) & friends.keys()):
-            key = (snapshot.address, name)
-            now = time.monotonic()
-            if now - self._friend_notice_at.get(key, -1e9) < 600: continue
-            self._friend_notice_at[key] = now
-            title = self.trText("Друг в игре")
-            detail = friends[name] + " · " + (snapshot.name or snapshot.address)
-            self._notifications.appendleft(title + ": " + detail)
-            if self._notifier: self._notifier.show(title, detail)
-            self.translationChanged.emit()
+    @staticmethod
+    def _play_friend_sound():
+        if os.name != "nt": return
+        try:
+            import winsound
+            winsound.PlaySound(str(ROOT/"assets"/"friend_notice.wav"),winsound.SND_FILENAME|winsound.SND_ASYNC|winsound.SND_NODEFAULT)
+        except (RuntimeError,OSError): pass
 
     @Property('QVariantMap', notify=translationChanged)
     def preferences(self):
@@ -472,6 +518,7 @@ class TranslationState(LiveMonitorState):
         self._hud.clear()
 
     def attach_window(self, window):
+        self._notice_window=window
         if os.name == "nt":
             from windows_friend_notice import FriendNotice
             self._notifier = FriendNotice(int(window.winId()))

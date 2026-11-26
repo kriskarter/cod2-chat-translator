@@ -95,7 +95,7 @@ def test_live_udp_worker_delivers_to_qt_and_never_simulates_translation(app, tmp
     state.start()
     try:
         deadline = time.monotonic() + 4
-        while time.monotonic() < deadline and state.rows[0]["state"] != "online":
+        while time.monotonic() < deadline and (state.rows[0]["state"] != "online" or state.friendCount != 1):
             app.processEvents()
             time.sleep(.01)
         assert state.rows[0]["state"] == "online"
