@@ -4,11 +4,12 @@ import tkinter as tk
 from tkinter import ttk
 from dashboard_ui import BG,CARD,TEXT,MUTED,AMBER,FONT
 from premium_home import local,txt
+from premium_material import SteelFrame
 
 
 def build_history_page(dashboard,page):
     app=dashboard.app
-    box=tk.Frame(page,bg=BG)
+    box=SteelFrame(page,bg=BG)
     box.pack(fill="both",expand=True,padx=20,pady=15)
     txt(box,local(app,"ЛОГИ И ИСТОРИЯ","ЖУРНАЛИ ТА ІСТОРІЯ","LOGS AND HISTORY"),
         19,AMBER,True,bg=BG).pack(anchor="w")

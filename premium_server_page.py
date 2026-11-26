@@ -7,7 +7,7 @@ from tkinter import ttk, messagebox
 from dashboard_ui import BG,CARD,TEXT,MUTED,AMBER,GREEN,FONT
 from premium_home import local,txt
 from server_monitor import Server,canonical_address,normalized_name,plain_name,color_runs,MAX_SERVERS
-from premium_material import MetalCanvas
+from premium_material import MetalCanvas, SteelFrame
 from premium_roster import PlayerRoster
 
 
@@ -28,12 +28,12 @@ class ServerPage:
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.pack(side="left",fill="both",expand=True)
         scrollbar.pack(side="right",fill="y")
-        content=tk.Frame(canvas,bg=BG)
+        content=SteelFrame(canvas,bg=BG)
         window=canvas.create_window((0,0),window=content,anchor="nw")
         content.bind("<Configure>",lambda _e:canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>",lambda e:canvas.itemconfigure(window,width=e.width))
         self.scroll_canvas=canvas
-        outer=tk.Frame(content,bg=BG)
+        outer=SteelFrame(content,bg=BG)
         outer.pack(fill="both",expand=True,padx=16,pady=12)
         txt(outer,local(a,"СЕРВЕРЫ И ИГРОКИ","СЕРВЕРИ ТА ГРАВЦІ","SERVERS AND PLAYERS"),19,AMBER,True,bg=BG).pack(anchor="w",pady=(0,10))
         toolbar=tk.Frame(outer,bg=BG)
@@ -50,7 +50,7 @@ class ServerPage:
             (local(a,"Обновить","Оновити","Refresh"),a.monitor.refresh,False),
         ):
             tactical_action(toolbar,caption,command,primary=primary).pack(side="left",padx=3)
-        body=tk.Frame(outer,bg=BG)
+        body=SteelFrame(outer,bg=BG)
         body.pack(fill="both",expand=True)
         body.columnconfigure(0,weight=3)
         body.columnconfigure(1,weight=2)

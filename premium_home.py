@@ -8,7 +8,7 @@ from PIL import Image, ImageTk
 
 from dashboard_ui import BG, CARD, CARD_ALT, TEXT, MUTED, AMBER, GREEN, FONT
 from server_monitor import color_runs, normalized_name
-from premium_material import MetalCanvas, CanvasKeycap
+from premium_material import MetalCanvas, CanvasKeycap, SteelFrame
 from premium_roster import PlayerRoster
 
 
@@ -57,7 +57,7 @@ class PremiumHome:
         bar=ttk.Scrollbar(self.page,orient="vertical",command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=bar.set)
         self.canvas.pack(side="left",fill="both",expand=True)
-        self.content=tk.Frame(self.canvas,bg=BG)
+        self.content=SteelFrame(self.canvas,bg=BG)
         item=self.canvas.create_window((0,0),window=self.content,anchor="nw")
         self.dashboard.home_canvas=self.canvas
         self.dashboard.home_content=self.content
@@ -69,13 +69,13 @@ class PremiumHome:
             elif not needed and bar.winfo_manager():bar.pack_forget()
         self.content.bind("<Configure>",measure)
         self.canvas.bind("<Configure>",lambda e:(self.canvas.itemconfigure(item,width=e.width),measure()))
-        columns=tk.Frame(self.content,bg=BG)
+        columns=SteelFrame(self.content,bg=BG)
         columns.pack(fill="both",expand=True,padx=14,
                      pady=(4,2) if self.compact else (8,5))
         columns.columnconfigure(0,weight=44,uniform="command",minsize=380)
         columns.columnconfigure(1,weight=56,uniform="command",minsize=520)
-        left=tk.Frame(columns,bg=BG)
-        right=tk.Frame(columns,bg=BG)
+        left=SteelFrame(columns,bg=BG)
+        right=SteelFrame(columns,bg=BG)
         left.grid(row=0,column=0,sticky="nsew",padx=(0,7))
         right.grid(row=0,column=1,sticky="nsew",padx=(7,0))
         self._translator(left,"f8")

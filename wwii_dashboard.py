@@ -87,7 +87,8 @@ class WWIIDashboard(Dashboard):
         app=self.app
         request_dark_native_titlebar(self.root)
         compact_dpi=float(self.root.tk.call("tk","scaling"))>=1.6
-        outer=tk.Frame(self.root,bg=BG)
+        from premium_material import SteelFrame
+        outer=SteelFrame(self.root,bg=BG)
         outer.pack(fill="both",expand=True)
         self.outer=outer
         # The brand is a separate, transparent, metallic raster asset built
@@ -101,32 +102,48 @@ class WWIIDashboard(Dashboard):
         from PIL import Image,ImageTk
         from app import resource_path
         from premium_banner import compose_banner
-        # The original panorama is retained as a packaged fallback/resource;
-        # compose_banner uses it and a separate full church cutout.
+        # The live wordmark sits over one coherent painted city panorama.
         fallback="assets/ui_premium/monitor_hero.png"
         brand_source=Image.open(resource_path("assets/ui_premium/monitor_logo.png")).convert("RGBA")
         self._header_photos={}
         hero_item=header.create_image(0,0,anchor="nw")
         logo_item=header.create_image(0,0,anchor="nw")
-        subtitle="Intelligent Gaming Companion"
+        subtitle="\u2009".join("Intelligent Gaming Companion")
         tagline_shadow=header.create_text(0,0,text=subtitle,anchor="center",
             fill="#080B0B",font=(FONT,11,"italic"))
         tagline_item=header.create_text(0,0,text=subtitle,anchor="center",
             fill="#F2DFB6",font=(FONT,11,"italic"))
         self.banner_version=header.create_text(0,0,text="",
             font=(FONT,9,"bold"),fill="#F8E0AE",anchor="e")
+        stars=[header.create_polygon(0,0,1,0,0,1,fill="#C8A576",
+                       outline="#F1CE91",width=1) for _ in range(2)]
+        logo_rule=header.create_line(0,0,0,0,fill="#DAAB62",width=1)
         def resize_header(event):
             width=max(1,event.width)
             height=max(120,event.height)
             picture=compose_banner(width,height)
             self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
             header.itemconfigure(hero_item,image=self._header_photos["scene"])
-            logo_width=min(505,round(width*.38),round(height*2.75))
+            logo_width=min(495,round(width*.38),round(height*2.7))
             logo_height=round(brand_source.height*logo_width/brand_source.width)
             logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
             self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
             header.itemconfigure(logo_item,image=self._header_photos["logo"])
-            header.coords(logo_item,round(width*.36),-3)
+            logo_x=round(width*.36)
+            header.coords(logo_item,logo_x,-4)
+            for star,offset in zip(stars,(.10,.90)):
+                x=round(logo_x+logo_width*offset)
+                y=round(height*.25)
+                points=[]
+                from math import cos, sin, pi
+                for index in range(10):
+                    angle=-pi/2+index*pi/5
+                    radius=9 if index%2==0 else 4
+                    points.extend((round(x+cos(angle)*radius),
+                                   round(y+sin(angle)*radius)))
+                header.coords(star,*points)
+            header.coords(logo_rule,logo_x+40,height-22,
+                          logo_x+logo_width-40,height-22)
             header.coords(tagline_shadow,round(width*.55)+1,height-12)
             header.coords(tagline_item,round(width*.55),height-13)
             header.coords(self.banner_version,width-13,height-16)
@@ -174,11 +191,11 @@ class WWIIDashboard(Dashboard):
                                 command=app._open_featured_server_discord)
         self.service_menu=service
 
-        stack=tk.Frame(outer,bg=BG)
+        stack=SteelFrame(outer,bg=BG)
         stack.pack(fill="both",expand=True)
         self.stack=stack
         for name in ("home","servers","translation","overlay","knowledge","stats","settings","history"):
-            page=tk.Frame(stack,bg=BG)
+            page=SteelFrame(stack,bg=BG)
             page.place(relx=0,rely=0,relwidth=1,relheight=1)
             self.pages[name]=page
         self._home(self.pages["home"])

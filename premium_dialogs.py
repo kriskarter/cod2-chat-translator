@@ -5,13 +5,14 @@ import tkinter as tk
 from tkinter import ttk
 
 from dashboard_ui import BG, CARD, MUTED, FONT, card, check
+from premium_material import SteelFrame
 
 
 def dialog_body(win, title: str, subtitle: str = "", *, width: int = 580):
     """Return a live content frame below a steel title plate."""
     win.configure(bg=BG)
     win.minsize(width, 0)
-    outer = tk.Frame(win, bg=BG, padx=13, pady=13)
+    outer = SteelFrame(win, bg=BG, padx=13, pady=13)
     outer.pack(fill="both", expand=True)
     border, heading = card(outer, title, padding=8)
     border.pack(fill="x")

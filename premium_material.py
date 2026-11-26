@@ -10,6 +10,44 @@ from functools import lru_cache
 from PIL import Image, ImageTk, ImageEnhance, ImageDraw, ImageOps
 
 
+@lru_cache(maxsize=1)
+def _chassis_texture():
+    """A muted graphite treatment of the project's original steel artwork."""
+    from app import resource_path
+    with Image.open(resource_path("assets/ui_premium/steel_source.png")) as source:
+        gray = ImageOps.grayscale(source).resize((384, 384), Image.Resampling.LANCZOS)
+    return ImageOps.colorize(gray, black="#15191C", white="#32383A")
+
+
+class SteelFrame(tk.Frame):
+    """A tiled steel underlay; child widgets remain real Tk controls.
+
+    One shared 384 px photo per Tk root avoids full window sized image copies
+    and repaints only on size changes.
+    """
+
+    def __init__(self, parent, **kwargs):
+        kwargs.setdefault("bg", "#171A1D")
+        super().__init__(parent, **kwargs)
+        root = self.winfo_toplevel()
+        if not hasattr(root, "_steel_texture_photo"):
+            root._steel_texture_photo = ImageTk.PhotoImage(_chassis_texture(), master=root)
+        self._tile_photo = root._steel_texture_photo
+        self._underlay = tk.Canvas(self, highlightthickness=0, bd=0, bg="#171A1D")
+        self._underlay._steel_underlay = True
+        self._underlay.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self._underlay.lower()
+        self._underlay.bind("<Configure>", self._tile)
+
+    def _tile(self, event):
+        self._underlay.delete("steel")
+        for y in range(0, event.height, 384):
+            for x in range(0, event.width, 384):
+                self._underlay.create_image(x, y, anchor="nw",
+                                             image=self._tile_photo, tags="steel")
+        self._underlay.lower()
+
+
 @lru_cache(maxsize=32)
 def panel_image(width: int, height: int, scene: str = "") -> Image.Image:
     from app import resource_path

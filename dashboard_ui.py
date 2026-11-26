@@ -545,7 +545,8 @@ class Dashboard:
         """
         canvas = next(
             (child for child in page.winfo_children()
-             if isinstance(child, tk.Canvas)),
+             if isinstance(child, tk.Canvas)
+             and not getattr(child, "_steel_underlay", False)),
             None,
         )
         if canvas is None:
@@ -578,7 +579,8 @@ class Dashboard:
         canvas.configure(yscrollcommand=bar.set)
         bar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
-        content = tk.Frame(canvas, bg=BG)
+        from premium_material import SteelFrame
+        content = SteelFrame(canvas, bg=BG)
         window = canvas.create_window((0, 0), window=content, anchor="nw")
         content.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window, width=e.width))
