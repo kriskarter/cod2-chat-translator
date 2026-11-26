@@ -54,8 +54,10 @@ class ServerPage:
         body.pack(fill="both",expand=True)
         body.columnconfigure(0,weight=3)
         body.columnconfigure(1,weight=2)
-        left_shell=MetalCanvas(body,height=510)
-        right_shell=MetalCanvas(body,height=510)
+        panel_height=(680 if a.root.winfo_screenheight()>=1000 else
+                      535 if a.root.winfo_screenheight()>=850 else 445)
+        left_shell=MetalCanvas(body,height=panel_height)
+        right_shell=MetalCanvas(body,height=panel_height)
         left=tk.Frame(left_shell,bg=CARD)
         right=tk.Frame(right_shell,bg=CARD)
         left.pack(fill="both",expand=True,padx=11,pady=11)
@@ -98,9 +100,28 @@ class ServerPage:
                                            "Server reported 0 ms; actual ping unknown"))
         self.roster.pack(fill="both",expand=True,pady=(5,0))
         txt(right,local(a,"Сведения о сервере","Відомості про сервер","Server details"),13,AMBER,True).pack(anchor="w",padx=10,pady=8)
-        self.info=txt(right,"",11,bg=CARD)
-        self.info.configure(justify="left",anchor="nw",wraplength=380)
-        self.info.pack(fill="x",padx=10,pady=(0,12))
+        self.info=txt(right,"",12,bg=CARD)
+        self.info.pack(fill="x",padx=12,pady=(0,7))
+        details=tk.Frame(right,bg="#1D2325")
+        details.pack(fill="x",padx=10,pady=(0,11))
+        self.detail_values={}
+        detail_names=(
+            ("state",local(a,"Состояние","Стан","Status")),
+            ("address",local(a,"Адрес","Адреса","Address")),
+            ("map",local(a,"Карта","Мапа","Map")),
+            ("mode",local(a,"Режим","Режим","Mode")),
+            ("players",local(a,"Игроки","Гравці","Players")),
+            ("ping",local(a,"Отклик","Відгук","Response")),
+            ("last",local(a,"Последний ответ","Остання відповідь","Last response")),
+        )
+        for index,(key,caption) in enumerate(detail_names):
+            row=tk.Frame(details,bg="#252B2D" if index%2==0 else "#202628",height=26)
+            row.pack(fill="x")
+            row.pack_propagate(False)
+            txt(row,caption,9,MUTED,bg=row.cget("bg")).pack(side="left",padx=(9,2))
+            value=txt(row,"—",10,TEXT,bg=row.cget("bg"))
+            value.pack(side="right",padx=(2,9))
+            self.detail_values[key]=value
         txt(right,local(a,"Избранные игроки","Обрані гравці","Favorite players"),13,AMBER,True).pack(anchor="w",padx=10,pady=5)
         self.friends=tk.Listbox(right,bg="#1C2022",fg=GREEN,selectbackground="#67543C",
                                 selectforeground="#FFF0D4",bd=0,highlightthickness=0,
@@ -172,22 +193,26 @@ class ServerPage:
         snap=a.monitor.snapshots.get(server.address) if server else None
         if not server:
             self.info.configure(text=local(a,"Добавьте сервер для мониторинга.","Додайте сервер для моніторингу.","Add a server to monitor."))
+            for value in self.detail_values.values():value.configure(text="—",fg=MUTED)
             self._roster(None)
             return
         state=local(a,"Онлайн","Онлайн","Online") if snap and snap.state=="online" else (
             local(a,"Частичный ответ","Часткова відповідь","Partial response") if snap and snap.state=="limited"
             else local(a,"Нет ответа","Немає відповіді","No response"))
-        lines=[server.label or (snap.name if snap else server.address),server.address,"",
-               local(a,"Состояние: ","Стан: ","State: ")+state]
-        if snap and snap.state in ("online","limited"):
-            lines.extend((local(a,"Карта: ","Мапа: ","Map: ")+(snap.map_name or "—"),
-                          local(a,"Режим: ","Режим: ","Mode: ")+(snap.game_type or "—"),
-                          local(a,"Игроки: ","Гравці: ","Players: ")+f"{snap.clients if snap.clients is not None else '—'}/{snap.max_clients if snap.max_clients is not None else '—'}",
-                          local(a,"Ответ: ","Відповідь: ","Response: ")+str(snap.ping_ms)+" ms"))
-        lines.append(local(a,"Последний успех: ","Остання успішна відповідь: ","Last success: ")+
-                     (snap.last_success.astimezone().strftime("%H:%M:%S") if snap and snap.last_success else "—"))
-        if snap and snap.state=="limited":lines.append(local(a,"Список игроков сервер не предоставил.","Список гравців сервер не надав.","Server did not provide a player list."))
-        self.info.configure(text="\n".join(lines))
+        self.info.configure(text=server.label or (snap.name if snap else server.address))
+        live=bool(snap and snap.state in ("online","limited"))
+        fields={
+            "state":state,
+            "address":server.address,
+            "map":snap.map_name or "—" if live else "—",
+            "mode":snap.game_type or "—" if live else "—",
+            "players":f"{snap.clients if snap.clients is not None else '—'}/{snap.max_clients if snap.max_clients is not None else '—'}" if live else "—",
+            "ping":f"{snap.ping_ms} ms" if live and snap.ping_ms is not None else "—",
+            "last":snap.last_success.astimezone().strftime("%H:%M:%S") if snap and snap.last_success else "—",
+        }
+        for key,value in fields.items():
+            color=(GREEN if snap and snap.state=="online" else AMBER if live else MUTED) if key=="state" else TEXT
+            self.detail_values[key].configure(text=value,fg=color)
         self._roster(snap)
 
     def _roster(self,snap):
