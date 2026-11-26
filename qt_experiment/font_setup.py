@@ -37,6 +37,14 @@ def ensure_ui_font(app):
             family=next((name for name in candidates if suitable(name)),None)
         if family is not None:
             font=app.font();font.setFamily(family);app.setFont(font)
+    elif not font_has_ui_glyphs(app.font()):
+        # Minimal Linux/offscreen images may expose a generic family whose
+        # first resolved face lacks Cyrillic despite installed Unicode fonts.
+        for family in ("DejaVu Sans", "Noto Sans", "Liberation Sans"):
+            candidate=QFont(family)
+            if font_has_ui_glyphs(candidate):
+                app.setFont(candidate)
+                break
     font=app.font()
     valid=font_has_ui_glyphs(font)
     font.setBold(True)

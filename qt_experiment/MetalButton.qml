@@ -19,8 +19,8 @@ Button {
  background: Item {
   BorderImage {
    anchors.fill:parent
-   source:"../assets/ui_wwii/premium_"+(root.gold?"amber":"metal")+"_"+(!root.enabled?"disabled":root.down?"pressed":root.hovered?"hover":"normal")+".png"
-   border.left:12;border.right:12;border.top:11;border.bottom:11
+   source:"art/"+(root.gold?"amber_button":"metal_button")+(!root.enabled?"_disabled":root.down?"_pressed":root.activeFocus?"_focused":root.hovered?"_hover":"")+".png"
+   border.left:20;border.right:20;border.top:18;border.bottom:18
   }
   Rectangle {anchors.fill:parent;anchors.margins:1;radius:4;color:"transparent";border.color:root.activeFocus?"#f0c784":"transparent"}
  }

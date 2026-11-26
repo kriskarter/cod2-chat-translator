@@ -1,7 +1,7 @@
 import QtQuick
 BorderImage {
- source:"art_frame.png"
- border.left:10;border.right:10;border.top:10;border.bottom:10
+ source:"art/frame.png"
+ border.left:23;border.right:23;border.top:20;border.bottom:20
  horizontalTileMode:BorderImage.Stretch;verticalTileMode:BorderImage.Stretch
- opacity:.8
+ opacity:.92
 }

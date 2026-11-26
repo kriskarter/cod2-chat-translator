@@ -15,17 +15,11 @@ Button {
         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
     }
     background: Item {
-        Rectangle {anchors.fill:parent;anchors.margins:3;radius:13;color:"#211b13";border.color:root.active?"#b88b4b":"#574e40";opacity:root.active?.85:.4}
         Image {
             anchors.fill: parent
-            source: "../assets/ui_wwii/premium_keycap.png"
+            source: "art/keycap" + (!root.enabled ? "_disabled" : root.down ? "_pressed" : root.activeFocus ? "_focused" : root.hovered || root.active ? "_hover" : "") + ".png"
             fillMode: Image.PreserveAspectFit
             opacity: root.down ? .73 : root.enabled ? 1 : .55
-        }
-        Rectangle {
-            anchors.fill: parent; anchors.margins: 7; radius: 8
-            color: root.hovered ? "#22efbd77" : "transparent"
-            border.color: root.activeFocus ? "#f8bb65" : "transparent"
         }
     }
 }
