@@ -322,11 +322,11 @@ class PremiumHome:
             for index,item in enumerate(separators,1):
                 x=round(third*index)
                 rail.coords(item,x,13,x,event.height-13)
-            rail.coords(overlay_icon,43,37+dy)
-            rail.coords("overlay_title",72,31+dy)
-            rail.coords("overlay_note",70,51+dy)
-            rail.coords(overlay_switch,round(third-88),25+dy)
-            action_y=64 if a.root.winfo_screenheight()<1000 else 70
+            rail.coords(overlay_icon,43,33+dy)
+            rail.coords("overlay_title",72,23+dy)
+            rail.coords("overlay_note",70,42+dy)
+            rail.coords(overlay_switch,round(third-88),19+dy)
+            action_y=max(44,event.height-49-dy)
             rail.coords(overlay_edit,35,action_y+dy)
             rail.coords(overlay_config,151,action_y+dy)
             rail.coords(engine_icon,round(third+43),37+dy)
