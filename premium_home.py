@@ -94,7 +94,8 @@ class PremiumHome:
         scene=("assets/ui_premium/translation_card_source.jpg" if kind=="f8"
                else "assets/ui_premium/tank_card.png")
         card=MetalCanvas(parent,scene=scene,height=height)
-        card.pack(fill="x",pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
+        card.pack(fill="both",expand=True,
+                  pady=(0,7 if self.compact else 2 if self.large_dpi else 5))
         card.pack_propagate(False)
         key=CanvasKeycap(card,kind.upper(),lambda:switch.invoke(),size=100 if self.compact else 116)
         setattr(self,kind+"_key",key)
