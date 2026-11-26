@@ -141,7 +141,7 @@ def main():
     sd.line(outline+[outline[0]],fill=(255,226,163,245),width=1)
     star.save(OUT / "quick_star.png",optimize=True)
 
-    for name in ("servers", "history"):
+    for name in ("servers", "history", "translation", "overlay"):
         icon = Image.new("RGBA", (28, 28))
         i = ImageDraw.Draw(icon, "RGBA")
         gold=(228, 189, 116, 255)
@@ -150,10 +150,21 @@ def main():
                 i.rounded_rectangle((3, top, 24, top+6), radius=2,
                                     outline=gold, width=2)
                 i.ellipse((6, top+2, 8, top+4), fill=gold)
-        else:
+        elif name == "history":
             for x, top in ((5, 15), (12, 9), (19, 4)):
                 i.rounded_rectangle((x, top, x+4, 23), radius=1, fill=gold)
             i.line((3, 24, 25, 24), fill=gold, width=1)
+        elif name == "translation":
+            i.rounded_rectangle((3, 5, 17, 17), radius=2, outline=gold, width=2)
+            i.line((6, 20, 6, 17, 10, 17), fill=gold, width=2)
+            i.line((11, 9, 22, 9), fill=gold, width=2)
+            i.line((17, 7, 17, 14), fill=gold, width=2)
+            i.line((13, 21, 24, 21), fill=gold, width=2)
+        else:
+            i.rounded_rectangle((4, 8, 24, 20), radius=2, outline=gold, width=2)
+            i.line((8, 5, 8, 8), fill=gold, width=2)
+            i.line((20, 5, 20, 8), fill=gold, width=2)
+            i.line((10, 15, 18, 15), fill=gold, width=2)
         icon.save(OUT / f"nav_{name}.png", optimize=True)
 
     # Keep the corners/edges of the approved new material independent of
