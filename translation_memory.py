@@ -108,8 +108,10 @@ class LocalExperience:
         return self._submit(("stats",callback))
     def close(self):
         self.closed=True
-        # Brief drain only on application shutdown, never on translation path.
-        self.thread.join(timeout=.5)
+        # Allow the disk worker to release its SQLite handle before a caller
+        # tears down a temporary or portable settings directory on Windows.
+        # This runs only during shutdown, never on the translation path.
+        self.thread.join(timeout=3.0)
     def _load(self,db):
         rows=db.execute("SELECT k,v,ts FROM cache WHERE ts>=? ORDER BY ts",(time.time()-TTL,)).fetchall()
         with self._lock:

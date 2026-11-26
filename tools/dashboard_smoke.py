@@ -20,6 +20,8 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--screenshot", type=Path)
+    parser.add_argument("--screenshot-dir", type=Path,
+                        help="Capture the actual Tk Home and expert pages on X11")
     parser.add_argument("--preview-width",type=int,default=1320)
     parser.add_argument("--preview-height",type=int,default=840)
     parser.add_argument("--tk-scaling",type=float,default=None,
@@ -50,10 +52,11 @@ def main():
             root.update_idletasks()
             root.update()
             dashboard = app.dashboard
-            expected = ("home", "translation", "overlay", "knowledge", "stats", "settings")
+            expected = ("home", "servers", "history", "translation", "overlay", "knowledge", "stats", "settings")
             assert all(key in dashboard.pages for key in expected)
             assert root.winfo_width() >= 1050
-            assert len(dashboard.nav_buttons) == 7
+            assert len(dashboard.nav_buttons) == 5
+            assert dashboard.service_menu.index("end") >= 1
             assert app.language_combo.winfo_exists()
             assert app.overlay_edit_button.winfo_exists()
             assert app.overlay_edit_button_alt.winfo_exists()
@@ -62,7 +65,7 @@ def main():
             # page-switch method. Auxiliary actions remain wired but are
             # not invoked because server/Discord/update are external.
             for key,expected_page in (
-                ("knowledge","knowledge"),("stats","stats"),
+                ("servers","servers"),("history","history"),
                 ("settings","settings"),("home","home"),
             ):
                 dashboard.nav_buttons[key].invoke()
@@ -99,24 +102,45 @@ def main():
             root.update()
             assert app.experience.collect == old_value
 
-            # Exercise the actual image-backed F8/F9 native switches,
-            # not just the shared BooleanVar in Python.
+            # Exercise native F8/F9 switches, not only the BooleanVar.
             assert dashboard.navigate("home")
-            for caption,variable in (
-                ("F8",app.enabled_var),
-                ("F9",app.outgoing_chat.enabled_var),
+            for key,variable in (
+                ("f8",app.enabled_var),
+                ("f9",app.outgoing_chat.enabled_var),
             ):
-                switch=next(
-                    w for w in descendants(dashboard.pages["home"])
-                    if isinstance(w,tk.Checkbutton) and w.cget("text").startswith(caption)
-                )
+                switch=getattr(dashboard.premium_home,key+"_switch")
+                assert isinstance(switch,tk.Checkbutton)
                 before=bool(variable.get())
                 switch.invoke()
                 root.update()
-                assert bool(variable.get())!=before,caption
+                assert bool(variable.get())!=before,key
                 switch.invoke()
                 root.update()
-                assert bool(variable.get())==before,caption
+                assert bool(variable.get())==before,key
+                # The illustrated F8/F9 key is itself an actual button.
+                getattr(dashboard.premium_home,key+"_key").invoke()
+                root.update()
+                assert bool(variable.get())!=before,key
+                getattr(dashboard.premium_home,key+"_key").invoke()
+                root.update()
+                assert bool(variable.get())==before,key
+
+            # Live roster refresh must retain a player's reading position and
+            # avoid replacing unchanged text on every server poll.
+            from server_monitor import Player
+            roster=dashboard.premium_home.players
+            sample=[Player(f"^2Player {i}",i,30+i) for i in range(32)]
+            roster.render(sample)
+            root.update()
+            roster.fields[0].yview_moveto(.5)
+            root.update()
+            before=roster.fields[0].yview()[0]
+            roster.render(sample)
+            root.update()
+            assert abs(roster.fields[0].yview()[0]-before)<.03
+            roster.render([*sample,Player("^1New player",33,44)])
+            root.update()
+            assert abs(roster.fields[0].yview()[0]-before)<.06
 
             app.smart_engine_var.set(False)
             app._persist_settings()
@@ -181,7 +205,14 @@ def main():
             root.update()
             app.overlay.set_visible(False)
             app.dashboard.navigate("home")
-            root.update()
+            # The art and adaptive geometry are intentionally coalesced. Wait
+            # for the settled layout rather than measuring the first transient
+            # Configure notification during a resize.
+            import time
+            until=time.monotonic()+.65
+            while time.monotonic()<until:
+                root.update()
+                time.sleep(.025)
             content_height=app.dashboard.home_content.winfo_reqheight()
             viewport_height=app.dashboard.home_canvas.winfo_height()
             has_bar=bool(app.dashboard.home_scrollbar.winfo_manager())
@@ -200,8 +231,8 @@ def main():
                 assert not has_bar, "Unexpected Home scrollbar"
             # Beginner Home must stay compact, but expert tools must
             # remain reachable through the existing dedicated pages.
-            assert app.dashboard.home_more_menu.index("end")==2
-            assert app.dashboard.home_more_button.winfo_exists()
+            assert app.dashboard.service_menu.index("end")>=1
+            assert app.dashboard.service_button.winfo_exists()
             home_widgets=list(descendants(app.dashboard.pages["home"]))
             assert not any(isinstance(w,ttk.Scale) for w in home_widgets)
             overlay_widgets=list(descendants(app.dashboard.pages["overlay"]))
@@ -220,21 +251,59 @@ def main():
                     assert visible+5 >= natural, (
                         f"Clipped native action {widget.cget('text')!r}: "
                         f"{visible}px versus {natural}px required")
-            if args.screenshot:
+                    assert widget.winfo_height()+5 >= widget.winfo_reqheight(), (
+                        f"Vertically clipped action {widget.cget('text')!r}: "
+                        f"{widget.winfo_height()}px versus {widget.winfo_reqheight()}px required")
+            if args.screenshot or args.screenshot_dir:
                 # Only take a screenshot when an X11 server and ffmpeg are
                 # explicitly provided. No screenshots are sent anywhere.
-                args.screenshot.parent.mkdir(parents=True, exist_ok=True)
                 if sys.platform != "linux":
                     print("Screenshot capture is only supported via X11 ffmpeg", file=sys.stderr)
                 else:
-                    subprocess.run([
-                        "ffmpeg","-hide_banner","-loglevel","error",
-                        "-f","x11grab","-draw_mouse","0","-video_size",
-                        f"{args.preview_width}x{args.preview_height}",
-                        "-i",os.environ["DISPLAY"],"-frames:v","1",
-                        "-update","1","-y",str(args.screenshot)
-                    ], check=True, timeout=15)
-            print(f"DASHBOARD SMOKE PASS: v{APP_VERSION}, pages=6, nav=7,"
+                    pages = (("home",args.screenshot),) if not args.screenshot_dir else (
+                        (name,args.screenshot_dir/f"xvfb_{name}.png") for name in (
+                            "home", "servers", "history", "translation", "overlay", "knowledge", "stats", "settings"))
+                    for name, target in pages:
+                        if target is None:
+                            continue
+                        app.dashboard.navigate(name)
+                        root.update_idletasks()
+                        root.update()
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        subprocess.run([
+                            "ffmpeg","-hide_banner","-loglevel","error",
+                            "-f","x11grab","-draw_mouse","0","-video_size",
+                            f"{args.preview_width}x{args.preview_height}",
+                            "-i",os.environ["DISPLAY"],"-frames:v","1",
+                            "-update","1","-y",str(target)
+                        ], check=True, timeout=15)
+                    if args.screenshot_dir:
+                        for name, open_dialog in (
+                            ("server", app.show_server_settings),
+                            ("about", app.show_about),
+                            ("knowledge_dialog", app._show_knowledge_dialog),
+                        ):
+                            before = set(root.winfo_children())
+                            open_dialog()
+                            root.update_idletasks()
+                            root.update()
+                            dialogs = [child for child in root.winfo_children()
+                                       if isinstance(child, tk.Toplevel) and child not in before]
+                            assert len(dialogs) == 1, name
+                            win = dialogs[0]
+                            assert win.winfo_width() <= args.preview_width
+                            assert win.winfo_height() <= args.preview_height
+                            target = args.screenshot_dir/f"xvfb_dialog_{name}.png"
+                            subprocess.run([
+                                "ffmpeg", "-hide_banner", "-loglevel", "error",
+                                "-f", "x11grab", "-draw_mouse", "0", "-video_size",
+                                f"{args.preview_width}x{args.preview_height}",
+                                "-i", os.environ["DISPLAY"], "-frames:v", "1",
+                                "-update", "1", "-y", str(target),
+                            ], check=True, timeout=15)
+                            win.destroy()
+                            root.update()
+            print(f"DASHBOARD SMOKE PASS: v{APP_VERSION}, pages={len(app.dashboard.pages)}, nav={len(app.dashboard.nav_buttons)},"
                   " settings callbacks, overlay state, RU/UK/EN, 1050px layout")
             return 0
         finally:

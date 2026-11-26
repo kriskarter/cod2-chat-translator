@@ -7,6 +7,9 @@ import app
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / "dashboard_ui.py").read_text(encoding="utf-8")
+PREMIUM = (ROOT / "premium_pages.py").read_text(encoding="utf-8")
+TRANSLATION = (ROOT / "premium_translation.py").read_text(encoding="utf-8")
+DATA_PAGES = (ROOT / "premium_data_pages.py").read_text(encoding="utf-8")
 MODULE = ast.parse(SOURCE)
 
 def static_i18n():
@@ -28,11 +31,17 @@ class DashboardContractTests(unittest.TestCase):
         self.assertIn("from wwii_dashboard import build_dashboard", (ROOT / "app.py").read_text(encoding="utf-8"))
         tactical=(ROOT/"wwii_dashboard.py").read_text(encoding="utf-8")
         self.assertIn("class WWIIDashboard(Dashboard):", tactical)
-        self.assertIn("ui_photo(header,\"hero.png\")", tactical)
+        self.assertIn('monitor_hero.png', tactical)
         self.assertIn('nav=tk.Frame(nav_shell,bg=SIDEBAR)', tactical)
         self.assertNotIn("sidebar.pack(side=\"left\"", tactical)
         self.assertNotIn('self._home_overlay_prefs', tactical)
-        self.assertIn('self._home_quick', tactical)
+        self.assertIn('build_premium_home(self, page)', tactical)
+        live=(ROOT/"premium_home.py").read_text(encoding="utf-8")
+        self.assertIn('monitor_hero.png', live)
+        self.assertIn('variable=var', tactical)
+        for callback in ('toggle_enabled', '_outgoing_enabled_changed',
+                         '_launch_server', 'monitor.refresh'):
+            self.assertIn(callback, live)
 
     def test_all_localizations_cover_the_same_pages_and_labels(self):
         i18n = static_i18n()
@@ -49,8 +58,10 @@ class DashboardContractTests(unittest.TestCase):
     def test_all_pages_and_real_backend_controls_remain_wired(self):
         for name in ("home", "translation", "overlay", "knowledge", "stats", "settings"):
             self.assertIn(f'self._{name}(self.pages["{name}"])', SOURCE)
-        self.assertIn('lambda:self.navigate("knowledge")', SOURCE)
-        self.assertIn('lambda:self.navigate("stats")', SOURCE)
+        navigation = (ROOT/"wwii_dashboard.py").read_text(encoding="utf-8")
+        self.assertIn('lambda:self.navigate("knowledge")', SOURCE+navigation)
+        self.assertIn('for key in ("translation","overlay","knowledge","stats","settings")', navigation)
+        self.assertIn('lambda destination=key:self.navigate(destination)', navigation)
         for callback in (
             "test_overlay", "clear_overlay", "toggle_overlay_edit",
             "enable_cod2_borderless", "capture_game_screenshot",
@@ -62,7 +73,8 @@ class DashboardContractTests(unittest.TestCase):
             "_max_messages_changed", "_background_only_changed",
             "_compact_background_changed", "_fade_changed",
         ):
-            self.assertIn(callback, SOURCE, callback)
+            self.assertIn(callback, SOURCE+PREMIUM+TRANSLATION+DATA_PAGES,
+                          callback)
 
     def test_no_invented_ping_fps_or_service_connected_claim(self):
         self.assertNotIn("24 мс", SOURCE)

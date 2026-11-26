@@ -1,10 +1,5 @@
-"""Approved WWII metal/tactical interface, using real existing CoD2 controls.
-
-Style is derived from the user's confirmed second concept. The hero and
-plate graphics contain NO UI state; all labels and actions are real Tk widgets.
-"""
+"""Approved server-monitor command center, with live metal/Tk controls."""
 from __future__ import annotations
-import math
 import tkinter as tk
 from tkinter import ttk
 from dashboard_ui import (
@@ -12,25 +7,29 @@ from dashboard_ui import (
     FONT, tr, text, card, action, check, label_combo, ui_photo,
 )
 from server_catalog import FEATURED_SERVER
+from premium_material import MetalCanvas, SteelFrame
 
 
 def nav_name(app, name):
     choices = {
-        "ru":{"home":"Главное","knowledge":"База знаний","stats":"Статистика",
+        "ru":{"home":"Главная","servers":"Серверы","history":"Логи / История","translation":"Перевод","overlay":"Оверлей",
+              "knowledge":"База знаний","stats":"Статистика",
               "settings":"Настройки","updates":"Обновления","discord":"Discord","about":"О программе"},
-        "uk":{"home":"Головна","knowledge":"База знань","stats":"Статистика",
+        "uk":{"home":"Головна","servers":"Сервери","history":"Журнали / Історія","translation":"Переклад","overlay":"Оверлей",
+              "knowledge":"База знань","stats":"Статистика",
               "settings":"Налаштування","updates":"Оновлення","discord":"Discord","about":"Про програму"},
-        "en":{"home":"Home","knowledge":"Knowledge","stats":"Statistics",
+        "en":{"home":"Home","servers":"Servers","history":"Logs / History","translation":"Translation","overlay":"Overlay",
+              "knowledge":"Knowledge","stats":"Statistics",
               "settings":"Settings","updates":"Updates","discord":"Discord","about":"About"},
     }
     return choices.get(app.ui_language,choices["ru"])[name]
 
 
-def tactical_action(parent, caption, command, *, primary=False, icon=None):
+def tactical_action(parent, caption, command, *, primary=False, icon=None, style=None):
     """Real native button with amber metal states, not a painted hotspot."""
     button=ttk.Button(
         parent,text=caption,command=command,
-        style="TacticalAccent.TButton" if primary else "Tactical.TButton",
+        style=style or ("TacticalAccent.TButton" if primary else "Tactical.TButton"),
     )
     if icon:
         button.configure(image=ui_photo(parent,"quick_"+icon+".png"),
@@ -46,8 +45,8 @@ def tactical_switch(parent, caption, var, command):
     """
     return tk.Checkbutton(
         parent,text=caption,variable=var,command=command,indicatoron=0,
-        image=ui_photo(parent,"switch_off.png"),
-        selectimage=ui_photo(parent,"switch_on.png"),
+        image=ui_photo(parent,"premium_switch_off.png"),
+        selectimage=ui_photo(parent,"premium_switch_on.png"),
         compound="left",bg=CARD,fg=TEXT,selectcolor=CARD,
         activebackground=CARD,activeforeground=TEXT,
         padx=1,pady=0,bd=0,relief="flat",overrelief="flat",
@@ -57,60 +56,153 @@ def tactical_switch(parent, caption, var, command):
     )
 
 
+def request_dark_native_titlebar(root):
+    """Ask DWM for dark title chrome while retaining native window controls."""
+    import os
+    if os.name != "nt":
+        return
+    def apply():
+        try:
+            import ctypes
+            parent=ctypes.windll.user32.GetParent
+            parent.argtypes=[ctypes.c_void_p]
+            parent.restype=ctypes.c_void_p
+            hwnd=parent(root.winfo_id()) or root.winfo_id()
+            dwm=ctypes.windll.dwmapi.DwmSetWindowAttribute
+            dwm.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_void_p,ctypes.c_uint]
+            dwm.restype=ctypes.c_long
+            value=ctypes.c_int(1)
+            for attribute in (20, 19):
+                if dwm(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
+                    break
+        except (AttributeError, OSError, RuntimeError):
+            pass  # Older Windows keeps the normal system titlebar.
+    root.after_idle(apply)
+
+
+def home_banner_height(root):
+    client=root.winfo_height()
+    if client<=1: client=root.winfo_screenheight()-85
+    if client<670:return 135
+    if client<730:return 155 if float(root.tk.call("tk","scaling"))>=1.95 else 170
+    if client<850:return 185
+    return min(250,round(client*.24))
+
+
 class WWIIDashboard(Dashboard):
     """Horizontal navigation / original illustrated header / metal controls."""
 
     def _build(self):
         app=self.app
-        outer=tk.Frame(self.root,bg=BG)
+        request_dark_native_titlebar(self.root)
+        compact_dpi=float(self.root.tk.call("tk","scaling"))>=1.6
+        outer=SteelFrame(self.root,bg=BG)
         outer.pack(fill="both",expand=True)
         self.outer=outer
         # The brand is a separate, transparent, metallic raster asset built
         # from original artwork. Only the version and localized subtitle
         # are live text. The photographic hero contains no fake UI states.
-        header=tk.Canvas(outer,height=124,bg="#17130E",
+        header_height=home_banner_height(self.root)
+        header=tk.Canvas(outer,height=header_height,bg="#171A1D",
                          highlightthickness=0,borderwidth=0)
         header.pack(fill="x")
-        hero=ui_photo(header,"hero.png")
-        brand=ui_photo(header,"brand_logo_compact.png")
-        plaque=ui_photo(header,"version_plate.png")
-        header.create_image(0,-28,anchor="nw",image=hero)
-        header.create_image(11,2,anchor="nw",image=brand)
-        header.create_text(406,113,text=tr(app,"tagline"),anchor="w",
-                           fill="#EED6A7",font=(FONT,9,"bold"))
-        header.create_line(0,122,1600,122,fill="#BC8A46",width=2)
-        # Decor: a hand-drawn metallic insignia, not an online/health signal.
-        emblem=[]
-        for n in range(10):
-            theta=-math.pi/2 + n*math.pi/5
-            radius=20 if n%2==0 else 8
-            emblem.extend((760+radius*math.cos(theta),
-                           55+radius*math.sin(theta)))
-        header.create_polygon(emblem,fill="#CCAA70",
-                              outline="#684B2B",width=2)
-        header.create_oval(742,37,778,73,outline="#5D4225",width=1)
-        self.version_plate=header.create_image(0,0,image=plaque,anchor="ne")
+        self.header_widget=header
+        from PIL import Image,ImageTk
+        from app import resource_path
+        from premium_banner import compose_banner
+        # The live wordmark sits over one coherent painted city panorama.
+        fallback="assets/ui_premium/monitor_hero.png"
+        brand_source=Image.open(resource_path("assets/ui_premium/monitor_logo.png")).convert("RGBA")
+        self._header_photos={}
+        hero_item=header.create_image(0,0,anchor="nw")
+        logo_item=header.create_image(0,0,anchor="nw")
+        subtitle="\u2009".join("Intelligent Gaming Companion")
+        tagline_shadow=header.create_text(0,0,text=subtitle,anchor="center",
+            fill="#080B0B",font=(FONT,11,"italic"))
+        tagline_item=header.create_text(0,0,text=subtitle,anchor="center",
+            fill="#F2DFB6",font=(FONT,11,"italic"))
         self.banner_version=header.create_text(0,0,text="",
-            font=(FONT,11,"bold"),fill="#F8E0AE",anchor="e")
+            font=(FONT,9,"bold"),fill="#F8E0AE",anchor="e")
+        stars=[header.create_polygon(0,0,1,0,0,1,fill="#C8A576",
+                       outline="#F1CE91",width=1) for _ in range(2)]
+        logo_rule=header.create_line(0,0,0,0,fill="#DAAB62",width=1)
         def resize_header(event):
-            header.coords(self.version_plate,event.width-9,8)
-            header.coords(self.banner_version,event.width-22,28)
+            width=max(1,event.width)
+            height=max(120,event.height)
+            size=(width,height)
+            if getattr(self,"_banner_size",None)==size:
+                return
+            self._banner_size=size
+            previous=getattr(self,"_banner_timer",None)
+            if previous is not None:
+                header.after_cancel(previous)
+            def request_art():
+                self._banner_timer=None
+                from premium_material import _art_worker
+                if getattr(self,"_banner_future",None) is None:
+                    self._banner_future=_art_worker.submit(compose_banner,*self._banner_size)
+                    self._banner_future_size=self._banner_size
+                    header.after(30,collect_art)
+            def collect_art():
+                if not header.winfo_exists():return
+                future=self._banner_future
+                if future is None:return
+                if not future.done():
+                    header.after(35,collect_art)
+                    return
+                self._banner_future=None
+                try: picture=future.result()
+                except Exception: return
+                if self._banner_future_size==self._banner_size:
+                    self._header_photos["scene"]=ImageTk.PhotoImage(picture,master=header)
+                    header.itemconfigure(hero_item,image=self._header_photos["scene"])
+                else:
+                    request_art()
+            self._banner_timer=header.after(110,request_art)
+            logo_width=min(540,round(width*.38),round(height*2.7))
+            logo_height=round(brand_source.height*logo_width/brand_source.width)
+            if getattr(self,"_logo_size",None)!=(logo_width,logo_height):
+                logo=brand_source.resize((logo_width,logo_height),Image.Resampling.LANCZOS)
+                self._header_photos["logo"]=ImageTk.PhotoImage(logo,master=header)
+                header.itemconfigure(logo_item,image=self._header_photos["logo"])
+                self._logo_size=(logo_width,logo_height)
+            logo_x=round(width*.36)
+            logo_y=max(-4,round((height-logo_height-25)/2))
+            header.coords(logo_item,logo_x,logo_y)
+            for star,offset in zip(stars,(.18,.82)):
+                x=round(logo_x+logo_width*offset)
+                y=logo_y+round(logo_height*.30)
+                points=[]
+                from math import cos, sin, pi
+                for index in range(10):
+                    angle=-pi/2+index*pi/5
+                    radius=9 if index%2==0 else 4
+                    points.extend((round(x+cos(angle)*radius),
+                                   round(y+sin(angle)*radius)))
+                header.coords(star,*points)
+            rule_y=min(height-22,logo_y+logo_height-2)
+            caption_y=min(height-(19 if height<160 else 13),rule_y+16)
+            header.coords(logo_rule,logo_x+40,rule_y,
+                          logo_x+logo_width-40,rule_y)
+            header.coords(tagline_shadow,round(width*.55)+1,caption_y+1)
+            header.coords(tagline_item,round(width*.55),caption_y)
+            header.coords(self.banner_version,width-13,height-16)
             header.itemconfigure(self.banner_version,
                                  text="v"+__import__("app").APP_VERSION)
         header.bind("<Configure>",resize_header)
 
-        # Exactly the horizontal metal menu in the approved concept.
+        # Five primary destinations mirror the approved concept. Expert
+        # translation, overlay and knowledge tools remain directly reachable
+        # through the Settings section.
         nav_shell=tk.Frame(outer,bg="#89633D",pady=1)
         nav_shell.pack(fill="x")
         nav=tk.Frame(nav_shell,bg=SIDEBAR)
         nav.pack(fill="x")
         buttons=[
             ("home",lambda:self.navigate("home")),
-            ("knowledge",lambda:self.navigate("knowledge")),
-            ("stats",lambda:self.navigate("stats")),
+            ("servers",lambda:self.navigate("servers")),
             ("settings",lambda:self.navigate("settings")),
-            ("updates",lambda:app.check_updates(manual=True)),
-            ("discord",app._open_featured_server_discord),
+            ("history",lambda:self.navigate("history")),
             ("about",app.show_about),
         ]
         # At 125%/150% DPI use proportionally smaller typography so all
@@ -120,44 +212,69 @@ class WWIIDashboard(Dashboard):
         for index,(name,callback) in enumerate(buttons):
             nav.columnconfigure(index,weight=1,uniform="nav")
             photo=ui_photo(nav,"nav_"+name+".png")
-            button=tk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
-                command=callback,bg="#332C21",fg=TEXT,
-                activebackground="#74400E",activeforeground="#FFF4D9",
-                font=(FONT,self._nav_font_size,"bold"),bd=2,relief="raised",
-                highlightthickness=1,highlightbackground="#775A35",
-                highlightcolor="#FFC067",cursor="hand2",pady=3)
-            button.grid(row=0,column=index,sticky="nsew",padx=1,pady=1)
+            button=ttk.Button(nav,text=nav_name(app,name),image=photo,compound="left",
+                command=callback,style="PremiumNav.TButton",cursor="hand2")
+            button.configure(takefocus=True)
+            button.grid(row=0,column=index,sticky="nsew",padx=0,pady=0)
+            if index:
+                # Place the divider at the actual column boundary. Gridding
+                # it in the same cell centered it over the tab's caption.
+                tk.Frame(nav,bg="#756B5C",width=1).place(
+                    relx=index/5,rely=.18,relheight=.64)
             self.nav_buttons[name]=button
-            if name=="discord" and not FEATURED_SERVER.discord_url:
-                button.configure(state="disabled")
+        service=tk.Menu(nav,tearoff=False,bg="#2A241A",fg=TEXT,
+                        activebackground="#9E540D",activeforeground=TEXT)
+        service.add_command(label=nav_name(app,"updates"),
+                            command=lambda:app.check_updates(manual=True))
+        if FEATURED_SERVER.discord_url:
+            service.add_command(label=nav_name(app,"discord"),
+                                command=app._open_featured_server_discord)
+        self.service_menu=service
 
-        stack=tk.Frame(outer,bg=BG)
+        stack=SteelFrame(outer,bg=BG)
         stack.pack(fill="both",expand=True)
         self.stack=stack
-        for name in ("home","translation","overlay","knowledge","stats","settings"):
-            page=tk.Frame(stack,bg=BG)
+        for name in ("home","servers","translation","overlay","knowledge","stats","settings","history"):
+            page=SteelFrame(stack,bg=BG)
             page.place(relx=0,rely=0,relwidth=1,relheight=1)
             self.pages[name]=page
         self._home(self.pages["home"])
+        from premium_server_page import ServerPage
+        self.server_page=ServerPage(self,self.pages["servers"])
         self._translation(self.pages["translation"])
         self._overlay(self.pages["overlay"])
         self._knowledge(self.pages["knowledge"])
         self._stats(self.pages["stats"])
         self._settings(self.pages["settings"])
+        from premium_history_page import build_history_page
+        build_history_page(self,self.pages["history"])
+        self._expert_links()
+        caption={"ru":"Сервис ▾","uk":"Сервіс ▾","en":"Service ▾"}.get(app.ui_language,"Service ▾")
+        def show_service():
+            service.tk_popup(service_button.winfo_rootx(),
+                             service_button.winfo_rooty()+service_button.winfo_height())
+        service_button=ttk.Button(self.settings_expert_row,text=caption,
+                                  style="Tactical.TButton",command=show_service)
+        service_button.pack(side="right",padx=5,pady=2)
+        self.service_button=service_button
         if app.overlay_editing:
             for key in ("overlay_edit_button","overlay_edit_button_alt"):
                 widget=getattr(app,key,None)
                 if widget:widget.configure(text=app.t("lock_overlay"))
         for page in self.pages.values():self._enable_page_wheel(page)
-        footer=tk.Frame(outer,bg="#15130D",height=38,
-                        highlightbackground="#9C7442",highlightthickness=2)
+        footer=MetalCanvas(outer,height=46)
         footer.pack(fill="x")
         footer.pack_propagate(False)
+        self.footer_widget=footer
         first=tk.Frame(footer,bg="#15130D")
-        first.pack(fill="x",padx=11,pady=5)
+        first.pack(fill="both",expand=True,padx=16,pady=8)
         self.footer_ready_dot=text(first,"●",color=MUTED,
                                    bg="#15130D",size=10)
         self.footer_ready_dot.pack(side="left")
+        self.footer_f8=text(first,"F8",bg="#15130D",color=TEXT,bold=True,size=9)
+        self.footer_f8.pack(side="left",padx=(5,15))
+        self.footer_f9=text(first,"F9",bg="#15130D",color=TEXT,bold=True,size=9)
+        self.footer_f9.pack(side="left",padx=(0,17))
         self.footer_engine=text(first,"",bg="#15130D",color=AMBER,bold=True,size=9)
         self.footer_engine.pack(side="left",padx=(6,19))
         self.footer_base=text(first,"",bg="#15130D",color=TEXT,size=9)
@@ -166,247 +283,72 @@ class WWIIDashboard(Dashboard):
         self.footer_style.pack(side="left",padx=5)
         # status_var is the REAL latest application event, not decorative
         # fake latency. Any long message is clipped to its allocated width.
-        tk.Label(first,textvariable=app.status_var,bg="#15130D",fg=TEXT,
-                 font=(FONT,9),anchor="e",width=40).pack(side="right")
+        self.footer_event=tk.Label(first,textvariable=app.status_var,bg="#15130D",
+                 fg=TEXT,font=(FONT,9),anchor="e")
+        self.footer_event.pack(side="right",fill="x",expand=True)
+        def fit_header(event):
+            if event.widget is not self.root or self.page!="home":return
+            timer=getattr(self,"_fit_header_timer",None)
+            if timer is not None:self.root.after_cancel(timer)
+            def apply():
+                self._fit_header_timer=None
+                if not self.header_widget.winfo_exists():return
+                height=home_banner_height(self.root)
+                if int(self.header_widget.cget("height"))!=height:
+                    self.header_widget.configure(height=height)
+            self._fit_header_timer=self.root.after(120,apply)
+        def stop_fitting(_event):
+            timer=getattr(self,"_fit_header_timer",None)
+            if timer is not None:
+                self.root.after_cancel(timer)
+                self._fit_header_timer=None
+            self.root.unbind("<Configure>",fit_bind)
+        fit_bind=self.root.bind("<Configure>",fit_header,add="+")
+        outer.bind("<Destroy>",lambda e:stop_fitting(e) if e.widget is outer else None,add="+")
         self.navigate("home")
 
     def _home(self, page):
-        """Beginner-friendly home: five focused panels, advanced controls in tabs.
+        # The illustrated chassis supplies only materials and scene artwork.
+        # All input is handled by real controls in premium_home.PremiumHome.
+        from premium_home import build_premium_home
+        build_premium_home(self, page)
 
-        The loaded settings stay untouched. No preset reset or 'beginner'
-        override is applied when the Home page opens.
-        """
-        scroll=tk.Canvas(page,bg=BG,highlightthickness=0,borderwidth=0)
-        bar=ttk.Scrollbar(page,orient="vertical",command=scroll.yview)
-        scroll.configure(yscrollcommand=bar.set)
-        scroll.pack(side="left",fill="both",expand=True)
-        scroll.create_image(0,0,anchor="nw",
-                            image=ui_photo(scroll,"body_backdrop.png"),
-                            tags="backdrop")
-        content=tk.Frame(scroll,bg=BG)
-        self.home_canvas=scroll
-        self.home_content=content
-        self.home_scrollbar=bar
-        item=scroll.create_window((0,0),window=content,anchor="nw")
-        def adjust_scroll(_event=None):
-            required=max(content.winfo_reqheight(),scroll.winfo_height())
-            scroll.configure(scrollregion=(0,0,scroll.winfo_width(),required))
-            needed=content.winfo_reqheight()>scroll.winfo_height()+2
-            if needed and not bar.winfo_manager():
-                bar.pack(side="right",fill="y")
-            elif not needed and bar.winfo_manager():
-                bar.pack_forget()
-        content.bind("<Configure>",adjust_scroll)
-        scroll.bind("<Configure>",lambda e:(
-            scroll.itemconfigure(item,width=e.width),adjust_scroll()))
-        self.widgets.append(scroll)
+    def _expert_links(self):
+        self.expert_buttons={}
+        for page_name in ("settings","translation","overlay","knowledge","stats"):
+            row=SteelFrame(self.pages[page_name],bg=SIDEBAR,height=36)
+            first_packed=next(child for child in self.pages[page_name].winfo_children()
+                              if child.winfo_manager()=="pack")
+            row.pack(fill="x",side="top",before=first_packed)
+            if page_name=="settings":self.settings_expert_row=row
+            buttons={}
+            for key in ("translation","overlay","knowledge","stats","settings"):
+                button=ttk.Button(row,text=nav_name(self.app,key),
+                    image=ui_photo(row,"nav_"+key+".png"),compound="left",
+                    command=lambda destination=key:self.navigate(destination),
+                    style="PremiumNav.TButton",cursor="hand2",takefocus=True)
+                button.pack(side="left",fill="x",expand=True,padx=0,pady=1)
+                buttons[key]=button
+            self.expert_buttons[page_name]=buttons
 
-        grid=tk.Frame(content,bg=BG)
-        grid.pack(fill="x",padx=7,pady=(4,2))
-        grid.columnconfigure(0,weight=60,uniform="wwii")
-        grid.columnconfigure(1,weight=40,uniform="wwii")
-
-        titles={
-            "ru":("СЕРВЕР","ПЕРЕВОД ЧАТА · F8 / F9","ОВЕРЛЕЙ В ИГРЕ","БЫСТРЫЕ ДЕЙСТВИЯ"),
-            "uk":("СЕРВЕР","ПЕРЕКЛАД ЧАТУ · F8 / F9","ОВЕРЛЕЙ У ГРІ","ШВИДКІ ДІЇ"),
-            "en":("SERVER","CHAT TRANSLATION · F8 / F9","IN-GAME OVERLAY","QUICK ACTIONS"),
-        }
-        server_title,translation_title,overlay_title,quick_title=titles.get(
-            self.app.ui_language,titles["en"])
-        blocks=(
-            (0,0,1,server_title,self._home_server),
-            (0,1,1,"SMART ENGINE",self._home_engine),
-            (1,0,1,translation_title,self._home_translation),
-            (1,1,1,overlay_title,self._home_overlay),
-            (2,0,2,quick_title,self._home_quick),
-        )
-        for row,col,colspan,title,builder in blocks:
-            frame,body=card(grid,title)
-            frame.grid(row=row,column=col,columnspan=colspan,sticky="nsew",
-                       padx=4,pady=4)
-            builder(body)
-
-    def _home_server(self,p):
-        row=tk.Frame(p,bg=CARD)
-        row.pack(fill="x")
-        tk.Label(row,image=ui_photo(p,"server_scene_thumb.png"),
-                 bg=CARD).pack(side="left",padx=(0,12))
-        info=tk.Frame(row,bg=CARD)
-        info.pack(side="left",fill="both",expand=True)
-        tk.Label(info,text=FEATURED_SERVER.name,bg=CARD,fg=TEXT,
-                 font=(FONT,13,"bold"),anchor="w").pack(anchor="w")
-        text(info,FEATURED_SERVER.subtitle,color=MUTED,size=9).pack(anchor="w",pady=(2,0))
-        text(info,FEATURED_SERVER.address,color=AMBER,size=10,bold=True).pack(anchor="w",pady=(4,0))
-        # The selected server profile is not the same as being connected.
-        tk.Label(info,textvariable=self.server_var,bg=CARD,fg=MUTED,
-                 font=(FONT,9),anchor="w").pack(anchor="w",pady=(2,4))
-        actions=tk.Frame(info,bg=CARD)
-        actions.pack(anchor="w")
-        tactical_action(actions,tr(self.app,"connect"),
-                        self.app._launch_featured_server,primary=True).pack(
-                            side="left",padx=(0,7))
-        discord=tactical_action(actions,"Discord",self.app._open_featured_server_discord)
-        discord.pack(side="left")
-        if not FEATURED_SERVER.discord_url:discord.state(["disabled"])
-        # Server profiles are accessible in the real Settings page;
-        # no separate server settings button on beginner Home.
-
-    def _home_engine(self,p):
-        # Real engine/pack status, no artificial green "healthy" lights.
-        row=tk.Frame(p,bg=CARD)
-        row.pack(fill="x")
-        detail=tk.Frame(row,bg=CARD)
-        detail.pack(side="left",fill="x",expand=True)
-        line=tk.Frame(detail,bg=CARD)
-        line.pack(anchor="w")
-        self.engine_engine_bullet=tk.Label(line,text="●",bg=CARD,
-                                            fg=MUTED,font=(FONT,12))
-        self.engine_engine_bullet.pack(side="left",padx=(0,7))
-        self.engine_engine_label=tk.Label(line,text="",bg=CARD,fg=TEXT,
-                                           font=(FONT,12,"bold"),anchor="w")
-        self.engine_engine_label.pack(side="left")
-        self.engine_pack_label=tk.Label(detail,text="",bg=CARD,fg=MUTED,
-                                         font=(FONT,9),anchor="w")
-        self.engine_pack_label.pack(anchor="w",pady=(5,0))
-        side=tk.Frame(row,bg=CARD)
-        side.pack(side="right")
-        hud=tk.Canvas(side,width=75,height=62,bg=CARD,
-                      highlightthickness=0,borderwidth=0)
-        hud.pack(anchor="center")
-        hud.create_oval(10,3,64,57,outline="#80653A",width=3)
-        hud.create_arc(10,3,64,57,start=60,extent=245,
-                       style="arc",outline="#CF9F45",width=3)
-        hud.create_text(37,30,text="AI",fill=AMBER,font=(FONT,15,"bold"))
-        tactical_action(p,tr(self.app,"learn"),
-                        lambda:self.navigate("knowledge")).pack(anchor="e",pady=(5,0))
-
-    def _home_translation(self,p):
-        # F8 and F9 stay independent; all expert controls are in Translation.
-        left=tk.Frame(p,bg=CARD)
-        left.pack(fill="x",pady=(2,8))
-        flags=tk.Frame(left,bg=CARD)
-        flags.pack(side="left",padx=(0,20))
-        if self.app.ui_language=="ru":
-            incoming,outgoing="Входящий чат","Исходящий чат"
-        elif self.app.ui_language=="uk":
-            incoming,outgoing="Вхідний чат","Вихідний чат"
-        else:
-            incoming,outgoing="Incoming chat","Outgoing chat"
-        tactical_switch(flags,"F8  "+incoming,
-                        self.app.enabled_var,self.app.toggle_enabled).pack(
-                            anchor="w",pady=(1,5))
-        tactical_switch(flags,"F9  "+outgoing,
-                        self.app.outgoing_chat.enabled_var,
-                        self.app._outgoing_enabled_changed).pack(anchor="w")
-        routes=tk.Frame(left,bg=CARD)
-        routes.pack(side="left",fill="x",expand=True)
-        row=tk.Frame(routes,bg=CARD)
-        row.pack(fill="x",pady=(1,4))
-        text(row,tr(self.app,"target")+":",color=MUTED,size=9).pack(side="left")
-        from app import TARGET_LANGUAGES
-        available=list(TARGET_LANGUAGES.keys())
-        custom=self.app._custom_language_label()
-        if custom:available.append(custom)
-        self.app.language_combo=ttk.Combobox(
-            row,textvariable=self.app.target_name_var,values=available,
-            state="readonly",width=16)
-        self.app.language_combo.pack(side="left",padx=(8,0))
-        self.app.language_combo.bind("<<ComboboxSelected>>",
-                                     lambda _e:self.app._persist_settings())
-        route=tk.Frame(routes,bg=CARD)
-        route.pack(fill="x")
-        text(route,"F9:",color=MUTED,size=9).pack(side="left")
-        tk.Label(route,textvariable=self.app.outgoing_chat.route_var,
-                 bg=CARD,fg=AMBER,font=(FONT,10,"bold")).pack(side="left",padx=8)
-        label={
-            "ru":"Расширенные настройки перевода",
-            "uk":"Розширені налаштування перекладу",
-            "en":"Advanced translation settings",
-        }.get(self.app.ui_language,"Advanced translation settings")
-        tactical_action(p,label,lambda:self.navigate("translation")).pack(
-            anchor="e",pady=(2,0))
-
-    def _home_overlay(self,p):
-        # Only the basic enable control appears on Home. All advanced
-        # display options and the four presets live on the Overlay page.
-        row=tk.Frame(p,bg=CARD)
-        row.pack(fill="x")
-        left=tk.Frame(row,bg=CARD)
-        left.pack(side="left",fill="both",expand=True,pady=(10,0))
-        tactical_switch(left,tr(self.app,"enabled"),
-                        self.app.enabled_var,self.app.toggle_enabled).pack(anchor="w")
-        text(left,tr(self.app,"overlay_hint"),color=MUTED,size=9,
-             wraplength=240).pack(anchor="w",pady=(6,0))
-        scene=tk.Canvas(row,bg="#1A1813",height=72,width=94,
-                        borderwidth=0,highlightthickness=0)
-        scene.pack(side="right",padx=(8,0))
-        scene.create_rectangle(4,4,90,68,outline="#90734A",width=2)
-        for x1,y1,x2,y2 in ((11,18,11,11),(11,11,18,11),
-                             (76,11,84,11),(84,11,84,18),
-                             (11,55,11,63),(11,63,18,63),
-                             (76,63,84,63),(84,55,84,63)):
-            scene.create_line(x1,y1,x2,y2,fill="#D6A35E",width=2)
-        scene.create_line(47,19,47,53,fill=AMBER,width=2)
-        scene.create_line(30,36,64,36,fill=AMBER,width=2)
-        scene.create_oval(43,32,51,40,outline=AMBER,width=2)
-        label={
-            "ru":"Настроить оверлей →",
-            "uk":"Налаштувати оверлей →",
-            "en":"Overlay settings →",
-        }.get(self.app.ui_language,"Overlay settings →")
-        tactical_action(p,label,lambda:self.navigate("overlay")).pack(anchor="e",pady=(6,0))
-
-    def _home_quick(self,p):
-        # Exactly three actions on Home. Secondary actions are not removed,
-        # only discoverable via the native "More" menu.
-        row=tk.Frame(p,bg=CARD)
-        row.pack(fill="x")
-        labels={
-            "ru":("Тест оверлея","Снимок F10","Настроить","Ещё ▾",
-                  "Очистить оверлей","Экспорт базы","Проверить обновления"),
-            "uk":("Тест оверлею","Знімок F10","Налаштувати","Ще ▾",
-                  "Очистити оверлей","Експорт бази","Перевірити оновлення"),
-            "en":("Test overlay","Shot F10","Configure","More ▾",
-                  "Clear overlay","Export knowledge","Check updates"),
-        }
-        test,shot,configure,more,clear,export,updates=labels.get(
-            self.app.ui_language,labels["en"])
-        tactical_action(row,test,self.app.test_overlay,
-                        primary=True,icon="test").pack(side="left",padx=(0,7))
-        tactical_action(row,shot,self.app.capture_game_screenshot,
-                        icon="screenshot").pack(side="left",padx=(0,7))
-        button=tactical_action(row,configure,self.app.toggle_overlay_edit,
-                               icon="configure")
-        button.pack(side="left")
-        self.app.overlay_edit_button=button
-        # All four controls share one row: no wasted bottom strip.
-        extra_menu=tk.Menu(row,tearoff=False,bg="#33281D",fg=TEXT,
-                           activebackground="#97510D",activeforeground="#FFFFFF",
-                           borderwidth=1)
-        extra_menu.add_command(label=clear,command=self.app.clear_overlay)
-        extra_menu.add_command(label=export,command=self.app._export_knowledge)
-        extra_menu.add_command(label=updates,
-                               command=lambda:self.app.check_updates(manual=True))
-        self.home_more_menu=extra_menu
-        more_button=tactical_action(
-            row,more,lambda:extra_menu.tk_popup(
-                more_button.winfo_rootx(),
-                more_button.winfo_rooty()+more_button.winfo_height()))
-        more_button.pack(side="right",padx=(12,0))
-        self.home_more_button=more_button
-
-    def navigate(self,name):
+    def navigate(self,name,*,add=False):
         if name not in self.pages:return False
         self.page=name
         self.pages[name].tkraise()
+        self.header_widget.configure(height=home_banner_height(self.root) if name=="home" else 155)
+        if name=="home":self.footer_widget.pack_forget()
+        elif not self.footer_widget.winfo_manager():self.footer_widget.pack(fill="x")
         if name=="stats":self.request_stats()
+        if name=="servers" and add:self.root.after_idle(self.server_page.add)
         for key,button in self.nav_buttons.items():
-            if button.cget("state")=="disabled":continue
-            active=key==name
-            button.configure(bg="#9B4A07" if active else "#332C21",
-                             fg="#FFF6E7" if active else TEXT,
-                             activebackground="#BB6713",
-                             font=(FONT,self._nav_font_size,"bold"))
+            if button.instate(["disabled"]):continue
+            active=key==name or (key=="settings" and name in ("translation","overlay","knowledge","stats"))
+            button.configure(style="PremiumNavActive.TButton" if active
+                             else "PremiumNav.TButton")
+        for buttons in getattr(self,"expert_buttons",{}).values():
+            for key,button in buttons.items():
+                button.configure(style="PremiumNavActive.TButton" if key==name
+                                 else "PremiumNav.TButton")
         return True
 
     def refresh(self):
@@ -434,6 +376,11 @@ class WWIIDashboard(Dashboard):
         self.footer_base.configure(
             text="F9  "+str(app.outgoing_chat.route_var.get()))
         self.footer_style.configure(text="")
+        self.footer_f8.configure(text="F8  "+("●" if app.enabled_var.get() else "○"),
+                                 fg=GREEN if app.enabled_var.get() else MUTED)
+        f9_on=bool(app.outgoing_chat.enabled_var.get())
+        self.footer_f9.configure(text="F9  "+("●" if f9_on else "○"),
+                                 fg=GREEN if f9_on else MUTED)
 
 
 def build_dashboard(app):

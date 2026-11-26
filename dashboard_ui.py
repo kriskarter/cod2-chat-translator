@@ -1,4 +1,4 @@
-"""Modern Esports Utility: real Tk/ttk desktop dashboard, no static screenshot.
+"""Shared premium metal controls and expert pages for the CoD2 command center.
 
 The UI only binds to existing ControlApp variables and callback methods.
 No translation, network, log scanning or game control runs in this module.
@@ -10,16 +10,16 @@ from tkinter import ttk
 
 from server_catalog import FEATURED_SERVER
 
-BG = "#17150F"
-SIDEBAR = "#231F18"
-CARD = "#201E17"
-CARD_ALT = "#393329"
-BORDER = "#9C7950"
-TEXT = "#F6E9CB"
-MUTED = "#D2BE99"
-CYAN = "#F0B15B"
-AMBER = "#FFB25D"
-GREEN = "#91E06D"
+BG = "#171A1D"
+SIDEBAR = "#202326"
+CARD = "#25292B"
+CARD_ALT = "#34383A"
+BORDER = "#88755A"
+TEXT = "#F5EDDC"
+MUTED = "#C9C3B4"
+CYAN = "#D9AC70"
+AMBER = "#EAB66F"
+GREEN = "#9BE393"
 DANGER = "#FF9B8A"
 FONT = "Segoe UI"
 
@@ -168,6 +168,7 @@ I18N = {
 
 def setup_theme(root: tk.Tk):
     style = ttk.Style(root)
+    compact_dpi = float(root.tk.call("tk", "scaling")) >= 1.6
     if "clam" in style.theme_names():
         style.theme_use("clam")
     style.configure(".", font=(FONT, 10), background=BG, foreground=TEXT)
@@ -178,30 +179,39 @@ def setup_theme(root: tk.Tk):
     style.configure("CardHead.TLabel", background=CARD, foreground=TEXT, font=(FONT, 12, "bold"))
     style.configure("Body.TLabel", background=BG, foreground=TEXT)
     style.configure("Muted.TLabel", background=BG, foreground=MUTED)
-    style.configure("TButton", background="#3D3528", foreground=TEXT,
-                    font=(FONT, 10, "bold"), bordercolor="#99774C",
-                    lightcolor="#94744C", darkcolor="#17130F",
-                    borderwidth=2, padding=(8, 5), relief="raised")
-    style.map("TButton", background=[("pressed", "#6A502E"), ("active", "#554027")],
+    style.configure("TButton", background="#303638", foreground=TEXT,
+                    font=(FONT, 10), bordercolor="#82745F",
+                    lightcolor="#4C5252", darkcolor="#171B1D",
+                    borderwidth=1, padding=(8, 5), relief="flat")
+    style.map("TButton", background=[("pressed", "#3D4140"), ("active", "#4C514B")],
               foreground=[("disabled", MUTED), ("active", TEXT)])
-    style.configure("Accent.TButton", background="#9E4E0B", foreground="#FFFFFF",
-                    font=(FONT, 10, "bold"), bordercolor="#F3AC52",
-                    lightcolor="#EC9E40", darkcolor="#482002",
-                    padding=(10, 5), borderwidth=2, relief="raised")
-    style.map("Accent.TButton", background=[("active", "#C97212"), ("pressed", "#733804")])
-    style.configure("Warm.TButton", background="#5E391A", foreground="#FFF1D5",
-                    bordercolor="#BC8546", padding=(10, 5))
-    style.map("Warm.TButton", background=[("active", "#BA681B"), ("pressed", "#4D2D0E")])
+    style.configure("Accent.TButton", background="#75563A", foreground="#FFF0DB",
+                    font=(FONT, 10), bordercolor="#C49560",
+                    lightcolor="#A47743", darkcolor="#30251B",
+                    padding=(10, 5), borderwidth=1, relief="flat")
+    style.map("Accent.TButton", background=[("active", "#986E42"), ("pressed", "#62452F")])
+    style.configure("Warm.TButton", background="#3E4443", foreground="#FFF1DE",
+                    bordercolor="#90816D", padding=(10, 5))
+    style.map("Warm.TButton", background=[("active", "#565D57"), ("pressed", "#343A38")])
     style.configure("TCheckbutton", background=CARD, foreground=TEXT, padding=(2, 5))
     style.map("TCheckbutton", background=[("active", CARD)],
               foreground=[("disabled", MUTED)])
-    style.configure("TCombobox", fieldbackground="#332C20", background=CARD_ALT,
-                    foreground="#201B12", arrowcolor=AMBER, bordercolor=BORDER,
-                    lightcolor=BORDER, darkcolor=BORDER, selectbackground="#B46B1C",
+    style.configure("TCombobox", fieldbackground="#252B2D", background=CARD_ALT,
+                    foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
+                    lightcolor=BORDER, darkcolor=BORDER, selectbackground="#65513C",
                     selectforeground=TEXT, padding=5)
-    style.map("TCombobox", fieldbackground=[("readonly", "#DCCBAD")],
-              foreground=[("readonly", "#21190F")])
-    style.configure("TScale", background=CARD, troughcolor="#473725", borderwidth=0)
+    style.map("TCombobox", fieldbackground=[("readonly", "#252B2D")],
+              foreground=[("readonly", TEXT)])
+    style.configure("TScale", background=CARD, troughcolor="#303739", borderwidth=0)
+    if "Premium.Scale.trough" not in style.element_names():
+        style.element_create("Premium.Scale.trough", "image",
+            ui_photo(root, "premium_scale_trough.png"),
+            border=(9, 3, 9, 3), sticky="we")
+        style.element_create("Premium.Scale.slider", "image",
+            ui_photo(root, "premium_scale_thumb.png"), sticky="")
+    style.layout("Horizontal.TScale", [
+        ("Premium.Scale.trough", {"sticky": "we", "children": [
+            ("Premium.Scale.slider", {"side": "left", "sticky": ""})]})])
     # Compact, metal-framed home actions. Advanced settings keep the
     # larger touch targets from their existing styles.
     style.configure("Tactical.TButton", background="#443728", foreground="#FFF0D3",
@@ -219,6 +229,91 @@ def setup_theme(root: tk.Tk):
     style.map("TacticalAccent.TButton",
               background=[("active", "#BE6A16"), ("pressed", "#7B3102")])
     style.configure("TSeparator", background=BORDER)
+    # Image-backed, nine-slice controls use the exact same drawn material as
+    # the navigation, cards and footer.  ttk retains native focus, keyboard
+    # activation, disabled and pressed states and the existing callbacks.
+    for group in ("metal", "amber"):
+        images = {state: ui_photo(root, f"premium_{group}_{state}.png")
+                  for state in ("normal", "hover", "pressed", "disabled")}
+        element = f"Premium{group.title()}.surface"
+        if element not in style.element_names():
+            style.element_create(element, "image", images["normal"],
+                ("disabled", images["disabled"]),
+                ("pressed", images["pressed"]),
+                ("active", images["hover"]),
+                border=(13, 12, 13, 12), sticky="nsew")
+        layout = [(element, {"sticky":"nsew", "children":[
+            ("Button.padding", {"sticky":"nsew", "children":[
+                ("Button.label", {"sticky":"nsew"})]})]})]
+        names = ("Accent.TButton", "TacticalAccent.TButton", "PremiumNavActive.TButton") if group == "amber" else (
+            "TButton", "Tactical.TButton", "Warm.TButton", "PremiumNav.TButton")
+        for name in names:
+            style.layout(name, layout)
+            style.configure(name, foreground="#FFF0D1", background=CARD,
+                            borderwidth=0, padding=(5, 2) if compact_dpi else (8, 4),
+                            relief="flat")
+            style.map(name, foreground=[("disabled", "#A4977E"),
+                                         ("active", "#FFFFFF")])
+    for name in ("PremiumNav.TButton", "PremiumNavActive.TButton"):
+        style.configure(name, font=(FONT, 9 if compact_dpi else 10, "bold"),
+                        padding=(3, 2) if compact_dpi else (4, 3))
+    nav_images = {state: ui_photo(root, f"premium_nav_{state}.png")
+                  for state in ("normal", "hover", "active", "pressed")}
+    if "PremiumNav.surface" not in style.element_names():
+        style.element_create("PremiumNav.surface", "image", nav_images["normal"],
+            ("pressed", nav_images["pressed"]), ("active", nav_images["hover"]),
+            border=(8, 5, 8, 5), sticky="nsew")
+        style.element_create("PremiumNavActive.surface", "image", nav_images["active"],
+            ("pressed", nav_images["pressed"]), border=(8, 5, 8, 5), sticky="nsew")
+    for name, surface in (("PremiumNav.TButton", "PremiumNav.surface"),
+                          ("PremiumNavActive.TButton", "PremiumNavActive.surface")):
+        style.layout(name, [(surface, {"sticky":"nsew", "children":[
+            ("Button.padding", {"sticky":"nsew", "children":[
+                ("Button.label", {"sticky":"nsew"})]})]})])
+        style.configure(name, padding=(4, 1), borderwidth=0)
+    for name in ("Tactical.TButton", "TacticalAccent.TButton"):
+        style.configure(name, padding=(4, 2) if compact_dpi else (7, 3))
+    style.layout("TacticalRail.TButton", style.layout("Tactical.TButton"))
+    style.configure("TacticalRail.TButton", foreground="#E9D6B7",
+                    font=(FONT,8 if compact_dpi else 9),
+                    padding=(4,0),borderwidth=0)
+    if "Premium.Generic.surface" not in style.element_names():
+        style.element_create("Premium.Generic.surface", "image",
+            ui_photo(root, "premium_generic_frame.png"),
+            border=(42, 42, 42, 42), sticky="nsew")
+    style.layout("PremiumCard.TFrame", [("Premium.Generic.surface",
+                  {"sticky":"nsew"})])
+    style.configure("PremiumCard.TFrame", background=CARD)
+    # Real readonly comboboxes and scales keep their native semantics.
+    style.configure("TCombobox", fieldbackground="#252B2D", background="#343A3B",
+                    foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
+                    selectbackground="#68543D", selectforeground="#FFFFFF")
+    style.map("TCombobox", fieldbackground=[("readonly", "#252B2D")],
+              foreground=[("readonly", TEXT)])
+    style.configure("TEntry",fieldbackground="#242A2C",foreground=TEXT,
+                    insertcolor=TEXT,bordercolor="#776D5B",lightcolor="#495050",
+                    darkcolor="#191E20",padding=(6,4))
+    style.map("TEntry",fieldbackground=[("disabled","#222729")],
+              bordercolor=[("focus",AMBER)])
+    if "Premium.Scrollbar.trough" not in style.element_names():
+        style.element_create("Premium.Scrollbar.trough", "image",
+            ui_photo(root, "premium_scroll_track.png"),
+            border=(5, 9, 5, 9), sticky="nsew")
+        style.element_create("Premium.Scrollbar.thumb", "image",
+            ui_photo(root, "premium_scroll_grip.png"),
+            border=(5, 12, 5, 12), sticky="nsew")
+        style.element_create("Premium.Combo.arrow", "image",
+            ui_photo(root, "premium_combo_arrow.png"), sticky="ns")
+    style.layout("Premium.Vertical.TScrollbar", [
+        ("Premium.Scrollbar.trough", {"sticky":"ns", "children":[
+            ("Premium.Scrollbar.thumb", {"expand":"1", "sticky":"nsew"})]})])
+    style.configure("Premium.Vertical.TScrollbar", width=10)
+    style.layout("Vertical.TScrollbar", style.layout("Premium.Vertical.TScrollbar"))
+    style.configure("Vertical.TScrollbar", width=10)
+    style.layout("TCombobox", [("Combobox.field", {"sticky":"nsew", "children":[
+        ("Premium.Combo.arrow", {"side":"right", "sticky":"ns"}),
+        ("Combobox.padding", {"sticky":"nsew", "children":[
+            ("Combobox.textarea", {"sticky":"nsew"})]})]})])
 
 
 def tr(app, key):
@@ -248,38 +343,45 @@ def ui_photo(master, name):
 
 
 def card(parent, title=None, *, tone=CYAN, padding=5):
-    border=tk.Frame(parent, bg="#8F7148", padx=1, pady=1)
-    shell=tk.Frame(border, bg="#15130D")
-    shell.pack(fill="both", expand=True)
+    compact_dpi = float(parent.tk.call("tk", "scaling")) >= 1.6
+    heading_height = 27 if compact_dpi else 30
+    border=ttk.Frame(parent, style="PremiumCard.TFrame")
+    shell=tk.Frame(border, bg="#1F1F19", padx=2, pady=2)
+    shell.pack(fill="both", expand=True, padx=8, pady=8)
     if title:
-        heading=tk.Canvas(shell, bg="#3B3326", height=27,
+        heading=tk.Canvas(shell, bg="#302B20", height=heading_height,
                           highlightthickness=0, borderwidth=0)
         heading.pack(fill="x")
-        plate=ui_photo(parent, "plate.png")
+        plate=ui_photo(parent, "premium_plate.png")
         heading.create_image(0,0,anchor="nw",image=plate)
         def adjust(event,plate=plate):
             heading.delete("repeat")
             for x in range(plate.width(),event.width+plate.width(),plate.width()):
                 heading.create_image(x,0,anchor="nw",image=plate,tags="repeat")
         heading.bind("<Configure>", adjust)
-        heading.create_text(13,13,text=title.upper(),anchor="w",
-                            font=("Bahnschrift SemiCondensed",12,"bold"),
+        heading.create_text(17,heading_height//2,text=title.upper(),anchor="w",
+                            font=("Bahnschrift SemiCondensed",11 if compact_dpi else 13,"bold"),
                             fill=TEXT)
-        heading.create_line(2,26,1152,26,fill="#B28B4B",width=1)
-    box=tk.Frame(shell, bg=CARD, padx=padding, pady=padding)
+        heading.create_line(2,heading_height-1,1152,heading_height-1,
+                            fill="#B28B4B",width=1)
+    box=tk.Frame(shell, bg=CARD,
+                 padx=2 if compact_dpi else padding,
+                 pady=2 if compact_dpi else padding)
     box.pack(fill="both",expand=True)
     return border,box
 
 
-def check(parent, caption, var, fn):
-    # Real Tk checkbutton, with a gold check indicator instead of an emoji or
-    # bitmap baked into the background. Keyboard toggle remains functional.
+def check(parent, caption, var, fn, *, surface=CARD):
+    # The visual states are illustrated; Tk owns the value and the callback.
     return tk.Checkbutton(
         parent,text=caption,variable=var,command=fn,
-        bg=CARD,fg=TEXT,activebackground=CARD,activeforeground=TEXT,
-        selectcolor="#B9791C",font=(FONT,10),cursor="hand2",
-        highlightcolor=AMBER,highlightbackground=CARD,
-        borderwidth=0,padx=2,pady=3,
+        indicatoron=0,image=ui_photo(parent,"premium_check_off.png"),
+        selectimage=ui_photo(parent,"premium_check_on.png"),
+        compound="left",
+        bg=surface,fg=TEXT,activebackground=surface,activeforeground=TEXT,
+        selectcolor=surface,font=(FONT,10),cursor="hand2",
+        highlightcolor=AMBER,highlightbackground=surface,highlightthickness=1,
+        borderwidth=0,padx=4,pady=2,takefocus=True,
     )
 
 
@@ -447,7 +549,8 @@ class Dashboard:
         """
         canvas = next(
             (child for child in page.winfo_children()
-             if isinstance(child, tk.Canvas)),
+             if isinstance(child, tk.Canvas)
+             and not getattr(child, "_steel_underlay", False)),
             None,
         )
         if canvas is None:
@@ -480,7 +583,8 @@ class Dashboard:
         canvas.configure(yscrollcommand=bar.set)
         bar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
-        content = tk.Frame(canvas, bg=BG)
+        from premium_material import SteelFrame
+        content = SteelFrame(canvas, bg=BG)
         window = canvas.create_window((0, 0), window=content, anchor="nw")
         content.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda e: canvas.itemconfigure(window, width=e.width))
@@ -616,214 +720,20 @@ class Dashboard:
         action(row, tr(self.app, "export"), self.app._export_knowledge).pack(side="left", padx=(7, 0))
 
     def _translation(self, page):
-        content = self._scroll_page(page, tr(self.app, "translation_head"), tr(self.app, "actual"))
-        incoming_border, incoming = card(content, tr(self.app, "f8"))
-        incoming_border.pack(fill="x", padx=22, pady=(0, 14))
-        text(incoming, tr(self.app, "f8_note"), color=MUTED).pack(anchor="w", pady=(0, 11))
-        row = tk.Frame(incoming, bg=CARD)
-        row.pack(fill="x")
-        custom = self.app._custom_language_label()
-        from app import TARGET_LANGUAGES
-        options = list(TARGET_LANGUAGES.keys()) + ([custom] if custom else [])
-        dest, self.app.language_combo = label_combo(row, tr(self.app, "target"),
-            options, self.app.target_name_var, lambda _e:self.app._persist_settings(), width=22)
-        dest.pack(side="left", padx=(0, 12))
-        action(row, tr(self.app, "other"), self.app.choose_custom_language).pack(side="left", pady=(23, 0))
-        checks = tk.Frame(incoming, bg=CARD)
-        checks.pack(fill="x", pady=(12, 0))
-        for name, var, cb in (
-            ("smart_enabled", self.app.smart_engine_var, self.app._persist_settings),
-            ("slang", self.app.slang_var, self.app._persist_settings),
-            ("dedupe", self.app.dedupe_var, self.app._persist_settings),
-            ("original", self.app.show_original_var, self.app.toggle_original),
-            ("hide_same", self.app.hide_same_var, self.app._persist_settings),
-        ):
-            check(checks, tr(self.app, name), var, cb).pack(side="left", padx=(0, 11))
-        style_row = tk.Frame(incoming, bg=CARD)
-        style_row.pack(fill="x", pady=(12, 0))
-        style_names = [self.app._style_label(code) for code in ("clear", "live", "raw")]
-        self.app.slang_style_var.set(self.app._style_label(
-            str(self.app.config.get("slang_style", "live"))))
-        style_combo, _ = label_combo(style_row, tr(self.app, "style"), style_names,
-             self.app.slang_style_var, lambda _e:self.app._persist_settings(), width=19)
-        style_combo.pack(side="left")
-        tk.Label(style_row, textvariable=self.metrics_var, bg=CARD, fg=MUTED,
-                 font=(FONT, 9)).pack(side="left", padx=(18, 0), pady=(21, 0))
-        outgoing_border, outgoing = card(content, tr(self.app, "f9"), tone=AMBER)
-        outgoing_border.pack(fill="x", padx=22, pady=(0, 14))
-        text(outgoing, tr(self.app, "f9_note"), color=MUTED).pack(anchor="w", pady=(0, 11))
-        check(outgoing, tr(self.app, "enabled"), self.app.outgoing_chat.enabled_var,
-              self.app._outgoing_enabled_changed).pack(anchor="w")
-        choices = tk.Frame(outgoing, bg=CARD)
-        choices.pack(fill="x", pady=(10, 0))
-        from outgoing_chat import LANGUAGES
-        languages = list(LANGUAGES.keys())
-        for label, var in (
-            ("my_language", self.app.outgoing_chat.source_name_var),
-            ("send_language", self.app.outgoing_chat.target_name_var),
-        ):
-            part, _ = label_combo(choices, tr(self.app, label), languages, var,
-                self.app.outgoing_chat._languages_changed, width=19)
-            part.pack(side="left", padx=(0, 20))
-        tk.Label(outgoing, textvariable=self.app.outgoing_chat.route_var, bg=CARD,
-                 fg=CYAN, font=(FONT, 13, "bold")).pack(anchor="w", pady=(15, 0))
-        note, other = card(content, tr(self.app, "hotkeys"), tone=AMBER)
-        note.pack(fill="x", padx=22, pady=(0, 16))
-        text(other, "F8  —  "+tr(self.app, "f8_note"), color=TEXT).pack(anchor="w")
-        text(other, "F9  —  "+tr(self.app, "f9_note"), color=TEXT).pack(anchor="w", pady=(5, 0))
+        from premium_translation import translation_canvas_page
+        translation_canvas_page(self, page)
 
     def _overlay(self, page):
-        content = self._scroll_page(page, tr(self.app, "overlay_head"), tr(self.app, "overlay_hint"))
-        switch_border, switch = card(content, tr(self.app, "overlay_view"))
-        switch_border.pack(fill="x", padx=22, pady=(0, 14))
-        check(switch, tr(self.app, "app_active"), self.app.enabled_var, self.app.toggle_enabled).pack(anchor="w")
-        tk.Label(switch, textvariable=self.app.overlay_hotkey_status_var, bg=CARD,
-                 fg=CYAN, font=(FONT, 10, "bold")).pack(anchor="w", pady=(8, 0))
-        sliders_border, sliders = card(content, tr(self.app, "overlay_view") + " · F8", tone=AMBER)
-        sliders_border.pack(fill="x", padx=22, pady=(0, 14))
-        for title, value_var, label_var, start, end, fn in (
-            ("font_size", self.app.font_var, self.app.font_label_var, 7, 20, self.app._font_slider),
-            ("opacity", self.app.bg_var, self.app.bg_label_var, 0, 90, self.app._background_slider),
-            ("time", self.app.ttl_var, self.app.ttl_label_var, 5, 20, self.app._ttl_slider),
-        ):
-            row = tk.Frame(sliders, bg=CARD)
-            row.pack(fill="x", pady=6)
-            text(row, tr(self.app, title), color=MUTED).pack(side="left")
-            tk.Label(row, textvariable=label_var, fg=CYAN, bg=CARD,
-                     font=(FONT, 10, "bold"), width=8).pack(side="right")
-            scale = ttk.Scale(row, from_=start, to=end, orient="horizontal", command=fn)
-            scale.set(value_var.get())
-            scale.pack(side="right", fill="x", expand=True, padx=(20, 16))
-        controls = tk.Frame(sliders, bg=CARD)
-        controls.pack(fill="x", pady=(12, 0))
-        text(controls, tr(self.app, "messages"), color=MUTED).pack(side="left")
-        from app import MIN_OVERLAY_MESSAGES, MAX_OVERLAY_MESSAGES
-        ttk.Combobox(controls, state="readonly",
-            values=list(range(MIN_OVERLAY_MESSAGES, MAX_OVERLAY_MESSAGES+1)),
-            textvariable=self.app.max_messages_var, width=6).pack(side="left", padx=12)
-        # Same variable / callback as existing implementation.
-        combo = controls.winfo_children()[-1]
-        combo.bind("<<ComboboxSelected>>", lambda _e:self.app._max_messages_changed())
-        flags = tk.Frame(sliders, bg=CARD)
-        flags.pack(fill="x", pady=(12, 0))
-        for title, var, fn in (
-            ("bg_only", self.app.bg_only_var, self.app._background_only_changed),
-            ("compact_bg", self.app.compact_bg_var, self.app._compact_background_changed),
-            ("fade", self.app.fade_var, self.app._fade_changed),
-        ):
-            check(flags, tr(self.app, title), var, fn).pack(side="left", padx=(0, 18))
-        presets_border, presets = card(content, tr(self.app, "minimal") + " / " + tr(self.app, "readable"))
-        presets_border.pack(fill="x", padx=22, pady=(0, 14))
-        for name, fn in (
-            ("text_only", self.app.text_only_preset),
-            ("minimal", self.app.minimal_preset),
-            ("readable", self.app.readable_preset),
-            ("standard", self.app.reset_overlay_position),
-        ):
-            action(presets, tr(self.app, name), fn).pack(side="left", padx=(0, 8))
-        actions_border, actions = card(content, tr(self.app, "quick"), tone=AMBER)
-        actions_border.pack(fill="x", padx=22, pady=(0, 16))
-        for name, fn in (
-            ("test", self.app.test_overlay), ("clear", self.app.clear_overlay),
-            ("configure", self.app.toggle_overlay_edit),
-            ("borderless", self.app.enable_cod2_borderless),
-            ("screenshot", self.app.capture_game_screenshot),
-        ):
-            button = action(actions, tr(self.app, name), fn)
-            button.pack(side="left", padx=(0, 8))
-            if name == "configure":
-                self.app.overlay_edit_button_alt = button
-
+        from premium_pages import overlay_page
+        overlay_page(self, page)
 
     def _knowledge(self, page):
-        app = self.app
-        content = self._scroll_page(page, tr(app, "knowledge"),
-            tr(app, "privacy"))
-        summary_border, summary = card(content, tr(app, "knowledge_state"), tone=AMBER)
-        summary_border.pack(fill="x", padx=22, pady=(0, 14))
-        tk.Label(summary, textvariable=self.base_var, bg=CARD, fg=CYAN,
-                 font=(FONT, 17, "bold")).pack(anchor="w")
-        text(summary, tr(app, "online_hint") + ": Google / MyMemory",
-             color=MUTED).pack(anchor="w", pady=(5, 0))
-
-        options_border, options = card(content, tr(app, "learn"))
-        options_border.pack(fill="x", padx=22, pady=(0, 14))
-        values = (
-            ("knowledge_v2_enabled", True,
-             {"ru":"Использовать базу V2", "uk":"Використовувати базу V2", "en":"Enable V2 knowledge"}),
-            ("knowledge_auto_update", True,
-             {"ru":"Проверять знания при запуске", "uk":"Перевіряти знання під час запуску", "en":"Check knowledge at startup"}),
-            ("experience_collect", False,
-             {"ru":"Локально собирать примеры для экспорта", "uk":"Збирати приклади локально для експорту", "en":"Collect local examples for export"}),
-            ("experience_cache", False,
-             {"ru":"Сохранять временный кэш (7 дней)", "uk":"Зберігати тимчасовий кеш (7 днів)", "en":"Keep temporary disk cache (7 days)"}),
-        )
-        self.knowledge_options = {}
-        def changed():
-            for name, value in self.knowledge_options.items():
-                app.config[name] = bool(value.get())
-            runtime = getattr(app, "_knowledge_runtime", None)
-            if runtime is not None:
-                runtime.enabled = app.config["knowledge_v2_enabled"]
-            app.experience.set_options(app.config["experience_collect"],
-                                       app.config["experience_cache"])
-            app._persist_settings()
-            self.refresh()
-        for name, fallback, captions in values:
-            variable = tk.BooleanVar(master=self.root, value=bool(app.config.get(name, fallback)))
-            self.knowledge_options[name] = variable
-            check(options, captions.get(app.ui_language, captions["en"]), variable,
-                  changed).pack(anchor="w", pady=(0, 4))
-        note, privacy = card(content, tr(app, "privacy"), tone=AMBER)
-        note.pack(fill="x", padx=22, pady=(0, 14))
-        description = {
-            "ru":"Тексты остаются на вашем ПК до ручного экспорта ZIP. Перед передачей проверьте архив: даже после фильтрации свободный текст может содержать личные данные.",
-            "uk":"Тексти залишаються на ПК до ручного експорту ZIP. Перед передаванням перевірте архів: текст може містити особисті дані.",
-            "en":"Examples remain on this PC until manual ZIP export. Review each archive before sharing: free text may still contain personal information.",
-        }
-        text(privacy, description.get(app.ui_language,description["en"]),
-             color=MUTED, wraplength=780).pack(anchor="w")
-        actions_border, actions = card(content, tr(app, "quick"))
-        actions_border.pack(fill="x", padx=22, pady=(0, 16))
-        for key, fn in (
-            ("update_knowledge", lambda:app._check_knowledge_update(True)),
-            ("export", app._export_knowledge),
-            ("stats", lambda:self.navigate("stats")),
-        ):
-            action(actions, tr(app,key), fn).pack(side="left", padx=(0, 9))
-        remove = {
-            "ru":"Очистить локальный опыт", "uk":"Очистити локальний досвід",
-            "en":"Clear local experience"
-        }
-        action(actions, remove.get(app.ui_language, remove["en"]),
-               app._clear_knowledge, warm=True).pack(side="left")
+        from premium_data_pages import knowledge_page
+        knowledge_page(self, page)
 
     def _stats(self, page):
-        content = self._scroll_page(page, tr(self.app, "stats"),
-            tr(self.app, "actual"))
-        live_border, live = card(content, tr(self.app, "latency"))
-        live_border.pack(fill="x", padx=22, pady=(0, 14))
-        tk.Label(live, textvariable=self.metrics_var, bg=CARD, fg=CYAN,
-                 font=(FONT, 14, "bold")).pack(anchor="w")
-        text(live, "p50 / p95  ·  Google / MyMemory  ·  "
-             + tr(self.app, "online_hint"),
-             color=MUTED).pack(anchor="w", pady=(6, 0))
-        disk_border, disk = card(content, tr(self.app, "stats") + " · ZIP", tone=AMBER)
-        disk_border.pack(fill="x", padx=22, pady=(0, 14))
-        self.disk_stats_var = tk.StringVar(master=self.root,
-                                          value=tr(self.app, "no_samples"))
-        tk.Label(disk, textvariable=self.disk_stats_var, bg=CARD, fg=TEXT,
-                 font=(FONT, 10), anchor="w", justify="left",
-                 wraplength=750).pack(fill="x")
-        actions_border, actions = card(content, tr(self.app, "quick"))
-        actions_border.pack(fill="x", padx=22, pady=(0, 16))
-        refresh_text = {
-            "ru":"Обновить измерения", "uk":"Оновити вимірювання",
-            "en":"Refresh measurements"
-        }
-        action(actions, refresh_text.get(self.app.ui_language, refresh_text["en"]),
-               self.request_stats, primary=True).pack(side="left")
-        action(actions, tr(self.app, "export"), self.app._export_knowledge).pack(side="left", padx=9)
+        from premium_data_pages import stats_page
+        stats_page(self, page)
 
     def request_stats(self):
         app = self.app
@@ -838,38 +748,23 @@ class Dashboard:
             self.disk_stats_var.set(str(data))
             return
         groups = data[2]
-        lines = [f"{tr(self.app, 'base')}: {data[0]}  ·  samples: {data[1]}"]
+        words = {
+            "ru": ("Локальных групп", "примеров", "ошибок"),
+            "uk": ("Локальних груп", "прикладів", "помилок"),
+            "en": ("Local groups", "samples", "errors"),
+        }[self.app.ui_language]
+        lines = [f"{words[0]}: {data[0]}  ·  {words[1]}: {data[1]}"]
         for direction in ("incoming", "outgoing", "ui"):
             stats = groups.get(direction)
             if stats:
                 name = {"incoming":"F8","outgoing":"F9","ui":"UI"}[direction]
-                lines.append(f"{name}: {stats['samples']} samples  ·  "
+                lines.append(f"{name}: {stats['samples']} {words[1]}  ·  "
                              f"p50 {stats['p50_ms']} ms  ·  "
-                             f"p95 {stats['p95_ms']} ms  ·  errors: {stats['failed']}")
+                             f"p95 {stats['p95_ms']} ms  ·  {words[2]}: {stats['failed']}")
         self.disk_stats_var.set("\n".join(lines))
     def _settings(self, page):
-        content = self._scroll_page(page, tr(self.app, "settings_head"), tr(self.app, "settings_sub"))
-        server_border, server = card(content, tr(self.app, "profile"))
-        server_border.pack(fill="x", padx=22, pady=(0, 14))
-        tk.Label(server, textvariable=self.server_var, fg=CYAN, bg=CARD,
-                 font=(FONT, 11, "bold")).pack(anchor="w")
-        action(server, tr(self.app, "server_settings"), self.app.show_server_settings,
-               primary=True).pack(anchor="w", pady=(12, 0))
-        language_border, language = card(content, tr(self.app, "interface"), tone=AMBER)
-        language_border.pack(fill="x", padx=22, pady=(0, 14))
-        languages, _ = label_combo(language, tr(self.app, "interface"),
-            ["Русский", "Українська", "English"],
-            self.app.ui_language_var, lambda _e:self.app.change_ui_language(), width=18)
-        languages.pack(anchor="w")
-        maint_border, maint = card(content, tr(self.app, "quick"))
-        maint_border.pack(fill="x", padx=22, pady=(0, 16))
-        for name, fn in (
-            ("updates", lambda:self.app.check_updates(manual=True)),
-            ("cod2", self.app.enable_cod2_borderless),
-            ("learn", lambda:self.navigate("knowledge")),
-            ("about", self.app.show_about),
-        ):
-            action(maint, tr(self.app, name), fn).pack(side="left", padx=(0, 8))
+        from premium_data_pages import settings_page
+        settings_page(self, page)
 
     def navigate(self, name):
         if name not in self.pages:

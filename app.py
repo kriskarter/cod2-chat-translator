@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover
     filedialog = messagebox = ttk = None
 
 APP_NAME = "CoD2 Chat Translator"
-APP_VERSION = "1.21.2"
+APP_VERSION = "1.22.0"
 PROJECT_AUTHOR = "kriskarter"
 PROJECT_PROFILE_URL = "https://github.com/kriskarter"
 CONFIG_FILE = "config.json"
@@ -137,6 +137,7 @@ DEFAULT_CONFIG = {
     "ui_language": "ru",
     "log_path": "",
     "server_profiles": [],
+    "server_monitor": {},
     "active_profile_path": "",
     "primary_profile_path": "",
     "auto_detect_profile": True,
@@ -214,7 +215,7 @@ UI_STRINGS = {
         "update_none": "Установлена последняя версия.", "update_unconfigured": "Канал обновлений ещё не настроен.",
         "update_available_title": "Доступно обновление", "update_available": "Доступна версия {version}.\n\n{notes}\n\nУстановить обновление сейчас?",
         "update_error": "Не удалось проверить обновления: {error}", "choose_log": "Выбери console_mp.log", "all_files": "Все файлы",
-        "about": "О программе", "developer": "Разработчик", "github": "GitHub", "star_project": "⭐ Поддержать проект",
+        "about": "О программе", "developer": "Разработчик", "github": "GitHub", "star_project": "Поддержать проект",
         "repo_pending": "Репозиторий проекта появится после публикации публичного релиза.",
         "made_for": "Сделано для сообщества Call of Duty 2.", "close": "Закрыть",
         "custom_language": "Другой язык", "custom_prompt": "Введи код языка Google Translate, например: cs, ja, ro, ko, ar",
@@ -289,7 +290,7 @@ UI_STRINGS = {
         "update_none": "You have the latest version.", "update_unconfigured": "The update channel is not configured yet.",
         "update_available_title": "Update available", "update_available": "Version {version} is available.\n\n{notes}\n\nInstall the update now?",
         "update_error": "Could not check for updates: {error}", "choose_log": "Select console_mp.log", "all_files": "All files",
-        "about": "About", "developer": "Developer", "github": "GitHub", "star_project": "⭐ Star the project",
+        "about": "About", "developer": "Developer", "github": "GitHub", "star_project": "Star the project",
         "repo_pending": "The project repository will be available after the public release is published.",
         "made_for": "Made for the Call of Duty 2 community.", "close": "Close",
         "custom_language": "Other language", "custom_prompt": "Enter a Google Translate language code, for example: cs, ja, ro, ko, ar",
@@ -370,7 +371,7 @@ UI_STRINGS["uk"] = {
     "update_available_title": "Доступне оновлення",
     "update_available": "Доступна версія {version}.\n\n{notes}\n\nВстановити оновлення зараз?",
     "update_error": "Не вдалося перевірити оновлення: {error}", "choose_log": "Вибери console_mp.log", "all_files": "Усі файли",
-    "about": "Про програму", "developer": "Розробник", "github": "GitHub", "star_project": "⭐ Підтримати проєкт",
+    "about": "Про програму", "developer": "Розробник", "github": "GitHub", "star_project": "Підтримати проєкт",
     "repo_pending": "Репозиторій проєкту буде доступний після публікації публічного релізу.",
     "made_for": "Створено для спільноти Call of Duty 2.", "close": "Закрити",
     "custom_language": "Інша мова",
@@ -3613,6 +3614,14 @@ class ControlApp:
         self.stop_event = threading.Event()
         self.translation_jobs: "queue.Queue[ChatMessage]" = queue.Queue(maxsize=50)
         self.ui_queue: "queue.Queue[tuple]" = queue.Queue()
+        from server_monitor import Monitor, load_settings
+        self.monitor_settings = load_settings(self.config.get("server_monitor"))
+        self.monitor = Monitor(self.monitor_settings,
+                               lambda snapshot: self.ui_queue.put(("server_snapshot", snapshot)))
+        self._friend_presence: dict[str, set[str]] = {}
+        self._friend_notice_at: dict[tuple[str, str], float] = {}
+        self._server_state_last: dict[str, str] = {}
+        self._friend_notifier = None
         self.enabled = True
 
         stored_log = str(self.config.get("log_path", "")).strip()
@@ -3674,10 +3683,21 @@ class ControlApp:
         # Keep the entire native window within the user's work area as far
         # as possible; smaller monitors retain a scrollable home screen.
         screen_w,screen_h=root.winfo_screenwidth(),root.winfo_screenheight()
-        preferred_w=max(1050,min(1490,screen_w-48))
-        preferred_h=max(650,min(780,screen_h-90))
+        work_w,work_h=screen_w,screen_h-76
+        if os.name == "nt":
+            try:
+                work=wintypes.RECT()
+                if ctypes.windll.user32.SystemParametersInfoW(48,0,ctypes.byref(work),0):
+                    work_w=work.right-work.left
+                    # geometry() requests the *client* height; allow for the
+                    # native title and resize border within the work area.
+                    work_h=work.bottom-work.top-48
+            except (AttributeError,OSError):
+                pass
+        preferred_w=max(900,min(1680,work_w-24))
+        preferred_h=max(520,min(920,work_h-10))
         root.geometry(f"{preferred_w}x{preferred_h}")
-        root.minsize(1050, 650)
+        root.minsize(min(1050,preferred_w),min(590,preferred_h))
         root.protocol("WM_DELETE_WINDOW", self.close)
         self._set_window_icon()
 
@@ -3713,6 +3733,8 @@ class ControlApp:
         self._arrival_context=deque(maxlen=24)
         self._chat_epoch=0
         self._build_ui()
+        from windows_friend_notice import FriendNotice
+        self._friend_notifier = FriendNotice(root.winfo_id())
         self._refresh_server_profiles(initial=True)
         self.overlay = OverlayWindow(root, self.config, on_geometry_changed=self._on_overlay_geometry_changed, use_fresh_default_position=self.fresh_install)
         if self.fresh_install:
@@ -3746,6 +3768,7 @@ class ControlApp:
         ]
         self.translator = self.translators[0]
         self.tailer.start()
+        self.monitor.start()
         for translator in self.translators:
             translator.start()
         self.root.after(80, self.process_ui_queue)
@@ -3784,6 +3807,7 @@ class ControlApp:
         return {"ru":ru,"uk":uk,"en":en}.get(self.ui_language,en)
 
     def _show_knowledge_dialog(self):
+        from premium_dialogs import dialog_body, dialog_check
         tr=self._knowledge_text
         previous=getattr(self,"_knowledge_window",None)
         if previous is not None and previous.winfo_exists():
@@ -3792,8 +3816,7 @@ class ControlApp:
         self._knowledge_window=win
         win.title(tr("Smart Engine V2 — база знаний","Smart Engine V2 — база знань","Smart Engine V2 — knowledge"))
         win.transient(self.root)
-        body=ttk.Frame(win,padding=16)
-        body.pack(fill="both",expand=True)
+        body=dialog_body(win,win.title(),width=650)
         runtime=self._knowledge_runtime
         summary=tk.StringVar(value=(
             f"V2 · {runtime.version} · {runtime.pack.count} "+tr("групп фраз","груп фраз","phrase groups")
@@ -3819,7 +3842,7 @@ class ControlApp:
             "experience_cache":tr("Сохранять временный кэш переводов на диске (7 дней)","Зберігати тимчасовий кеш перекладів на диску (7 днів)","Keep temporary translation cache on disk (7 days)"),
         }
         for k,v in options.items():
-            ttk.Checkbutton(body,text=labels[k],variable=v,command=change).pack(anchor="w",pady=3)
+            dialog_check(body,labels[k],v,change).pack(anchor="w",pady=3)
         ttk.Label(body,wraplength=570,justify="left",text=tr(
             "Экспорт ZIP содержит текст примеров и переводы, без полей никнеймов, серверов или путей. Фильтр удаляет очевидные идентификаторы, но свободный текст может содержать личные сведения. Проверь архив перед передачей. Автоотправки нет.",
             "Експорт ZIP містить текст прикладів і переклади, без полів нікнеймів, серверів чи шляхів. Фільтр відсіює очевидні ідентифікатори, але текст може містити особисті відомості. Перевір архів перед передаванням. Автонадсилання немає.",
@@ -3830,6 +3853,10 @@ class ControlApp:
         ttk.Button(actions,text=tr("Статистика","Статистика","Statistics"),command=self._knowledge_stats).pack(side="left",padx=6)
         ttk.Button(actions,text=tr("Очистить опыт","Очистити досвід","Clear experience"),command=self._clear_knowledge).pack(side="left",padx=6)
         ttk.Button(body,text=tr("Закрыть","Закрити","Close"),command=win.destroy).pack(anchor="e",pady=(8,0))
+        win.update_idletasks()
+        x=self.root.winfo_rootx()+max(16,(self.root.winfo_width()-win.winfo_width())//2)
+        y=self.root.winfo_rooty()+max(16,(self.root.winfo_height()-win.winfo_height())//2)
+        win.geometry(f"+{x}+{y}")
 
     def _knowledge_stats(self):
         if not self.experience.stats(lambda ok,data:self.ui_queue.put(("knowledge_action","stats",ok,data))):
@@ -3917,7 +3944,15 @@ class ControlApp:
         return result
 
     def _launch_featured_server(self) -> None:
-        server = FEATURED_SERVER
+        self._launch_server(FEATURED_SERVER.address, FEATURED_SERVER.name)
+
+    def _launch_server(self, address: str, name: str = "") -> None:
+        from server_monitor import canonical_address
+        try:
+            address = canonical_address(address)
+        except ValueError:
+            return
+        name = name or address
 
         if os.name != "nt":
             self.status_var.set(self.t("quick_connect_windows_only"))
@@ -3961,13 +3996,13 @@ class ControlApp:
 
             launch_connect_command(
                 executable,
-                server.address,
+                address,
             )
 
             self.status_var.set(
                 self.t("quick_connect_launching").format(
-                    name=server.name,
-                    address=server.address,
+                    name=name,
+                    address=address,
                 )
             )
         except Exception as exc:
@@ -4086,6 +4121,9 @@ class ControlApp:
             messagebox.showerror(APP_NAME, str(exc), parent=self.root)
 
     def show_about(self) -> None:
+        from premium_dialogs import dialog_body
+        from dashboard_ui import BG, CARD, TEXT, MUTED, FONT, action, ui_photo
+        from PIL import Image, ImageTk
         win = tk.Toplevel(self.root)
         win.title(f"{self.t('about')} — {APP_NAME}")
         win.transient(self.root)
@@ -4098,36 +4136,42 @@ class ControlApp:
         except Exception:
             pass
 
-        body = ttk.Frame(win, padding=18)
-        body.pack(fill="both", expand=True)
-        head = ttk.Frame(body)
-        head.pack(fill="x")
+        body = dialog_body(win, self.t("about"), f"CoD2 Chat Translator · v{APP_VERSION}", width=550)
+        head = tk.Frame(body, bg=BG)
+        head.pack(fill="x", pady=(5, 10))
         try:
-            logo = tk.PhotoImage(file=str(resource_path("assets/app_64.png")))
+            source = Image.open(resource_path("assets/ui_premium/monitor_logo.png"))
+            source.thumbnail((310, 92), Image.Resampling.LANCZOS)
+            logo = ImageTk.PhotoImage(source, master=win)
             win._about_logo = logo
-            ttk.Label(head, image=logo).pack(side="left", padx=(0, 12))
+            tk.Label(head, image=logo, bg=BG).pack(side="left", padx=(0, 15))
         except Exception:
             pass
-        title = ttk.Frame(head)
+        title = tk.Frame(head, bg=BG)
         title.pack(side="left", fill="x", expand=True)
-        ttk.Label(title, text=APP_NAME, font=("Segoe UI", 15, "bold")).pack(anchor="w")
-        ttk.Label(title, text=f"Version {APP_VERSION}", foreground="#666666").pack(anchor="w", pady=(3, 0))
+        tk.Label(title, text=APP_NAME, bg=BG, fg=TEXT,
+                 font=(FONT, 13, "bold")).pack(anchor="w")
+        tk.Label(title, text=f"v{APP_VERSION}", bg=BG, fg=MUTED).pack(anchor="w", pady=(3, 0))
 
-        ttk.Separator(body).pack(fill="x", pady=14)
-        ttk.Label(body, text=f"{self.t('developer')}: {PROJECT_AUTHOR}", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        ttk.Label(body, text=self.t("made_for")).pack(anchor="w", pady=(6, 0))
+        ttk.Separator(body).pack(fill="x", pady=8)
+        tk.Label(body, text=f"{self.t('developer')}: {PROJECT_AUTHOR}",
+                 bg=BG, fg=TEXT, font=(FONT, 10, "bold")).pack(anchor="w")
+        tk.Label(body, text=self.t("made_for"), bg=BG, fg=MUTED).pack(anchor="w", pady=(6, 0))
 
         links = ttk.Frame(body)
-        links.pack(fill="x", pady=(14, 0))
-        ttk.Button(links, text=f"{self.t('github')}: @{PROJECT_AUTHOR}", command=lambda: self._open_url(PROJECT_PROFILE_URL)).pack(side="left")
+        links.pack(fill="x", pady=(12, 0))
+        action(links, f"{self.t('github')}: @{PROJECT_AUTHOR}",
+               lambda: self._open_url(PROJECT_PROFILE_URL)).pack(side="left")
         repo_url = self._project_repository_url()
-        star = ttk.Button(links, text=self.t("star_project"), command=lambda: self._open_url(repo_url) if repo_url else None)
+        star = action(links, self.t("star_project"), lambda: self._open_url(repo_url) if repo_url else None)
+        star.configure(image=ui_photo(win,"quick_star.png"),compound="left")
         star.pack(side="left", padx=(8, 0))
         if not repo_url:
             star.state(["disabled"])
-            ttk.Label(body, text=self.t("repo_pending"), foreground="#777777", wraplength=430).pack(anchor="w", pady=(10, 0))
+            tk.Label(body, text=self.t("repo_pending"), bg=BG, fg=MUTED,
+                     wraplength=430).pack(anchor="w", pady=(10, 0))
 
-        ttk.Button(body, text=self.t("close"), command=win.destroy).pack(anchor="e", pady=(16, 0))
+        action(body, self.t("close"), win.destroy, primary=True).pack(anchor="e", pady=(15, 0))
         win.update_idletasks()
         x = self.root.winfo_rootx() + max(20, (self.root.winfo_width() - win.winfo_width()) // 2)
         y = self.root.winfo_rooty() + max(20, (self.root.winfo_height() - win.winfo_height()) // 2)
@@ -4359,6 +4403,7 @@ class ControlApp:
         self._persist_settings()
 
     def show_server_settings(self) -> None:
+        from premium_dialogs import dialog_body, dialog_check
         win = tk.Toplevel(self.root)
         win.title(self.t("server_settings_title"))
         win.transient(self.root)
@@ -4371,24 +4416,18 @@ class ControlApp:
         except Exception:
             pass
 
-        body = ttk.Frame(win, padding=14)
-        body.pack(fill="both", expand=True)
-        ttk.Checkbutton(
+        body = dialog_body(win, self.t("server_settings_title"),
+                           self.t("server_settings_hint"), width=680)
+        dialog_check(
             body,
-            text=self.t("auto_profile"),
-            variable=self.auto_profile_var,
-            command=self._auto_profile_changed,
+            self.t("auto_profile"),
+            self.auto_profile_var,
+            self._auto_profile_changed,
         ).pack(anchor="w")
         ttk.Label(
             body,
-            text=self.t("server_settings_hint"),
-            foreground="#555555",
-            wraplength=560,
-        ).pack(anchor="w", pady=(6, 12))
-        ttk.Label(
-            body,
             text=self.t("game_folder_hint"),
-            foreground="#555555",
+            style="Muted.TLabel",
             wraplength=560,
         ).pack(anchor="w", pady=(0, 10))
 
@@ -4399,7 +4438,7 @@ class ControlApp:
         ttk.Label(
             game_row,
             textvariable=dialog_game_root_var,
-            foreground="#666666",
+            style="Muted.TLabel",
             wraplength=390,
         ).pack(side="left", fill="x", expand=True)
 
@@ -4410,7 +4449,7 @@ class ControlApp:
         ttk.Label(
             logging_row,
             textvariable=dialog_logging_var,
-            foreground="#555555",
+            style="Muted.TLabel",
             wraplength=390,
         ).pack(side="left", fill="x", expand=True)
 
@@ -4420,7 +4459,9 @@ class ControlApp:
         row.pack(fill="x")
         ttk.Label(row, text=self.t("profile_list"), width=12).pack(side="left")
         dialog_profile_var = tk.StringVar(value=self.profile_var.get())
-        combo = ttk.Combobox(row, state="readonly", textvariable=dialog_profile_var, width=52)
+        compact_dialog = float(self.root.tk.call("tk", "scaling")) >= 1.95
+        combo = ttk.Combobox(row, state="readonly", textvariable=dialog_profile_var,
+                             width=36 if compact_dialog else 52)
         combo.pack(side="left", fill="x", expand=True)
 
         path_row = ttk.Frame(body)
@@ -4430,7 +4471,7 @@ class ControlApp:
         ttk.Label(
             path_row,
             textvariable=dialog_path_var,
-            foreground="#666666",
+            style="Muted.TLabel",
             wraplength=500,
         ).pack(side="left", fill="x", expand=True)
 
@@ -4536,12 +4577,20 @@ class ControlApp:
 
         buttons = ttk.Frame(body)
         buttons.pack(fill="x", pady=(14, 0))
-        ttk.Button(buttons, text=self.t("choose_game_folder"), command=choose_game_folder).pack(side="left")
-        ttk.Button(buttons, text=self.t("use_selected_profile"), command=use_selected).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("browse"), command=add_log).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("rename_profile"), command=rename_selected).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("rescan"), command=rescan).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("close"), command=win.destroy).pack(side="right")
+        actions = (("choose_game_folder", choose_game_folder),
+                   ("use_selected_profile", use_selected),
+                   ("browse", add_log), ("rename_profile", rename_selected),
+                   ("rescan", rescan), ("close", win.destroy))
+        if compact_dialog:
+            for index, (label, callback) in enumerate(actions):
+                ttk.Button(buttons, text=self.t(label), command=callback).grid(
+                    row=index // 3, column=index % 3, sticky="ew", padx=3, pady=3)
+            for column in range(3):
+                buttons.columnconfigure(column, weight=1)
+        else:
+            for index, (label, callback) in enumerate(actions):
+                ttk.Button(buttons, text=self.t(label), command=callback).pack(
+                    side="right" if index == 5 else "left", padx=(6, 0) if index else 0)
 
         win.update_idletasks()
         try:
@@ -4742,6 +4791,8 @@ class ControlApp:
             messagebox.showerror(APP_NAME, self.t("update_error").format(error=exc))
 
     def _persist_settings(self) -> None:
+        from server_monitor import dump_settings
+        self.config["server_monitor"] = dump_settings(self.monitor_settings)
         self.config["ui_language"] = self.ui_language
         active = str(self._active_log_path) if self._active_log_path else self.log_path_var.get().strip()
         self.config["log_path"] = active
@@ -4874,7 +4925,9 @@ class ControlApp:
             if not self.overlay.items:
                 self.test_overlay()
         else:
-            self.overlay_edit_button.configure(text=self.t("configure_overlay"))
+            self.overlay_edit_button.configure(text={
+                "ru": "Место", "uk": "Місце", "en": "Position",
+            }.get(self.ui_language, "Position"))
             if hasattr(self, "overlay_edit_button_alt"):
                 self.overlay_edit_button_alt.configure(text=self.t("configure_overlay"))
             self._persist_settings()
@@ -5198,6 +5251,34 @@ class ControlApp:
                 memory=translation_memory.RUNTIME
                 if memory:memory.record("incoming","auto",settings[0],settings[3],msg.text,"","queue_full","none",0,nick=msg.nickname)
 
+    def _server_friend_update(self, snapshot) -> None:
+        from server_monitor import normalized_name
+        if snapshot.state != "online":
+            return  # An offline server cannot establish that a friend left.
+        favorites = {normalized_name(value): value
+                     for value in self.monitor_settings["friends"]}
+        current = {normalized_name(player.name) for player in snapshot.players}
+        previous = self._friend_presence.get(snapshot.address)
+        self._friend_presence[snapshot.address] = current
+        if previous is None or not self.monitor_settings["notify_friends"]:
+            return  # First successful poll establishes the baseline.
+        now = time.monotonic()
+        for nickname in sorted((current - previous) & favorites.keys()):
+            key = (snapshot.address, nickname)
+            if now - self._friend_notice_at.get(key, -1e9) < 600:
+                continue
+            self._friend_notice_at[key] = now
+            server = next((item for item in self.monitor_settings["servers"]
+                           if item.address == snapshot.address), None)
+            title = {"ru": "Друг в игре", "uk": "Друг у грі",
+                     "en": "Friend online"}.get(self.ui_language, "Friend online")
+            detail = f"{favorites[nickname]} · {server.label or snapshot.name or snapshot.address if server else snapshot.address}"
+            if self._friend_notifier:
+                self._friend_notifier.show(title, detail)
+            if hasattr(self, "dashboard"):
+                from premium_history_page import record
+                record(self.dashboard, f"{title}: {detail}")
+
     def process_ui_queue(self) -> None:
         # A rare content-free UI scheduling sample can tell us whether a
         # slower PC is freezing the Tk main loop. It is NOT a CPU/FPS reading.
@@ -5219,6 +5300,22 @@ class ControlApp:
                     if msg.settings and msg.settings[0]!=self._f8_settings[0]:continue
                 if event == "status":
                     self.status_var.set(item[1])
+                    if hasattr(self, "dashboard"):
+                        from premium_history_page import record
+                        record(self.dashboard, item[1])
+                elif event == "server_snapshot":
+                    snap=item[1]
+                    if self._server_state_last.get(snap.address)!=snap.state:
+                        self._server_state_last[snap.address]=snap.state
+                        if hasattr(self,"dashboard"):
+                            from premium_history_page import record
+                            record(self.dashboard,f"{snap.address} · {snap.state}"
+                                   +(f" · {snap.map_name}" if snap.map_name else ""))
+                    self._server_friend_update(item[1])
+                    if hasattr(self, "dashboard") and hasattr(self.dashboard, "premium_home"):
+                        self.dashboard.premium_home.update_snapshot(item[1])
+                    if hasattr(self, "dashboard") and hasattr(self.dashboard, "server_page"):
+                        self.dashboard.server_page.update_snapshot(item[1])
                 elif event == "map_change":
                     # Previous map context must never influence a new match.
                     with self.translator.context_lock:
@@ -5328,6 +5425,9 @@ class ControlApp:
 
     def close(self) -> None:
         self._persist_settings()
+        self.monitor.stop()
+        if self._friend_notifier:
+            self._friend_notifier.close()
         self.stop_event.set()
         self.outgoing_chat.close()
         if hasattr(self,"experience"):self.experience.close()

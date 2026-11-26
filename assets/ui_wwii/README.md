@@ -32,3 +32,11 @@ body_backdrop.png is a dim archival photo treatment, never a live status.
 All generated assets can be rebuilt with:
     python tools/build_wwii_assets.py
 Runtime Windows builds load PNGs using tkinter.PhotoImage (no Pillow dependency).
+
+## Premium redesign (v1.21.3 RC)
+
+The `premium_*.png` UI assets are generated from the original source artwork
+and material palette in `assets/ui_premium/` by `tools/build_premium_ui.py`.
+This script is also run by Windows RC CI. The nine-slice ttk button art has
+real hover, pressed and disabled surfaces, while the texts and handlers are
+live controls. See `assets/ui_premium/README.md` for source provenance.

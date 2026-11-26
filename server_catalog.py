@@ -19,7 +19,7 @@ class GameServer:
 
 
 # Встроенный приоритетный сервер.
-# Пользовательские серверы позже будут храниться отдельно в config.json.
+# Пользовательские серверы хранятся отдельно в config.json (server_monitor).
 FEATURED_SERVER = GameServer(
     id="classic-oborona",
     name="CLASSIC OBORONA",
