@@ -82,7 +82,7 @@ ApplicationWindow {
             Rectangle { anchors.fill: parent; color: "#25251e" }
             Image {
                 anchors.fill: parent
-                source: "command_panorama_final.jpg"
+                source: "command_panorama_warm.jpg"
                 fillMode: Image.PreserveAspectCrop
             }
             Image {
