@@ -174,7 +174,7 @@ class PremiumHome:
         from wwii_dashboard import tactical_action
         border=MetalCanvas(parent)
         border.pack(fill="both",expand=True)
-        box=tk.Frame(border,bg=CARD,height=(370 if self.large_dpi else 348) if self.compact
+        box=tk.Frame(border,bg=CARD,height=(330 if self.large_dpi else 330) if self.compact
                      else 545 if self.app.root.winfo_screenheight()>=1000 else
                      423 if self.app.root.winfo_screenheight()>=850 else
                      492 if self.large_dpi else 390)
