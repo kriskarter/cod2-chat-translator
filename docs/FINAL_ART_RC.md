@@ -1,35 +1,42 @@
-# CoD2 Chat Translator v1.22.0 RC — visual and functional acceptance
+# CoD2 Chat Translator v1.22.0 RC — итоговая художественная проверка
 
-Draft PR #8, branch `feature/premium-ui-redesign`. Artwork/code acceptance snapshot: `af280c29b2a2abab68ede26b922b2818d66614b1`. Screenshot/documentation commit follows it; no stable release or merge.
+PR #8 остаётся **draft**. Код интерфейса проверен на `6853439670f7af27bd073d23c7addd0dc20c92ce`; итоговый коммит документации и снимков следует за ним. Ни merge, ни стабильный Release не выполнялись.
 
-## Real application evidence
+## Настоящие снимки и сравнение
 
-The images in `docs/images/final_art_rc/` are ffmpeg captures of the actual running Python/Tk application under Linux Xvfb, not generated interface mockups and not Windows captures. Eight pages: `xvfb_home.png`, `xvfb_servers.png`, `xvfb_translation.png`, `xvfb_overlay.png`, `xvfb_knowledge.png`, `xvfb_stats.png`, `xvfb_settings.png`, `xvfb_history.png`. Three actual dialogs: `xvfb_dialog_server.png`, `xvfb_dialog_about.png`, `xvfb_dialog_knowledge_dialog.png`. Extra captures: `xvfb_home_125pct.png` at 1536×864 simulated 125%, `xvfb_home_150pct.png` and `xvfb_dialog_server_150pct.png` at 1366×768 simulated 150%, `xvfb_home_1920.png` at 1920×1080.
+`docs/images/final_art_rc/` содержит снимки работающего Python/Tk-приложения под Linux Xvfb. Это не рендеры макета и не доказательство работы под Windows. Снимки главной: `xvfb_home.png` (1366×768, Tk scaling 1.39), `xvfb_home_125pct.png` (1536×864, 1.736), `xvfb_home_150pct.png` (1366×768, 2.083), `xvfb_home_1920.png` (1920×1080, 1.39). Эти коэффициенты приблизительно моделируют 100/125/150%, но не подменяют системное Windows DPI.
 
-The approved reference remains `docs/images/server_monitor_rc/reference.png`. Compared with it, the new header is one coherent city panorama rather than separately cut-out soldier/church assets; it shows the soldier's helmet, torso and gear, ruined streets and a complete church. Logo, stars, rule and caption remain distinct layers. Cards F8/F9 reveal separate artwork without opaque content rectangles. The steel texture continues between panels, and the extra field-gear illustration appears only on tall desktop screens. Navigation, monitor, lower rail and expert pages use the same restrained graphite/bronze palette.
+Остальные настоящие снимки: `xvfb_servers.png`, `xvfb_translation.png`, `xvfb_overlay.png`, `xvfb_knowledge.png`, `xvfb_stats.png`, `xvfb_settings.png`, `xvfb_history.png`, `xvfb_dialog_server.png`, `xvfb_dialog_about.png`, `xvfb_dialog_knowledge_dialog.png`. Добавлены `xvfb_servers_1366.png`, `xvfb_servers_125pct.png`, `xvfb_servers_150pct.png`. `reference_comparison.jpg` подписывает утверждённый эталон и реальное приложение; исходник эталона хранится в `docs/images/server_monitor_rc/reference.png`.
 
-Remaining visual differences from the reference: the subject is seen from behind instead of facing the viewer; the navigation and table still use styled Tk/ttk primitives, so selected rows remain a solid muted bronze rather than a true soft gradient; expert forms and modal dialogs are less richly composed than the Home page. The Windows native titlebar and controls may differ from these Linux captures.
+Единая панорама сохраняет солдата с корпусом и рюкзаком, разрушенный город и полную церковь справа. Логотип, звёзды, тонкая линия и подпись — отдельные слои. Иллюстрации F8/F9 различны и видны за настоящими элементами управления. Нижняя декоративная каска/ящик убрана по решению владельца; освобождённое место отдано карточкам и реальному списку игроков. Графитовая фактура проходит между блоками, кнопки, навигация, полосы прокрутки и формы согласованы по палитре. В Server Monitor реальные строки, выбор, скролл и цветовые коды ников; отрицательный серверный пинг игрока показан как неизвестный, сообщённый ноль — нейтрально с пояснением.
 
-## Verification
+| Экран | Контент / видимая область Home | Вертикальная прокрутка Home |
+| --- | ---: | --- |
+| 1366×768, ~100% | 490 / 495 px | нет |
+| 1536×864, ~125% | 574 / 578 px | нет |
+| 1366×768, ~150% | 512 / 535 px | нет |
+| 1920×1080, ~100% | 712 / 722 px | нет |
 
-- `pytest -q`: 222 passed, 1 skipped (tested against the final visual code).
-- `tools/smart_quality_check.py`: 32/32 authored semantic invariants; zero unsafe accepted, zero valid rejected. This is not measured live translation accuracy.
-- Real application smoke: eight pages, three dialogs, RU/UK/EN, F8/F9 switches and keycap activation, overlay edit, Smart Engine, settings callbacks, preserved roster scroll. 1366×768 100%: Home content 490 px, viewport 495 px, no scroll. 1536×864 simulated 125%: content 541 px, viewport 578 px, no scroll. 1366×768 simulated 150%: content 512 px, viewport 535 px, no scroll and dialogs fit. 1920×1080: content 743 px, viewport 794 px, no scroll.
-- A live UDP response from CLASSIC OBORONA `146.59.34.100:28960` reported online, map `mp_harbor`, 12/37 clients, 12 real player records, 37 ms server query in the sampled call. All 12 player ping fields were reported as 0 by the game server. The UI preserves that literal reported value in neutral color with a tooltip explaining that actual latency is unknown; it does not call it an ideal connection. Literal `^^` and unknown `^x` name sequences are retained, while recognized CoD2 color codes remain colored.
-- A real Windows install, DPI behavior, F10 overlay atop the game, in-game hotkeys and CPU use during play are **unverified** because the owner's Windows machine was offline. Linux Xvfb is not a Windows substitute.
+По сравнению с эталоном композиция стала цельнее, а полезная высота монитора больше. Оставшиеся отличия: солдат показан со спины; отдельные экспертные страницы и диалоги сдержаннее эталонной главной; янтарное выделение строки в Tk/ttk сохраняет заметную плоскость; на малых масштабах длинные названия карт доступны в подсказке, но не всегда помещаются в ячейку. Стиль системного заголовка зависит от Windows и не подтверждён на устройстве владельца.
 
-## Performance
+## Функции и проверки
 
-Same VPS and isolated empty configuration at 1366×768 Xvfb. Single samples; CPU is process time, RSS is process peak. Previous RC `b2018feb` values were measured on the same host.
+- `pytest -q`: **222 passed, 1 skipped** на коде финального этапа; Windows workflow также выполняет unit tests.
+- `tools/smart_quality_check.py`: **32/32** синтетических смысловых инварианта, unsafe accepted = 0, valid rejected = 0. Это не оценка качества перевода в живой игре.
+- UI smoke работающего приложения: **8 страниц, 3 диалога**, RU/UK/EN, F8/F9 и объёмные клавиши, overlay edit, Smart Engine, настройки, сохранение позиции прокрутки, клавиатурные элементы. Отдельный Server Monitor smoke: **2 добавления, изменение сервера, сохранение конфигурации**.
+- Реальный UDP-запрос `146.59.34.100:28960`: online, `killhouse44`, **19/37**, **19 записей игроков**, **39 ms** в одной контрольной выборке; карта и состав меняются. Недоступный `127.0.0.1:28961`: offline, без вымышленных игроков и пинга.
+- На Windows CI проверяется сборка PyInstaller/Inno Setup. Нативная установка, Windows DPI, F10 поверх CoD2, поведение горячих клавиш в игре и нагрузка во время игры **не проверены**: устройство KRIS-KARTER офлайн. Linux Xvfb не считается Windows-приёмкой.
 
-| Measurement | Previous RC | Final visual code |
+## Производительность
+
+Изолированные пустые конфигурации на одном VPS, 1366×768 Xvfb; последовательные одиночные замеры. Базовый код `2300cb8` и новая редакция `6853439`. CPU — процессное время, память — пиковый RSS. Во время измерений VPS был сильно нагружен посторонней работой (load average порядка 15–18), поэтому время запуска отражает это окружение и не предсказывает запуск на ноутбуке.
+
+| Метрика | `2300cb8` | `6853439` |
 | --- | ---: | ---: |
-| Startup wall | 5.686 s | 5.412 s |
-| Startup CPU | 3.221 s | 3.158 s |
-| Startup peak RSS | 134.2 MiB | 134.5 MiB |
-| Four seconds idle CPU | 0.593 s | 0.654 s |
-| Peak RSS after idle | 142.0 MiB | 142.7 MiB |
-| Four seconds after refresh CPU | 0.158 s | 0.139 s |
-| Peak RSS after refresh | 142.0 MiB | 142.7 MiB |
+| Запуск, wall | 29.262 с | 29.096 с |
+| Запуск, CPU | 13.787 с | 11.443 с |
+| Пиковая память | 153.1 MiB | 140.3 MiB |
+| CPU за 4 с простоя | 0.101 с | 0.058 с |
+| CPU за 4 с после обновления | 0.097 с | 0.217 с |
 
-The visual pass increased idle peak RSS by 0.7 MiB in this sample. No constant full-frame animation or extra server process was introduced. Windows runtime values and GPU memory remain unmeasured.
+Одиночный цикл обновления расходовал на 0.120 с больше CPU, но измерение зависит от UDP-ответов и высокой загрузки VPS. Постоянной полноэкранной анимации и нового фонового процесса в интерфейс не добавлено. Для окончательной оценки нужны повторные замеры на Windows вместе с CoD2.
