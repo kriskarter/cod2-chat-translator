@@ -71,18 +71,20 @@ MetalPanel {
                     ScrollBar.vertical: MetalScrollBar {}
                     delegate: Rectangle {
                         required property var modelData
-                        width: profiles.width - 16; height: 62; radius: 6
+                        width: profiles.width - 16; height: profileBody.implicitHeight + 20; radius: 6
                         color: prototype.logPath === modelData.path ? "#373026" : "#202524"
                         border.color: prototype.logPath === modelData.path ? "#c09958" : "#4b463b"
                         RowLayout {
-                            anchors.fill: parent; anchors.margins: 8
+                            id: profileBody
+                            anchors.fill: parent; anchors.margins: 10
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 MetalTextField { id: profileName; text: modelData.name; Layout.fillWidth: true }
                                 Text { text: modelData.path; textFormat: Text.PlainText; elide: Text.ElideMiddle; Layout.fillWidth: true; color: "#b7ad9b"; font.pixelSize: 11 }
                             }
                             MetalButton { text: root.tr("Переименовать"); onClicked: prototype.renameProfile(modelData.path, profileName.text) }
-                            AmberButton { text: root.tr(prototype.logPath===modelData.path?"Активен":"Выбрать"); onClicked: prototype.setLogPath(modelData.path) }
+                            Text { visible: prototype.logPath === modelData.path; text: "✓  " + root.tr("Активен"); color: "#b9d69b"; font.bold: true; Layout.minimumWidth: 75 }
+                            MetalButton { visible: prototype.logPath !== modelData.path; text: root.tr("Выбрать"); onClicked: prototype.setLogPath(modelData.path) }
                         }
                     }
                 }
@@ -98,46 +100,53 @@ MetalPanel {
                 boundsBehavior:Flickable.StopAtBounds
                 ScrollBar.vertical:MetalScrollBar { parent:knowledgeScroll;anchors.right:knowledgeScroll.right;anchors.top:knowledgeScroll.top;anchors.bottom:knowledgeScroll.bottom }
                 ColumnLayout {
-                    id: knowledgeScrollContent; width:knowledgeScroll.width-12
+                    id: knowledgeScrollContent; width: Math.min(660, knowledgeScroll.width - 16); spacing: 9
                 RowLayout {
-                    Text { text: root.tr("Локальный словарь"); color: "#e6d5b8"; Layout.fillWidth: true }
+                    Text { font.bold: true; font.pixelSize: 17; text: root.tr("Локальный словарь"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.knowledgeEnabled; onClicked: prototype.setKnowledgeEnabled(checked) }
                 }
                 Text { text: root.tr("Версия") + " " + prototype.knowledgeVersion + "  ·  " + root.tr("Записи") + ": " + prototype.knowledgeCount; color: "#e4c291"; font.pixelSize: 19 }
                 Text { text: root.tr("Обновления содержат только проверяемые данные словаря, без исполняемого кода."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 AmberButton { text: root.tr("Обновить базу знаний"); enabled: prototype.knowledgeWritable && !prototype.maintenanceBusy; onClicked: prototype.refreshKnowledge() }
+                Rectangle { Layout.fillWidth: true; height: 1; color: "#494637" }
                 Text { text: root.tr("Локальный опыт"); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
                 RowLayout {
                     Text { text: root.tr("Собирать примеры локально"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.experienceCollect; enabled: prototype.experienceAvailable; onClicked: prototype.setExperienceOption("collect", checked) }
-                }
-                RowLayout {
-                    Text { text: root.tr("Дисковый кэш на 7 дней"); color: "#e6d5b8"; Layout.fillWidth: true }
-                    TacticalSwitch { checked: prototype.experienceCache; enabled: prototype.experienceAvailable; onClicked: prototype.setExperienceOption("cache", checked) }
                 }
                 Text { text: root.tr("Перед передачей архива проверьте его содержимое. Автоотправки нет."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 RowLayout {
                     MetalButton { text: root.tr("Экспорт ZIP"); enabled: prototype.experienceAvailable; onClicked: exportDialog.open() }
                     MetalButton { text: root.tr("Очистить опыт"); enabled: prototype.experienceAvailable; onClicked: clearDialog.open() }
                 }
+                Rectangle { Layout.fillWidth: true; height: 1; color: "#494637" }
+                Text { text: root.tr("Кэш перевода"); color:"#e4c291"; font.bold: true; font.pixelSize:17 }
+                RowLayout {
+                    Text { text: root.tr("Дисковый кэш на 7 дней"); color: "#e6d5b8"; Layout.fillWidth: true }
+                    TacticalSwitch { checked: prototype.experienceCache; enabled: prototype.experienceAvailable; onClicked: prototype.setExperienceOption("cache", checked) }
+                }
+
 
             }
             }
             ColumnLayout {
                 GridLayout {
-                    Layout.fillWidth:true;columns:root.width<680?1:2;columnSpacing:20;rowSpacing:3
+                    Layout.fillWidth:true; Layout.maximumWidth:820; columns:2; columnSpacing:32; rowSpacing:5
                     Repeater {
                         model:[{key:"friends",label:"Уведомления о друзьях"},{key:"join",label:"Друг появился"},{key:"leave",label:"Друг покинул сервер"},{key:"move",label:"Возможный переход друга"},{key:"sound",label:"Звук уведомлений"}]
                         delegate:RowLayout {
                             required property var modelData
                             Layout.fillWidth:true
-                            Text {text:root.tr(modelData.label);color:"#e6d5b8";Layout.fillWidth:true;elide:Text.ElideRight}
+                            Layout.columnSpan: modelData.key === "friends" ? 2 : 1
+                            Text {opacity:modelData.key==="friends"||prototype.notifyFriends?1:.55; text:root.tr(modelData.label);color:"#e6d5b8";Layout.fillWidth:true;elide:Text.ElideRight}
                             TacticalSwitch {checked:!!prototype.friendNotificationOptions[modelData.key];enabled:modelData.key==="friends"||prototype.notifyFriends;onClicked:prototype.setFriendNotification(modelData.key,checked)}
                         }
                     }
                 }
                 Text {text:root.tr("Изменения подтверждаются двумя опросами. Недоступность сервера не считается выходом игрока.");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true}
                 Text {visible:prototype.friendSaveError.length>0;text:prototype.friendSaveError;color:"#e99b83";wrapMode:Text.WordWrap;Layout.fillWidth:true}
+                Rectangle { Layout.fillWidth: true; height: 1; color: "#494637" }
+                Text { text: root.tr("История уведомлений"); color: "#e4c291"; font.bold: true }
                 ListView {
                     id: notices
                     Layout.fillHeight: true; Layout.fillWidth: true; clip: true; spacing: 5
@@ -147,7 +156,7 @@ MetalPanel {
                         width: notices.width - 8; height: 38; radius: 5; color: "#262a27"
                         Text { anchors.fill: parent; anchors.margins: 9; text: modelData; textFormat: Text.PlainText; color: "#e6d5b8"; elide: Text.ElideRight }
                     }
-                    Text { anchors.centerIn: parent; visible: notices.count === 0; text: root.tr("Новых уведомлений нет"); color: "#b7ad9b" }
+                    Text { anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 10; visible: notices.count === 0; text: root.tr("Новых уведомлений нет"); color: "#b7ad9b" }
                 }
             }
             Flickable {
@@ -156,12 +165,13 @@ MetalPanel {
                 boundsBehavior:Flickable.StopAtBounds
                 ScrollBar.vertical:MetalScrollBar { parent:aboutScroll;anchors.right:aboutScroll.right;anchors.top:aboutScroll.top;anchors.bottom:aboutScroll.bottom }
                 ColumnLayout {
-                    id: aboutScrollContent; width:aboutScroll.width-12
+                    id: aboutScrollContent; width:Math.min(820, aboutScroll.width-12); anchors.horizontalCenter: parent.horizontalCenter; spacing: 10
                 RowLayout {
                     Layout.fillWidth:true;spacing:22
                     Image {source:"command_logo.png";Layout.preferredWidth:230;Layout.preferredHeight:100;fillMode:Image.PreserveAspectFit}
                     ColumnLayout {Layout.fillWidth:true
                         Text {text:"CoD2 Chat Translator";color:"#f5e7c9";font.pixelSize:22;font.bold:true}
+                        Text {text:root.tr("Перевод игрового чата и мониторинг серверов Call of Duty 2.");wrapMode:Text.WordWrap;Layout.fillWidth:true;color:"#d6c9ae"}
                         Text {text:prototype.appVersion+" · kriskarter";color:"#d7b77d";font.pixelSize:15}
                         Text {text:root.tr("Неофициальная утилита. Copyright © 2026 kriskarter. Все права защищены.");wrapMode:Text.WordWrap;Layout.fillWidth:true;color:"#bcb09a"}
                         RowLayout {
@@ -189,20 +199,38 @@ MetalPanel {
             }
             }
             ColumnLayout {
-                MetalButton { text: root.tr("Обновить статистику"); enabled: prototype.experienceAvailable; onClicked: prototype.refreshStats() }
+                RowLayout {
+                    Layout.fillWidth: true; Layout.maximumWidth: 820
+                    Text { Layout.fillWidth: true; text: root.tr("Скорость перевода"); font.pixelSize: 18; font.bold: true; color: "#e4c291" }
+                    MetalButton { text: root.tr("Обновить статистику"); enabled: prototype.experienceAvailable; onClicked: prototype.refreshStats() }
+                }
+                Text {
+                    visible: prototype.observationCount > 0
+                    text: root.tr("Сообщений в локальном опыте") + "  ·  " + prototype.observationCount
+                    color: "#ebd6ae"; font.pixelSize: 15
+                }
+                Text {
+                    visible: !statsList.count
+                    text: root.tr("Нет измерений. Включите локальный опыт и обновите статистику.")
+                    color: "#c3bba8"; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                }
                 ListView {
-                    id: statsList; Layout.fillWidth: true; Layout.fillHeight: true; model: prototype.experienceStats; clip: true
-                    Text {anchors.centerIn:parent;visible:statsList.count===0;text:root.tr("Нет измерений. Включите локальный опыт и обновите статистику.");color:"#bcb09a";wrapMode:Text.WordWrap;width:parent.width*.8;horizontalAlignment:Text.AlignHCenter}
+                    id: statsList; Layout.fillWidth: true; Layout.maximumWidth: 820; Layout.fillHeight: true
+                    model: prototype.experienceStats; visible: count > 0; clip: true; spacing: 4
+                    ScrollBar.vertical: MetalScrollBar {}
                     delegate: Rectangle {
                         required property var modelData
-                        width: statsList.width; height: 40; color: "#232725"; radius: 4
+                        width: statsList.width - 12; height: 52; color: "#252923"; radius: 5
                         RowLayout {
-                            anchors.fill: parent; anchors.margins: 8
-                            Text { text: modelData.group; color: "#f5e7c9"; Layout.fillWidth: true }
-                            Text { text: "n=" + modelData.samples + " · p50 " + modelData.p50_ms + " ms · p95 " + modelData.p95_ms + " ms"; color: "#d4a75e" }
+                            anchors.fill: parent; anchors.margins: 10
+                            Text { text: modelData.group; color: "#f5e7c9"; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Text { text: root.tr("Замеров") + "  " + modelData.samples; color: "#d7ceb9" }
+                            Text { text: root.tr("Медиана") + "  " + modelData.p50_ms + " " + root.tr("мс"); color: "#e4c291" }
+                            Text { text: root.tr("95% быстрее") + "  " + modelData.p95_ms + " " + root.tr("мс"); color: "#e4c291" }
                         }
                     }
                 }
+                Item { visible: !statsList.count; Layout.fillHeight: true }
             }
             Flickable {
                 id: hudScroll
@@ -219,9 +247,9 @@ MetalPanel {
                     }
                     Rectangle {
                         id:hudStage
-                        Layout.fillWidth:true;Layout.preferredHeight:132;radius:6;color:"#151b19";border.color:"#686b59";clip:true
-                        Image {anchors.fill:parent;source:"../assets/ui_premium/translation_card_source.jpg";fillMode:Image.PreserveAspectCrop;opacity:.48;clip:true}
-                        Text {anchors.right:parent.right;anchors.top:parent.top;anchors.margins:6;text:root.tr("Перетащите тестовый HUD");color:"#e8d9ba";font.pixelSize:11}
+                        Layout.fillWidth:true;Layout.preferredHeight:Math.min(200, Math.max(132, root.height * .38));radius:6;color:"#151b19";border.color:"#686b59";clip:true
+                        Image {anchors.fill:parent;source:"art/hud_village.jpg";fillMode:Image.PreserveAspectCrop;opacity:.85;clip:true}
+                        Text {anchors.right:parent.right;anchors.top:parent.top;anchors.margins:6;text:root.tr("Перетащите тестовый HUD");style:Text.Outline;styleColor:"#322c23";color:"#fff0d3";font.pixelSize:11}
                         Rectangle {
                             id:hudSample
                             property real editX:0
@@ -230,7 +258,7 @@ MetalPanel {
                             x:dragArea.pressed?editX:prototype.hudPosition.x*Math.max(0,parent.width-width)
                             y:dragArea.pressed?editY:prototype.hudPosition.y*Math.max(0,parent.height-height)
                             color:Qt.rgba(0,0,0,prototype.preferences.opacity);radius:4;border.color:"#d0af72"
-                            Text {anchors.centerIn:parent;text:"TEST · "+root.tr("Тест оверлея");color:"#f0e7d4";font.pixelSize:Math.min(16,prototype.preferences.font+1);width:parent.width-8;elide:Text.ElideRight;horizontalAlignment:Text.AlignHCenter}
+                            Text {anchors.centerIn:parent;text:root.tr("Тест · Сообщение команды");style:Text.Outline;styleColor:"#252722";color:"#f0e7d4";font.pixelSize:Math.min(16,prototype.preferences.font+1);width:parent.width-8;elide:Text.ElideRight;horizontalAlignment:Text.AlignHCenter}
                             MouseArea {
                                 id:dragArea;anchors.fill:parent;cursorShape:Qt.SizeAllCursor
                                 property real dx
@@ -242,21 +270,21 @@ MetalPanel {
                         }
                     }
                     GridLayout {
-                        columns: 3; Layout.fillWidth: true
-                        MetalButton { text: root.tr("Только текст"); Layout.fillWidth: true; onClicked: prototype.applyHudPreset("text") }
-                        MetalButton { text: root.tr("Минимальный"); Layout.fillWidth: true; onClicked: prototype.applyHudPreset("minimal") }
-                        MetalButton { text: root.tr("Читаемый"); Layout.fillWidth: true; onClicked: prototype.applyHudPreset("readable") }
+                        columns: 3; Layout.alignment: Qt.AlignLeft
+                        MetalButton { text: root.tr("Только текст"); selected: prototype.hudPreset === "text"; onClicked: prototype.applyHudPreset("text") }
+                        MetalButton { text: root.tr("Минимальный"); selected: prototype.hudPreset === "minimal"; onClicked: prototype.applyHudPreset("minimal") }
+                        MetalButton { text: root.tr("Читаемый"); selected: prototype.hudPreset === "readable"; onClicked: prototype.applyHudPreset("readable") }
                     }
                     GridLayout {
-                        Layout.fillWidth: true; columns: width < 650 ? 1 : 2; columnSpacing: 18; rowSpacing: 4
+                        Layout.fillWidth: true; columns: hudContent.width < 760 ? 1 : 2; columnSpacing: 18; rowSpacing: 4
                         Repeater {
                             model: [{k:"font",label:"Размер текста",lo:8,hi:20,step:1},{k:"ttl",label:"Время показа",lo:1,hi:120,step:1},{k:"opacity",label:"Прозрачность фона",lo:0,hi:.9,step:.05},{k:"messages",label:"Количество сообщений",lo:1,hi:10,step:1},{k:"width",label:"Ширина",lo:200,hi:1200,step:10},{k:"height",label:"Высота",lo:46,hi:600,step:10}]
                             delegate: RowLayout {
                                 required property var modelData
                                 Layout.fillWidth: true
-                                Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.preferredWidth: 145; elide: Text.ElideRight }
+                                Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.preferredWidth: 150; Layout.minimumWidth: 120; elide: Text.ElideRight }
                                 MetalSlider { from: modelData.lo; to: modelData.hi; stepSize: modelData.step; value: prototype.preferences[modelData.k]; Layout.fillWidth: true; onMoved: prototype.setHudValue(modelData.k,value) }
-                                Text { text: modelData.k === "opacity" ? Math.round(prototype.preferences.opacity*100)+"%" : Math.round(prototype.preferences[modelData.k]); color: "#e4c291"; Layout.preferredWidth: 42 }
+                                Text { text: modelData.k === "opacity" ? Math.round(prototype.preferences.opacity*100)+"%" : Math.round(prototype.preferences[modelData.k]) + (modelData.k === "ttl" ? " " + root.tr("с") : ""); color: "#e4c291"; Layout.preferredWidth: 42 }
                             }
                         }
                         Repeater {
@@ -283,6 +311,6 @@ MetalPanel {
             }
         }
         RowLayout {visible:["overlay","knowledge","notifications"].indexOf(root.page)>=0&&prototype.settingsWritable;Layout.fillWidth:true;Item {Layout.fillWidth:true} AmberButton {text:root.tr("Сохранить настройки");onClicked:prototype.saveSettings()} }
-        Text { visible:root.page!=="about";text: prototype.translationStatus; color: "#d4a75e"; elide: Text.ElideRight; Layout.fillWidth: true }
+        
     }
 }

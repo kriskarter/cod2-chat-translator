@@ -77,7 +77,7 @@ MetalPanel {
             Text { text: (prototype.uiLanguage, prototype.trText("Избранные игроки")); color: "#f5e7c9"; font.pixelSize: 17; font.bold: true }
             RowLayout {
                 MetalTextField { id: friendInput; placeholderText: (prototype.uiLanguage, prototype.trText("Ник игрока")); Layout.fillWidth: true }
-                MetalButton { text: "+"; Layout.preferredWidth: 36; onClicked: if (prototype.addFriend(friendInput.text)) friendInput.clear() }
+                MetalButton { text: (prototype.uiLanguage, prototype.trText("Добавить")); glyph: "icons/add.svg"; enabled: friendInput.text.trim().length > 0; onClicked: if (prototype.addFriend(friendInput.text)) friendInput.clear() }
             }
             Text {visible:prototype.friendSaveError.length>0;text:prototype.friendSaveError;color:"#e99b83";wrapMode:Text.WordWrap;Layout.fillWidth:true}
             ListView {

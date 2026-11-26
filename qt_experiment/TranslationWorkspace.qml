@@ -32,7 +32,7 @@ MetalPanel {
             MetalButton {text:root.tr("Экспорт JSON");enabled:prototype.history.length>0;onClicked:historyExport.open()}
             MetalButton {text:root.tr("Очистить");enabled:prototype.history.length>0;onClicked:historyClear.open()}
         }
-        Text { visible:root.page!=="history";text: prototype.translationStatus; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+        
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight:0
             currentIndex: root.page === "settings" ? 0 : root.page === "outgoing" ? 1 : 2
@@ -55,7 +55,8 @@ MetalPanel {
                     spacing: 10
                     GridLayout {
                         Layout.fillWidth: true
-                        columns: width < 800 ? 3 : 5
+                        Layout.maximumWidth: 780
+                        columns: settingsScroll.width < 800 ? 3 : 5
                         columnSpacing: 6; rowSpacing: 6
                         MetalButton { glyph:"icons/servers.svg";text: root.tr("Профили"); Layout.fillWidth: true; onClicked: root.navigate("profiles") }
                         MetalButton { glyph:"icons/chip.svg";text: root.tr("База знаний"); Layout.fillWidth: true; onClicked: root.navigate("knowledge") }
@@ -67,6 +68,7 @@ MetalPanel {
                         columns: width < 680 ? 1 : 2
                         Layout.fillWidth: true; columnSpacing: 12; rowSpacing: 12
                         MetalPanel {
+                            artBorder: false
                             Layout.fillWidth: true
                             Layout.preferredHeight: inputForm.implicitHeight + 32
                             ColumnLayout {
@@ -98,6 +100,7 @@ MetalPanel {
                             }
                         }
                         MetalPanel {
+                            artBorder: false
                             Layout.fillWidth: true
                             Layout.preferredHeight: engineForm.implicitHeight + 32
                             ColumnLayout {
@@ -192,7 +195,7 @@ MetalPanel {
                     ColumnLayout {
                         id: entry
                         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 9
-                        Text { text: (modelData.received || "—") + " · " + modelData.nickname + " · " + modelData.elapsed + " ms"; textFormat: Text.PlainText; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
+                        Text { text: (modelData.received || "—") + " · " + modelData.nickname + " · " + modelData.elapsed + " " + root.tr("мс"); textFormat: Text.PlainText; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
                         Text { text: modelData.original; textFormat: Text.PlainText; color: "#bcb09a"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                         Text { text: modelData.translated || modelData.outcome; textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     }

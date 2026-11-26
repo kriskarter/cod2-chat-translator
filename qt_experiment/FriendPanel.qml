@@ -6,7 +6,7 @@ Popup {
  objectName:"friends_panel"
  parent:Overlay.overlay
  anchors.centerIn:parent
- width:Math.min(parent.width-24,760)
+ width:Math.min(parent.width-24,prototype.friendRows.length > 0 ? 660 : 540)
  height:Math.min(parent.height-24, Math.max(238, 166 + Math.max(1,prototype.friendRows.length)*70 + (prototype.friendSaveError.length>0?34:0)))
  modal:true;focus:true;padding:16
  closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside

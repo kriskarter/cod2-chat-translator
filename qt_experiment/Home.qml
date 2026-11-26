@@ -30,6 +30,25 @@ ApplicationWindow {
     palette.buttonText: "#f5e7c9"
     palette.highlight: "#88622d"
     palette.highlightedText: "#fff1cd"
+    onActivePageChanged: feedbackTimer.stop()
+    Rectangle {
+        parent: window.contentItem; z: 98; visible: feedbackTimer.running
+        anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottomMargin: 12
+        width: Math.min(parent.width - 32, feedbackText.implicitWidth + 34); height: feedbackText.implicitHeight + 18
+        radius: 6; color: "#202823"; border.color: "#817759"
+        Text { id: feedbackText; anchors.centerIn: parent; width: parent.width - 24; wrapMode: Text.Wrap; textFormat: Text.PlainText; horizontalAlignment: Text.AlignHCenter }
+        Timer { id: feedbackTimer; interval: 3500 }
+        Connections {
+            target: prototype
+            ignoreUnknownSignals: true
+            function onFeedback(page, message, error) {
+                if (page && page !== window.activePage) return
+                feedbackText.text = message
+                feedbackText.color = error ? "#f1ac93" : "#d2e5b4"
+                feedbackTimer.restart()
+            }
+        }
+    }
     FriendPanel {id:friendsPanel}
     Rectangle {
         id:notice;objectName:"friend_notice";parent:window.contentItem;z:100
@@ -202,7 +221,7 @@ ApplicationWindow {
         }
         MetalPanel {
             objectName:"system_bar"
-            Image {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:6;height:4;source:"art_glint.png";fillMode:Image.Tile;opacity:.68}
+            Image {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:6;height:2;source:"art_glint.png";fillMode:Image.Tile;opacity:.42}
             visible:window.activePage==="home" || !window.shortWindow
             Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 48 : 65; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
             Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.bottomMargin: 8

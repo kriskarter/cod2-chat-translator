@@ -40,7 +40,10 @@ def read_translation_config(path: Path | None):
     return deep_merge(DEFAULT_CONFIG, raw)
 
 
+HUD_PRESETS = {"text": (420, 120, 9, 0.), "minimal": (420, 120, 9, .15), "readable": (500, 150, 10, .12)}
+
 class TranslationState(LiveMonitorState):
+    feedback = Signal(str, str, bool)
     translationChanged = Signal()
     # These existing methods access only the ingress contract below, not Tk.
     # Keeping one algorithm preserves deduplication, context and local fast path.
@@ -111,6 +114,7 @@ class TranslationState(LiveMonitorState):
         self._experience = None
         self._previous_experience = translation_memory.RUNTIME
         self._experience_stats = []
+        self._observation_count = 0
         self._knowledge_previous = knowledge_v2.RUNTIME
         bundled = ROOT / "assets" / "knowledge_v2.json"
         runtime = knowledge_v2.KnowledgeRuntime(bundled, installed_knowledge or bundled)
@@ -222,9 +226,11 @@ class TranslationState(LiveMonitorState):
             self._store.save(config)
             self._config = config
             self.game_status("Настройки сохранены")
+            self.feedback.emit("", self.translationStatus, False)
             return True
         except (OSError, RuntimeError) as error:
             self.game_status(self.trText("Ошибка сохранения") + ": " + str(error))
+            self.feedback.emit("", self.translationStatus, True)
             return False
 
     def _settings_changed(self):
@@ -463,9 +469,17 @@ class TranslationState(LiveMonitorState):
         self._hud._render()
         self.translationChanged.emit()
 
+    @Property(str, notify=translationChanged)
+    def hudPreset(self):
+        prefs = self.preferences
+        if not all(prefs[k] for k in ("onlyMessages", "compact", "fade", "autoHeight")) or prefs["messages"] != 4 or prefs["ttl"] != 10:
+            return ""
+        values = tuple(prefs[k] for k in ("width", "height", "font", "opacity"))
+        return next((name for name, preset in HUD_PRESETS.items() if values == preset), "")
+
     @Slot(str)
     def applyHudPreset(self, preset):
-        values = {"text":(420,120,9,0.),"minimal":(420,120,9,.15),"readable":(500,150,10,.12)}.get(preset)
+        values = HUD_PRESETS.get(preset)
         if values is None: return
         w,h,font,opacity = values
         self._hud.config.update(width=w,height=h,font_size=font,background_opacity=opacity,
@@ -556,6 +570,10 @@ class TranslationState(LiveMonitorState):
 
     @Property('QVariantList', notify=translationChanged)
     def experienceStats(self): return list(self._experience_stats)
+
+    @Property(int, notify=translationChanged)
+    def observationCount(self):
+        return self._observation_count
 
     @Slot()
     def refreshStats(self):
@@ -903,14 +921,17 @@ class TranslationState(LiveMonitorState):
                 if not ok:
                     self._translation_status = self.trText("Ошибка") + ": " + str(data)
                 elif task == "stats":
-                    count, total, metrics = data
-                    self._experience_stats = [dict(group="Total", samples=total, failed=0, p50_ms="—", p95_ms="—")]
-                    self._experience_stats.extend(dict(group=group, **values) for group, values in sorted(metrics.items()))
+                    _, total, metrics = data
+                    self._observation_count = total
+                    self._experience_stats = [dict(group=group, **values) for group, values in sorted(metrics.items())]
                 elif task == "clear":
+                    self._observation_count = 0
                     self._experience_stats = []
                     self._translation_status = self.trText("Локальный опыт очищен")
                 elif task == "export":
                     self._translation_status = self.trText("Экспорт сохранён") + ": " + str(data)
+                if task != "stats" or not ok:
+                    self.feedback.emit("stats" if task == "stats" else "knowledge", self.translationStatus, not ok)
                 changed = True
                 continue
             if kind == "qt_maintenance":
@@ -943,6 +964,8 @@ class TranslationState(LiveMonitorState):
                         self.discardUpdate()
                         self._update_message=self.trText("Загрузка отменена")
                     else: self._update_message=self.trText("SHA-256 проверен. Можно установить обновление.")
+                if task in ("profiles", "logging", "knowledge"):
+                    self.feedback.emit("knowledge" if task == "knowledge" else "profiles", self.translationStatus, bool(error))
                 changed = True
                 continue
             if kind in ("screenshot_saved", "screenshot_error"):

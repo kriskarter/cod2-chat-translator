@@ -18,13 +18,13 @@ MetalPanel {
  clip:true
  artBorder:false
  Image { anchors.fill:parent;anchors.margins:4;source:root.artwork;sourceSize.width:1024;fillMode:Image.PreserveAspectCrop;opacity:1 }
- Rectangle { anchors.fill:parent;anchors.margins:4;gradient:Gradient {orientation:Gradient.Horizontal;GradientStop{position:0;color:"#cc171916"} GradientStop{position:.55;color:"#6b171916"} GradientStop{position:1;color:"#16171919"} } }
+ Rectangle { anchors.fill:parent;anchors.margins:4;gradient:Gradient {orientation:Gradient.Horizontal;GradientStop{position:0;color:"#cc171916"} GradientStop{position:.55;color:"#9a171916"} GradientStop{position:1;color:"#34171919"} } }
  ArtFrame {anchors.fill:parent;z:1}
  KeycapButton {
   id:key
   objectName:root.keyName.toLowerCase()+"Key"
   anchors.left:parent.left;anchors.leftMargin:root.compact?8:16;anchors.verticalCenter:parent.verticalCenter
-  width:root.compact?Math.min(62,Math.max(42,root.height-24)):Math.min(112,root.height-24)
+  width:root.compact?Math.min(62,Math.max(42,root.height-24)):Math.min(94,root.height-24)
   height:width;text:root.keyName;active:root.active;enabled:root.controlsEnabled
   onClicked:root.toggled()
  }
