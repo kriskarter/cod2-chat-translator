@@ -3,6 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 MetalPanel {
  id:root
+ artBorder:false
+ Rectangle {anchors.fill:parent;color:"transparent";border.color:"#71644f";radius:5;z:1}
  property var players:[]
  property string population:"—"
  property string menuRaw:""

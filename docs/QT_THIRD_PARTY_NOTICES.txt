@@ -1,0 +1,15 @@
+CoD2 Chat Translator Qt Preview — Qt components
+Qt 6.8.3 / PySide6 6.8.3 / Shiboken6 6.8.3
+Copyright The Qt Company Ltd. and contributors.
+The Qt runtime and bindings used here are distributed under LGPL-3.0 (where available); other third-party parts retain their respective terms.
+Qt runtime is shipped in a dynamic, onedir layout, not statically linked. Recipients may replace LGPL libraries with compatible modified builds and reverse engineer the combined work as needed to debug such modifications, notwithstanding the application copyright notice. No additional restriction is imposed on these library rights.
+Corresponding upstream source (unmodified):
+https://download.qt.io/archive/qt/6.8/6.8.3/single/
+https://download.qt.io/official_releases/QtForPython/pyside6/
+https://code.qt.io/cgit/pyside/pyside-setup.git/?h=v6.8.3
+Qt and PySide notices:
+https://doc.qt.io/qt-6.8/licensing.html
+https://doc.qt.io/qtforpython-6.8/licenses.html
+For Qt component source or replacement assistance, contact the project via GitHub issues.
+GPL-3.0 and LGPL-3.0 texts accompany this installer.
+See the build-specific inventory for resolved Python packages and Qt DLLs. Distribution compliance requires review of every bundled component, not merely this notice.

@@ -49,7 +49,7 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
     try:
         for lang in ("ru","uk","en"):
             state.setUiLanguage(lang)
-            for width,height in ((1366,768),(1536,864),(1920,1080),(900,500)):
+            for width,height in ((1366,768),(1342,672),(1536,864),(1920,1080),(900,500)):
                 window.resize(width,height);window.setProperty("activePage","home");QTest.qWait(60)
                 for card, names in [("f8Card",("f8Key","f8Switch","f8Language")),("f9Card",("f9Key","f9Switch","f9Language","f9Target","manual_outgoing"))]:
                     parent=find_visible(content,card)
@@ -63,12 +63,23 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
                     item=find_visible(content,name)
                     assert item is not None,name
                     inside(item,content)
+                header=[bounds(find_visible(content,n)) for n in ("command_banner","command_logo","command_navigation")]
                 window.setProperty("activePage","settings");QTest.qWait(60)
+                assert header==[bounds(find_visible(content,n)) for n in ("command_banner","command_logo","command_navigation")]
+                scroll=find_visible(content,"settings_scroll")
+                scroll.setProperty("contentY",max(0,scroll.property("contentHeight")-scroll.height()))
+                QTest.qWait(60)
+                inside(find_visible(content,"settings_last"),scroll)
                 save=find_visible(content,"save_settings")
                 assert save is not None
                 inside(save,find_visible(content,"translation_workspace"))
                 window.setProperty("activePage","servers");QTest.qWait(60)
                 inside(find_visible(content,"server_save"),find_visible(content,"server_workspace"))
+                for name in ("server_add","server_refresh","server_connect"):
+                    button=find_visible(content,name)
+                    inside(button,find_visible(content,"server_workspace"))
+                    assert bounds(button)[3] <= bounds(find_visible(content,"server_save"))[1]+1
+                assert header==[bounds(find_visible(content,n)) for n in ("command_banner","command_logo","command_navigation")]
                 window.setProperty("activePage","outgoing");QTest.qWait(60)
                 inside(find_visible(content,"save_settings"),find_visible(content,"translation_workspace"))
         assert not errors,errors

@@ -16,14 +16,13 @@ Button {
    Text { id: labelText; text: root.text; font: root.font; color: root.enabled ? "#fff0d3" : "#999385"; width: Math.min(implicitWidth, Math.max(1,root.availableWidth-(ico.visible?22:0))); elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter }
   }
  }
- background: Rectangle {
-  radius: 5; border.width: 1; border.color: root.activeFocus ? "#f3cd8b" : root.gold && root.enabled ? "#cda35e" : root.hovered ? "#a28b66" : "#777064"
-  gradient: Gradient {
-   GradientStop { position: 0; color: !root.enabled ? "#353631" : root.gold ? (root.down ? "#73501e" : "#b28746") : root.down ? "#252826" : root.hovered ? "#575750" : "#444640" }
-   GradientStop { position: .47; color: !root.enabled ? "#282b29" : root.gold ? "#775122" : "#343632" }
-   GradientStop { position: 1; color: root.gold && root.enabled ? "#392a18" : "#202321" }
+ background: Item {
+  BorderImage {
+   anchors.fill:parent
+   source:"../assets/ui_wwii/premium_"+(root.gold?"amber":"metal")+"_"+(!root.enabled?"disabled":root.down?"pressed":root.hovered?"hover":"normal")+".png"
+   border.left:12;border.right:12;border.top:11;border.bottom:11
   }
-  Rectangle { x: 5; y: 2; width: Math.max(0,parent.width-10); height: 1; color: root.gold ? "#e8bc73" : "#77776a"; opacity: root.enabled ? .65 : .2 }
+  Rectangle {anchors.fill:parent;anchors.margins:1;radius:4;color:"transparent";border.color:root.activeFocus?"#f0c784":"transparent"}
  }
  ToolTip.visible: hovered && labelText.truncated
  ToolTip.text: text

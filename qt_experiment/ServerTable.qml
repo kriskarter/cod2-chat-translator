@@ -30,6 +30,7 @@ ColumnLayout {
    width:Math.max(0,table.width-9);height:28;radius:4
    color:root.selected===modelData.address?"#56452a":index%2?"#202421":"#252923"
    border.color:root.selected===modelData.address?"#c49a58":"transparent"
+   Image {anchors.fill:parent;anchors.margins:1;source:"amber_surface.png";opacity:root.selected===line.modelData.address?.22:0}
    Cells {anchors.fill:parent;anchors.leftMargin:7;anchors.rightMargin:7;values:[line.modelData.name,line.modelData.map,line.modelData.population,line.modelData.ping,(prototype.uiLanguage,prototype.trText(line.modelData.state))];favorite:!!line.modelData.favorite;online:line.modelData.state==="online"}
    TapHandler {onTapped:root.chosen(line.modelData.address)}
    HoverHandler {id:hover}

@@ -30,6 +30,9 @@ Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 Source: "..\dist\CoD2ChatTranslatorQt\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\COPYRIGHT.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\docs\QT_THIRD_PARTY_NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\docs\qt_licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "..\qt_dependency_inventory.txt"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 [Run]

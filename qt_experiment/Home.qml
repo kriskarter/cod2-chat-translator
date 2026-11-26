@@ -7,7 +7,7 @@ ApplicationWindow {
     visible: true
     width: 1366; height: 768
     minimumWidth: 840; minimumHeight: 460
-    title: "CoD2 Chat Translator — " + (prototype.demo ? (prototype.uiLanguage, prototype.trText("демонстрация")) : prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Translation · разработка")) : (prototype.uiLanguage, prototype.trText("UDP Monitor · разработка")))
+    title: "CoD2 Chat Translator" + (prototype.translationAvailable ? " — " + prototype.appVersion : prototype.demo ? " — Demo" : " — UDP Monitor")
     color: "#111313"
     property bool compact: width < 1100 || height < 620
     property bool shortWindow: height < 620
@@ -75,35 +75,39 @@ ApplicationWindow {
         spacing: 0
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: window.activePage !== "home" ? Math.min(94, window.height * .16) : Math.min(window.width / 6.9, window.height * (window.shortWindow ? .20 : .25))
+            objectName:"command_banner"
+            Layout.preferredHeight: Math.min(window.width / 7.7, window.height * (window.shortWindow ? .17 : .22))
+            Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             clip: true
             Rectangle { anchors.fill: parent; color: "#25251e" }
             Image {
                 anchors.fill: parent
-                source: "../assets/ui_premium/command_panorama.jpg"
+                source: "command_panorama_final.jpg"
                 fillMode: Image.PreserveAspectCrop
             }
             Image {
                 anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
-                height: parent.height * .78; width: Math.min(parent.width * .54, height * 4.2)
+                objectName:"command_logo"
+                height: parent.height * .79; width: Math.min(parent.width * .54, height * 4.2)
                 anchors.verticalCenterOffset: -parent.height * .055
                 source: "command_logo.png"
                 fillMode: Image.PreserveAspectFit
             }
             Row {
-                visible:window.activePage==="home"; anchors.horizontalCenter: parent.horizontalCenter; y: parent.height * .19
+                anchors.horizontalCenter: parent.horizontalCenter; y: parent.height * .19
                 spacing: Math.min(parent.width*.26,parent.height*1.7)
                 Repeater { model: 2; Image { source:"icons/star.svg"; width:Math.max(16,Math.min(30,window.height*.035)); height:width } }
             }
             Rectangle { anchors.horizontalCenter: parent.horizontalCenter; y:parent.height*.80; width:Math.min(parent.width*.38, parent.height*3.0); height:1; color:"#d0a45d" }
-            Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: window.activePage === "home" ? 7 : 3; text: "Intelligent Gaming Companion"; font.pixelSize: window.compact || window.activePage !== "home" ? 10 : 14; font.letterSpacing: 3; font.italic: true; color: "#ead7ad" }
+            Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: window.shortWindow ? 3 : 7; text: "Intelligent Gaming Companion"; font.pixelSize: window.compact ? 10 : 13; font.letterSpacing: 3; font.italic: true; color: "#ead7ad" }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#a27c49" }
         }
-        Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: window.shortWindow ? 36 : 44
-            color: "#191b1a"; border.color: "#68573c"
+        MetalPanel {
+            objectName:"command_navigation";artBorder:false
+            Layout.fillWidth: true; Layout.preferredHeight: window.shortWindow ? 34 : 40
+            Layout.minimumHeight:Layout.preferredHeight;Layout.maximumHeight:Layout.preferredHeight
             RowLayout {
-                anchors.fill: parent; anchors.leftMargin: 17; anchors.rightMargin: 17; anchors.topMargin: 3; anchors.bottomMargin: 3; spacing: 6
+                anchors.fill: parent; anchors.leftMargin: 17; anchors.rightMargin: 17; anchors.topMargin: 2; anchors.bottomMargin: 2; spacing: 1
                 Repeater {
                     model: [
                         {name:"Главная", icon:"home", key:"home"},
@@ -158,15 +162,15 @@ ApplicationWindow {
                 Layout.horizontalStretchFactor: 57
                 Layout.minimumWidth: window.compact ? 400 : 420
                 ColumnLayout {
-                    anchors.fill: parent; anchors.leftMargin: window.shortWindow ? 10 : 18; anchors.rightMargin: anchors.leftMargin; anchors.topMargin: window.shortWindow ? 9 : 18; anchors.bottomMargin: anchors.topMargin; spacing: window.shortWindow ? 3 : 7
+                    anchors.fill: parent; anchors.leftMargin: window.shortWindow ? 10 : 18; anchors.rightMargin: anchors.leftMargin; anchors.topMargin: window.shortWindow ? 6 : 10; anchors.bottomMargin: anchors.topMargin; spacing: window.shortWindow ? 3 : 5
                     RowLayout {
-                        Image { source:"icons/antenna.svg"; Layout.preferredWidth:32; Layout.preferredHeight:32 }
+                        Image { source:"../assets/ui_premium/radio_source.png";fillMode:Image.PreserveAspectFit; Layout.preferredWidth:32; Layout.preferredHeight:35 }
                         Text { text: (prototype.uiLanguage, prototype.trText("Мониторинг серверов")); color: ink; font.pixelSize: window.compact ? 17 : 21; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
                         FriendIndicator { count: prototype.friendCount;onOpenFriends:friendsPanel.open() }
                     }
                     ServerTable {
                         Layout.fillWidth: true; Layout.fillHeight: false
-                        Layout.preferredHeight: Math.min(30 + Math.max(1, prototype.rows.length)*30, window.shortWindow ? 80 : 135)
+                        Layout.preferredHeight: Math.min(24 + Math.max(1, prototype.rows.length)*28, window.shortWindow ? 56 : 112)
                         Layout.minimumHeight: 48
                         rows: prototype.rows; selected: prototype.selected
                         onChosen: address => prototype.select(address)
@@ -190,7 +194,7 @@ ApplicationWindow {
             id:workspaceLoader; objectName:"active_workspace"; Layout.minimumHeight:0
             active: prototype.serverManagementAvailable && window.activePage === "servers" || prototype.translationAvailable && window.activePage !== "home"
             visible: active; Layout.fillWidth: true; Layout.fillHeight: true
-            Layout.margins: 17
+            Layout.margins: window.shortWindow ? 7 : 12
             sourceComponent: window.activePage === "servers" ? serverPage : ["profiles","knowledge","notifications","about","stats","overlay"].indexOf(window.activePage) >= 0 ? operationsPage : translationPage
             Component { id: serverPage; ServerWorkspace { onAddRequested: addDialog.open();onOpenFriends:friendsPanel.open() } }
             Component { id: translationPage; TranslationWorkspace { page: window.activePage; onNavigate: page => window.activePage = page } }
@@ -198,11 +202,12 @@ ApplicationWindow {
         }
         MetalPanel {
             objectName:"system_bar"
+            Image {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:6;height:4;source:"art_glint.png";fillMode:Image.Tile;opacity:.68}
             visible:window.activePage==="home" || !window.shortWindow
-            Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 52 : 78; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
+            Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 48 : 65; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
             Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.bottomMargin: 8
             RowLayout {
-                anchors.fill: parent; anchors.margins: window.shortWindow ? 8 : 14; spacing: 10
+                anchors.fill: parent; anchors.margins: window.shortWindow ? 6 : 10; spacing: 10
                 OverlayControl { Layout.fillWidth: true; onConfigure: window.activePage = "overlay"; active: prototype.overlay; controlsEnabled: prototype.demo || prototype.overlayAvailable; onToggled: prototype.toggle("overlay") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
                 SmartEngineControl { Layout.fillWidth: true; active: prototype.smart; controlsEnabled: prototype.demo || prototype.translationAvailable; onToggled: prototype.toggle("smart") }

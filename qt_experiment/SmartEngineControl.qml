@@ -5,7 +5,7 @@ RowLayout {
     property bool controlsEnabled: true
     property bool active
     signal toggled()
-    Image { source: "../assets/ui_wwii/nav_knowledge.png"; Layout.preferredWidth: 24; Layout.preferredHeight: 24; fillMode: Image.PreserveAspectFit }
+    Image { source: "icons/chip.svg"; Layout.preferredWidth: 30; Layout.preferredHeight: 30; fillMode: Image.PreserveAspectFit }
     ColumnLayout {
         Layout.fillWidth: true; spacing: 2
         Text { text: "Smart Engine"; color: "#f5e7c9"; font.bold: true; font.pixelSize: 14 }

@@ -34,6 +34,12 @@ jobs:
           @{ tag = "qt-preview-" + $env:GITHUB_SHA.Substring(0,12); sha = $env:GITHUB_SHA } | ConvertTo-Json -Compress | Set-Content -Encoding utf8NoBOM qt_build.json
           pyinstaller --noconfirm --clean --paths . --onedir --windowed --name CoD2ChatTranslatorQt --icon assets/app.ico --add-data "assets;assets" --add-data "qt_build.json;." --add-data "qt_experiment;qt_experiment" --hidden-import PySide6.QtQuick --hidden-import PySide6.QtQuickControls2 --hidden-import PySide6.QtQml --hidden-import PySide6.QtTest qt_experiment/rc_entry.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Record resolved dependency inventory
+        shell: pwsh
+        run: |
+          python -m pip freeze | Set-Content -Encoding utf8 qt_dependency_inventory.txt
+          Add-Content qt_dependency_inventory.txt "`nBundled Qt DLLs:"
+          Get-ChildItem dist/CoD2ChatTranslatorQt -Recurse -Filter "Qt6*.dll" | ForEach-Object { $_.Name } | Sort-Object -Unique | Add-Content qt_dependency_inventory.txt
       - name: Smoke test actual frozen EXE
         shell: pwsh
         run: |
@@ -49,6 +55,22 @@ jobs:
             $p = Start-Process -FilePath $exe -ArgumentList $args -PassThru
             if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Frozen smoke timed out: $page" }
             if ($p.ExitCode -ne 0 -or !(Test-Path $out) -or (Get-Item $out).Length -lt 5000) { throw "Frozen smoke failed: $page" }
+          }
+      - name: Frozen actual client area, all pages RU UK EN
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "qt-evidence"
+          $exe = Join-Path $PWD "dist\CoD2ChatTranslatorQt\CoD2ChatTranslatorQt.exe"
+          $config = Join-Path $root "fixture.json"
+          $settings = Join-Path $root "qt_settings.json"
+          foreach ($lang in @("ru","uk","en")) {
+            foreach ($page in @("home","servers","settings","history","outgoing","profiles","knowledge","notifications","about","stats","overlay")) {
+              $out = Join-Path $root "client_${lang}_${page}.png"
+              $args = @("--config","`"$config`"","--settings-file","`"$settings`"","--ui-language",$lang,"--size","1342x672","--page",$page,"--screenshot","`"$out`"")
+              $p = Start-Process $exe -ArgumentList $args -PassThru
+              if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Client capture timeout" }
+              if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Client capture failed: $lang $page" }
+            }
           }
       - name: Frozen EXE scale and locale matrix (simulated DPI)
         shell: pwsh
@@ -94,7 +116,7 @@ jobs:
             if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Compact page failed: $page" }
           }
           Remove-Item Env:QT_SCALE_FACTOR -ErrorAction SilentlyContinue
-          foreach ($entry in @("home:add_server_dialog","servers:server_remove_dialog","history:history_clear_dialog","knowledge:knowledge_clear_dialog","profiles:game_logging_dialog","home:friends_panel","servers:friends_panel")) {
+          foreach ($entry in @("home:add_server_dialog","servers:server_remove_dialog","history:history_clear_dialog","knowledge:knowledge_clear_dialog","profiles:game_logging_dialog","home:friends_panel","servers:friends_panel","about:update_install_dialog")) {
             $parts = $entry.Split(":")
             $out = Join-Path $root "dialog_$($parts[0])_$($parts[1]).png"
             $args = @("--config","`"$config`"","--settings-file","`"$settings`"","--size","1366x768","--page",$parts[0],"--dialog",$parts[1],"--screenshot","`"$out`"")
@@ -123,6 +145,20 @@ jobs:
           $p = Start-Process $exe -ArgumentList @("--size","1366x768","--screenshot","`"$out`"") -PassThru
           if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Installed EXE timeout" }
           if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Installed EXE failed" }
+      - name: Verify reinstall preserves Qt settings and uninstall
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "cod2-qt-install"
+          $setup = Join-Path $PWD "release-qt\CoD2ChatTranslator_QtPreview_Setup.exe"
+          $settings = Join-Path $env:APPDATA "CoD2ChatTranslatorQtPreview\qt_settings.json"
+          New-Item -ItemType Directory -Force (Split-Path $settings) | Out-Null
+          '{"ui_language":"uk","test_update_preserve":true}' | Set-Content -Encoding utf8NoBOM $settings
+          $before = (Get-FileHash $settings -Algorithm SHA256).Hash
+          $p = Start-Process $setup -ArgumentList @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LANG=english","/DIR=`"$dir`"") -PassThru -Wait
+          if ($p.ExitCode -ne 0 -or (Get-FileHash $settings -Algorithm SHA256).Hash -ne $before) { throw "Reinstall settings preservation failed" }
+          $uninstall = Join-Path $dir "unins000.exe"
+          $p = Start-Process $uninstall -ArgumentList @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART") -PassThru -Wait
+          if ($p.ExitCode -ne 0 -or (Test-Path (Join-Path $dir "CoD2ChatTranslatorQt.exe")) -or (Get-FileHash $settings -Algorithm SHA256).Hash -ne $before) { throw "Uninstall/settings preservation failed" }
       - uses: actions/upload-artifact@v4
         with:
           name: qt-preview-windows-installer
@@ -149,4 +185,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="qt-preview-${GITHUB_SHA:0:12}"
-          gh release create "$tag" release-qt/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "CoD2 Chat Translator Qt Preview $tag" --notes "PR #9 isolated Qt preview. Native gameplay/DPI acceptance pending. Does not replace stable."
+          gh release create "$tag" release-qt/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "CoD2 Chat Translator Qt Preview $tag" --notes "Final premium RC: consistent panorama and navigation, compact friends panel, fixed server actions, textured controls, improved history and verified preview updater. Native gameplay/DPI acceptance pending. Does not replace stable."

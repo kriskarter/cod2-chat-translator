@@ -16,8 +16,10 @@ MetalPanel {
  signal manual()
  signal toggled()
  clip:true
- Image { anchors.fill:parent;anchors.margins:4;source:root.artwork;sourceSize.width:1024;fillMode:Image.PreserveAspectCrop;opacity:.94 }
- Rectangle { anchors.fill:parent;anchors.margins:4;gradient:Gradient {orientation:Gradient.Horizontal;GradientStop{position:0;color:"#e11a1d1a"} GradientStop{position:.55;color:"#941a1d1a"} GradientStop{position:1;color:"#30171919"} } }
+ artBorder:false
+ Image { anchors.fill:parent;anchors.margins:4;source:root.artwork;sourceSize.width:1024;fillMode:Image.PreserveAspectCrop;opacity:1 }
+ Rectangle { anchors.fill:parent;anchors.margins:4;gradient:Gradient {orientation:Gradient.Horizontal;GradientStop{position:0;color:"#cc171916"} GradientStop{position:.55;color:"#6b171916"} GradientStop{position:1;color:"#16171919"} } }
+ ArtFrame {anchors.fill:parent;z:1}
  KeycapButton {
   id:key
   objectName:root.keyName.toLowerCase()+"Key"
@@ -41,9 +43,10 @@ MetalPanel {
   }
   Text {visible:!root.live;text:root.description;color:"#e8d4b3";font.pixelSize:root.compact?11:13;elide:Text.ElideRight;Layout.fillWidth:true}
   Loader {
-   active:root.live;visible:active;Layout.fillWidth:true;Layout.minimumWidth:0;Layout.maximumWidth:root.keyName==="F8"?180:340
+   active:root.live;visible:active;Layout.fillWidth:true;Layout.minimumWidth:0;Layout.maximumWidth:root.keyName==="F8"?235:340
    sourceComponent:RowLayout {
     spacing:3
+    Text {visible:root.keyName==="F8";text:(prototype.uiLanguage,prototype.trText("Авто"))+" →";color:"#e1c18a";font.pixelSize:11}
     LanguageSelector {
      objectName:root.keyName.toLowerCase()+"Language"
      model:root.keyName==="F8"?prototype.languages:prototype.outgoingLanguages

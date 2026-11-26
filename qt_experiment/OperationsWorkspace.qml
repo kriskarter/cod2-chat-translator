@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 MetalPanel {
     id: root
-    function showEvidenceDialog(name) { if (name==="knowledge_clear_dialog") clearDialog.open(); else if (name==="game_logging_dialog") loggingDialog.open() }
+    function showEvidenceDialog(name) { if (name==="knowledge_clear_dialog") clearDialog.open(); else if (name==="game_logging_dialog") loggingDialog.open();else if(name==="update_install_dialog") updateConfirm.open() }
     clip:true; objectName:"operations_workspace"
     property string page: "profiles"
     signal back()
@@ -38,8 +38,16 @@ MetalPanel {
         Text { width: 335; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Включить logfile 2 в конфигурациях CoD2? Файлы запущенной игры не изменяются.") }
         onAccepted: prototype.enableGameLogging()
     }
+    MetalDialog {
+        id:updateConfirm;objectName:"update_install_dialog";title:root.tr("Установить обновление?");anchors.centerIn:parent;standardButtons:Dialog.NoButton
+        ColumnLayout {
+            Text {text:root.tr("Приложение закроется. Настройки сохранятся. Запустится проверенный установщик Qt Preview.");width:360;wrapMode:Text.WordWrap;color:"#f5e7c9";Layout.preferredWidth:360}
+            Text {text:root.tr("SHA-256 проверяет целостность, но не является цифровой подписью.");wrapMode:Text.WordWrap;color:"#c6b79e";Layout.fillWidth:true}
+            RowLayout {MetalButton {text:root.tr("Отмена");onClicked:updateConfirm.close()} AmberButton {text:root.tr("Установить");onClicked:{updateConfirm.close();prototype.installUpdate()}}}
+        }
+    }
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: 24; spacing: 10
+        anchors.fill: parent; anchors.margins: 14; spacing: 7
         RowLayout { Layout.fillWidth:true
         MetalButton { text:root.tr("Назад");visible:root.page!=="about";onClicked:root.back() }
         Text { Layout.fillWidth:true; text: root.tr(({profiles:"Профили",knowledge:"База знаний",notifications:"Уведомления",about:"О программе",stats:"Статистика",overlay:"Настройки оверлея"})[root.page] || (prototype.uiLanguage, prototype.trText("О программе"))); font.pixelSize: 23; font.bold: true; color: "#f5e7c9" }
@@ -164,9 +172,17 @@ MetalPanel {
                     }
                 }
                 Text { text: root.tr("Изолированная тестовая версия. Стабильная установка не изменяется."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Rectangle {height:1;color:"#786342";Layout.fillWidth:true}
+                Text {text:root.tr("Канал обновлений")+": Qt Preview / RC · "+prototype.buildNumber;color:"#d7b77d";wrapMode:Text.WordWrap;Layout.fillWidth:true}
                 Text { text: root.tr("Обновления"); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
-                MetalButton { text: root.tr("Проверить обновления"); enabled: !prototype.maintenanceBusy; onClicked: prototype.checkUpdates() }
-                AmberButton { text: root.tr("Открыть страницу обновления"); visible: prototype.updateAvailable; onClicked: prototype.openUpdate() }
+                RowLayout {Layout.fillWidth:true
+                    MetalButton {glyph:"icons/refresh.svg";text:root.tr("Проверить обновления");enabled:!prototype.maintenanceBusy;onClicked:prototype.checkUpdates()}
+                    MetalButton {text:root.tr("Открыть страницу обновления");visible:prototype.updateAvailable;onClicked:prototype.openUpdate()}
+                    AmberButton {text:root.tr("Скачать и проверить");visible:prototype.updateAvailable&&prototype.updateInstallAvailable&&!prototype.updateReady;enabled:!prototype.maintenanceBusy;onClicked:prototype.downloadUpdate()}
+                    AmberButton {text:root.tr("Установить");visible:prototype.updateReady;enabled:!prototype.maintenanceBusy;onClicked:updateConfirm.open()}
+                    MetalButton {text:root.tr("Отмена");visible:prototype.updateAvailable&&(prototype.maintenanceBusy||prototype.updateReady);onClicked:prototype.discardUpdate()}
+                }
+                Text {visible:prototype.updateNotes.length>0;text:prototype.updateNotes;textFormat:Text.PlainText;wrapMode:Text.Wrap;Layout.fillWidth:true;color:"#e2d0af"}
                 Text { text: prototype.updateMessage; color: "#e6d5b8"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Text { text: root.tr("Стабильный пакет не устанавливается поверх Qt Preview."); color: "#b7ad9b"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
 
@@ -267,6 +283,6 @@ MetalPanel {
             }
         }
         RowLayout {visible:["overlay","knowledge","notifications"].indexOf(root.page)>=0&&prototype.settingsWritable;Layout.fillWidth:true;Item {Layout.fillWidth:true} AmberButton {text:root.tr("Сохранить настройки");onClicked:prototype.saveSettings()} }
-        Text { text: prototype.translationStatus; color: "#d4a75e"; elide: Text.ElideRight; Layout.fillWidth: true }
+        Text { visible:root.page!=="about";text: prototype.translationStatus; color: "#d4a75e"; elide: Text.ElideRight; Layout.fillWidth: true }
     }
 }

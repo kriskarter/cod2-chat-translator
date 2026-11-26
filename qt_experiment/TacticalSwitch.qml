@@ -7,7 +7,8 @@ Switch {
         width: 62; height: 24
         anchors.centerIn: parent; radius: 12
         gradient: Gradient { GradientStop {position:0;color:root.checked?"#384e2d":"#373a34"} GradientStop {position:1;color:root.checked?"#192b19":"#1a1d1b"} }
-        border.color: root.checked ? "#749650" : "#625d51"
+        border.color: root.hovered ? "#c5b47e" : root.checked ? "#749650" : "#625d51"
+        Image {anchors.fill:parent;anchors.margins:3;source:"metal_grain.png";fillMode:Image.Tile;opacity:.085}
         opacity: root.enabled ? 1 : .5
         Text {
             anchors.verticalCenter: parent.verticalCenter

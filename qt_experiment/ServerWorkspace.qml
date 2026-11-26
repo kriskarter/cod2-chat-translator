@@ -32,31 +32,30 @@ MetalPanel {
     }
     ColumnLayout {
         anchors.fill:parent;anchors.margins:14;spacing:5
-        Flickable {
-            id: serverScroll
-            Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0
-            clip:true;contentWidth:width;contentHeight:serverBody.height;boundsBehavior:Flickable.StopAtBounds
-            ScrollBar.vertical:MetalScrollBar {parent:serverScroll;anchors.top:serverScroll.top;anchors.bottom:serverScroll.bottom;anchors.right:serverScroll.right}
-            RowLayout {
-        id:serverBody
-        width:serverScroll.width-12;height:Math.max(serverScroll.height,350);spacing:12
+        RowLayout {
+            Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0;spacing:12
         ColumnLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 360
+            Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 350; Layout.minimumHeight:0
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Серверы CoD2")); font.bold: true; font.pixelSize: 22; color: "#fff0d1"; Layout.fillWidth: true }
                 FriendIndicator { count: prototype.friendCount;onOpenFriends:root.openFriends() }
             }
             Text { text: prototype.status; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
-            ServerTable { rows: prototype.rows; selected: prototype.selected; onChosen: address => prototype.select(address); Layout.fillWidth: true; Layout.preferredHeight: Math.min(140, 30 + 30*Math.max(1,prototype.rows.length)) }
-            PlayerRoster { population:prototype.selectedPopulation; players: prototype.players; Layout.fillWidth: true; Layout.fillHeight: true }
+            ServerTable { rows: prototype.rows; selected: prototype.selected; onChosen: address => prototype.select(address); Layout.fillWidth: true; Layout.fillHeight:false; Layout.minimumHeight:48; Layout.maximumHeight:Layout.preferredHeight; Layout.preferredHeight: Math.min(108, 24 + 28*Math.max(1,prototype.rows.length)) }
+            PlayerRoster { objectName:"server_roster";Layout.minimumHeight:40;population:prototype.selectedPopulation; players: prototype.players; Layout.fillWidth: true; Layout.fillHeight: true }
             RowLayout {
-                MetalButton { text: (prototype.uiLanguage, prototype.trText("Добавить")); glyph: "icons/add.svg"; Layout.fillWidth: true; onClicked: root.addRequested() }
-                MetalButton { text: (prototype.uiLanguage, prototype.trText("Обновить")); glyph: "icons/refresh.svg"; Layout.fillWidth: true; onClicked: prototype.request("refresh") }
-                AmberButton { text: (prototype.uiLanguage, prototype.trText("Подключиться")); enabled: prototype.canConnect && root.selectedAddress.length > 0; Layout.fillWidth: true; onClicked: prototype.request("connect") }
+                MetalButton { objectName:"server_add";text: (prototype.uiLanguage, prototype.trText("Добавить")); glyph: "icons/add.svg"; Layout.fillWidth: true; onClicked: root.addRequested() }
+                MetalButton { objectName:"server_refresh";text: (prototype.uiLanguage, prototype.trText("Обновить")); glyph: "icons/refresh.svg"; Layout.fillWidth: true; onClicked: prototype.request("refresh") }
+                AmberButton { objectName:"server_connect";text: (prototype.uiLanguage, prototype.trText("Подключиться")); enabled: prototype.canConnect && root.selectedAddress.length > 0; Layout.fillWidth: true; onClicked: prototype.request("connect") }
             }
         }
+        Flickable {
+            id:editorScroll;objectName:"server_editor_scroll"
+            Layout.preferredWidth:Math.min(400,root.width*.40);Layout.minimumWidth:270;Layout.fillHeight:true;Layout.minimumHeight:0
+            clip:true;contentWidth:width;contentHeight:editorBody.implicitHeight+8;boundsBehavior:Flickable.StopAtBounds
+            ScrollBar.vertical:MetalScrollBar {}
         ColumnLayout {
-            Layout.preferredWidth: Math.min(330, root.width * .35); Layout.fillHeight: true; spacing: 8
+            id:editorBody;width:editorScroll.width-14;height:implicitHeight;spacing:6
             Text { text: (prototype.uiLanguage, prototype.trText("Настройки сервера")); color: "#f5e7c9"; font.pixelSize: 17; font.bold: true }
             Text { text: root.selectedAddress || (prototype.uiLanguage, prototype.trText("Выберите сервер")); color: "#bcb09a"; Layout.fillWidth: true; elide: Text.ElideRight }
             Rectangle { visible:!!root.selectedRow;Layout.fillWidth:true;Layout.preferredHeight:66;radius:5;color:"#202621";border.color:"#675a44"
@@ -83,7 +82,7 @@ MetalPanel {
             Text {visible:prototype.friendSaveError.length>0;text:prototype.friendSaveError;color:"#e99b83";wrapMode:Text.WordWrap;Layout.fillWidth:true}
             ListView {
                 id: friendList
-                Layout.fillWidth: true; Layout.fillHeight: true
+                Layout.fillWidth: true; Layout.preferredHeight:Math.max(42,Math.min(160,prototype.friends.length*38));
                 model: prototype.friends; clip: true; spacing: 3
                 ScrollBar.vertical: MetalScrollBar {}
                 delegate: RowLayout {

@@ -21,7 +21,7 @@ MetalPanel {
         onAccepted:prototype.clearHistory()
     }
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: root.height < 350 ? 14 : 22; spacing: 8
+        anchors.fill: parent; anchors.margins: root.height < 350 ? 10 : 16; spacing: 8
         Text {
             text: root.page === "settings" ? (prototype.uiLanguage, prototype.trText("Настройки перевода")) : root.page === "outgoing" ? (prototype.uiLanguage, prototype.trText("Исходящий перевод · ручной режим")) : (prototype.uiLanguage, prototype.trText("История входящего перевода"))
             color: "#fff0d1"; font.bold: true; font.pixelSize: 22
@@ -32,15 +32,15 @@ MetalPanel {
             MetalButton {text:root.tr("Экспорт JSON");enabled:prototype.history.length>0;onClicked:historyExport.open()}
             MetalButton {text:root.tr("Очистить");enabled:prototype.history.length>0;onClicked:historyClear.open()}
         }
-        Text { text: prototype.translationStatus; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+        Text { visible:root.page!=="history";text: prototype.translationStatus; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight:0
             currentIndex: root.page === "settings" ? 0 : root.page === "outgoing" ? 1 : 2
             Flickable {
-                id: settingsScroll
+                id: settingsScroll;objectName:"settings_scroll"
                 clip: true
                 contentWidth: width
-                contentHeight: settingsContent.implicitHeight + 4
+                contentHeight: settingsContent.height + 12
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: MetalScrollBar {
                     parent: settingsScroll
@@ -51,17 +51,17 @@ MetalPanel {
                 }
                 ColumnLayout {
                     id: settingsContent
-                    width: settingsScroll.width - 15
+                    width: settingsScroll.width - 15; height:implicitHeight
                     spacing: 10
                     GridLayout {
                         Layout.fillWidth: true
                         columns: width < 800 ? 3 : 5
                         columnSpacing: 6; rowSpacing: 6
-                        MetalButton { text: root.tr("Профили"); Layout.fillWidth: true; onClicked: root.navigate("profiles") }
-                        MetalButton { text: root.tr("База знаний"); Layout.fillWidth: true; onClicked: root.navigate("knowledge") }
-                        MetalButton { text: root.tr("Уведомления"); Layout.fillWidth: true; onClicked: root.navigate("notifications") }
-                        MetalButton { text: root.tr("Статистика"); Layout.fillWidth: true; onClicked: root.navigate("stats") }
-                        MetalButton { text: root.tr("Оверлей"); Layout.fillWidth: true; onClicked: root.navigate("overlay") }
+                        MetalButton { glyph:"icons/servers.svg";text: root.tr("Профили"); Layout.fillWidth: true; onClicked: root.navigate("profiles") }
+                        MetalButton { glyph:"icons/chip.svg";text: root.tr("База знаний"); Layout.fillWidth: true; onClicked: root.navigate("knowledge") }
+                        MetalButton { glyph:"icons/friends.svg";text: root.tr("Уведомления"); Layout.fillWidth: true; onClicked: root.navigate("notifications") }
+                        MetalButton { glyph:"icons/history.svg";text: root.tr("Статистика"); Layout.fillWidth: true; onClicked: root.navigate("stats") }
+                        MetalButton { glyph:"icons/hud.svg";text: root.tr("Оверлей"); Layout.fillWidth: true; onClicked: root.navigate("overlay") }
                     }
                     GridLayout {
                         columns: width < 680 ? 1 : 2
@@ -132,7 +132,7 @@ MetalPanel {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: prototype.settingsWritable ? root.tr("Настройки сохраняются в отдельном Qt-файле.") : root.tr("Изменения действуют в этой сессии. Существующие файлы настроек не изменяются."); color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                        Text { objectName:"settings_last";text: prototype.settingsWritable ? root.tr("Настройки сохраняются в отдельном Qt-файле.") : root.tr("Изменения действуют в этой сессии. Существующие файлы настроек не изменяются."); color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
 
                     }
                 }
@@ -197,7 +197,12 @@ MetalPanel {
                         Text { text: modelData.translated || modelData.outcome; textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     }
                 }
-                Text { anchors.centerIn: parent; visible: history.count === 0; text: (prototype.uiLanguage, prototype.trText("Новые сообщения появятся здесь")); color: "#bcb09a" }
+                ColumnLayout {anchors.centerIn:parent;width:Math.min(parent.width-24,490);visible:history.count===0;spacing:8
+                    Image {source:"icons/history.svg";Layout.alignment:Qt.AlignHCenter;Layout.preferredWidth:36;Layout.preferredHeight:36}
+                    Text {text:root.tr(prototype.logReady?"Журнал подключён":"Журнал не выбран");color:"#e4c291";font.bold:true;font.pixelSize:16;Layout.alignment:Qt.AlignHCenter}
+                    Text {text:root.tr(!prototype.logReady?"Выберите игровой журнал в настройках.":!prototype.f8?"Входящий перевод выключен.":"Ожидание новых сообщений в игре.");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true;horizontalAlignment:Text.AlignHCenter}
+                    Text {text:root.tr("История хранится только до закрытия приложения.");color:"#a49c8d";wrapMode:Text.WordWrap;Layout.fillWidth:true;horizontalAlignment:Text.AlignHCenter}
+                }
             }
         }
         RowLayout {

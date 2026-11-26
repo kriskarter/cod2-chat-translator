@@ -62,6 +62,9 @@ class TranslationState(LiveMonitorState):
         self._maintenance_busy = False
         self._update_message = ""
         self._update_url = ""
+        self._update_candidate = None
+        self._update_package = None
+        self._update_cancel = threading.Event()
         self._knowledge_writable = installed_knowledge is not None and Path(installed_knowledge).resolve() != (ROOT / "assets" / "knowledge_v2.json").resolve()
         self._profile_timer = QTimer(self)
         self._profile_timer.setInterval(2500)
@@ -219,8 +222,10 @@ class TranslationState(LiveMonitorState):
             self._store.save(config)
             self._config = config
             self.game_status("Настройки сохранены")
+            return True
         except (OSError, RuntimeError) as error:
             self.game_status(self.trText("Ошибка сохранения") + ": " + str(error))
+            return False
 
     def _settings_changed(self):
         # Save only on explicit user request, never from a network callback.
@@ -253,6 +258,10 @@ class TranslationState(LiveMonitorState):
     def setUiLanguage(self, code):
         if code in ("ru", "uk", "en") and code != self.ui_language:
             self.ui_language = code
+            if self._store is not None:
+                try:
+                    saved=deepcopy(self._store.load(self._config));saved["ui_language"]=code;self._store.save(saved);self._config=saved
+                except (OSError,RuntimeError,ValueError) as error: self.game_status(self.trText("Ошибка сохранения")+": "+str(error))
             self.translationChanged.emit()
             self.changed.emit()
 
@@ -602,6 +611,22 @@ class TranslationState(LiveMonitorState):
     @Property(bool, notify=translationChanged)
     def updateAvailable(self): return bool(self._update_url)
 
+    @Property(str, notify=translationChanged)
+    def updateNotes(self): return self._update_candidate["notes"] if self._update_candidate else ""
+
+    @Property(bool, notify=translationChanged)
+    def updateReady(self): return self._update_package is not None
+
+    @Property(bool, constant=True)
+    def updateInstallAvailable(self):
+        from .preview_updates import installed_build
+        return os.name=="nt" and self._store is not None and bool(installed_build())
+
+    @Property(str, constant=True)
+    def buildNumber(self):
+        from .preview_updates import installed_build
+        return installed_build().get("tag","source")
+
     @Slot()
     def openUpdate(self):
         if self._update_url:
@@ -612,16 +637,57 @@ class TranslationState(LiveMonitorState):
     @Slot()
     def checkUpdates(self):
         if self._maintenance_busy: return
-        self._maintenance_busy = True
-        self._update_url = ""
+        self.discardUpdate()
+        self._maintenance_busy=True
+        self._update_url=""
+        self._update_candidate=None
+        self._update_message=self.trText("Проверка обновлений…")
         self.translationChanged.emit()
         def worker():
             from .preview_updates import check_preview_release
-            try:
-                self.ui_queue.put(("qt_maintenance", "updates", check_preview_release(), ""))
-            except Exception as e:
-                self.ui_queue.put(("qt_maintenance", "updates", None, str(e)))
-        threading.Thread(target=worker, daemon=True, name="QtUpdateCheck").start()
+            try: self.ui_queue.put(("qt_maintenance","updates",check_preview_release(),""))
+            except Exception as e: self.ui_queue.put(("qt_maintenance","updates",None,str(e)))
+        threading.Thread(target=worker,daemon=True,name="QtUpdateCheck").start()
+
+    @Slot()
+    def downloadUpdate(self):
+        if self._maintenance_busy or not self.updateInstallAvailable or not self._update_candidate:return
+        self.discardUpdate()
+        self._update_cancel.clear()
+        self._maintenance_busy=True
+        self._update_message=self.trText("Скачивание и проверка SHA-256…")
+        self.translationChanged.emit()
+        candidate=dict(self._update_candidate);directory=self._store.path.parent/"updates"
+        def worker():
+            from .preview_updates import download_preview
+            try: self.ui_queue.put(("qt_maintenance","update_download",download_preview(candidate,directory,cancelled=self._update_cancel.is_set),""))
+            except Exception as e: self.ui_queue.put(("qt_maintenance","update_download",None,str(e)))
+        threading.Thread(target=worker,daemon=True,name="QtUpdateDownload").start()
+
+    @Slot()
+    def discardUpdate(self):
+        self._update_cancel.set()
+        if self._update_package:
+            try: Path(self._update_package["path"]).unlink(missing_ok=True)
+            except OSError: pass
+            self._update_package=None
+        self.translationChanged.emit()
+
+    @Slot()
+    def installUpdate(self):
+        if self._maintenance_busy or not self.updateInstallAvailable or not self._update_package:return
+        from .preview_updates import verify_installer
+        from PySide6.QtGui import QGuiApplication
+        import subprocess
+        try:
+            path=verify_installer(self._update_package,self._store.path.parent/"updates")
+            if not self.saveSettings():return
+            subprocess.Popen([str(path)],cwd=str(path.parent),close_fds=True)
+            self._update_package=None
+            QGuiApplication.quit()
+        except (OSError,ValueError,RuntimeError) as error:
+            self._update_message=self.trText("Ошибка")+": "+str(error)
+            self.translationChanged.emit()
 
     @Slot(str, result=str)
     def trText(self, text):
@@ -676,7 +742,7 @@ class TranslationState(LiveMonitorState):
     def engineReady(self): return self._started and not self.stop_event.is_set()
 
     @Property(str, constant=True)
-    def appVersion(self): return APP_VERSION + " · Qt Preview"
+    def appVersion(self): return APP_VERSION + " · Qt RC"
 
     @Property(str, notify=translationChanged)
     def translationStatus(self): return self._translation_status
@@ -730,6 +796,7 @@ class TranslationState(LiveMonitorState):
     def stop(self):
         if self.stop_event.is_set():
             return
+        self._update_cancel.set()
         self.enabled = False
         self._timer.stop()
         self._profile_timer.stop()
@@ -851,7 +918,7 @@ class TranslationState(LiveMonitorState):
                 self._maintenance_busy = False
                 if error:
                     self._translation_status = self.trText("Ошибка") + ": " + error
-                    if task == "updates": self._update_message = self._translation_status
+                    if task in ("updates","update_download"): self._update_message = self._translation_status
                 elif task == "profiles":
                     self._profiles = merge_server_profiles(self._profiles, result)
                     self._resolve_game_exe()
@@ -867,8 +934,15 @@ class TranslationState(LiveMonitorState):
                 elif task == "knowledge":
                     self._translation_status = self.trText("База знаний обновлена" if result else "База знаний актуальна")
                 elif task == "updates":
+                    self._update_candidate = result
                     self._update_url = result["url"] if result else ""
                     self._update_message = (self.trText("Доступно обновление Qt") + ": " + result["tag"]) if result else self.trText("Новых версий Qt нет")
+                elif task == "update_download":
+                    self._update_package=result
+                    if self._update_cancel.is_set():
+                        self.discardUpdate()
+                        self._update_message=self.trText("Загрузка отменена")
+                    else: self._update_message=self.trText("SHA-256 проверен. Можно установить обновление.")
                 changed = True
                 continue
             if kind in ("screenshot_saved", "screenshot_error"):

@@ -124,7 +124,8 @@ def test_preview_channel_never_returns_stable_or_external_link():
         {"tag_name":"qt-preview-123456789abc","prerelease":True,"draft":True,"assets":assets},
         {"tag_name":"qt-preview-abcdef123456","prerelease":True,"assets":assets,"html_url":"https://example.org"}
     ])
-    assert result == {"tag":"qt-preview-abcdef123456","url":"https://github.com/kriskarter/cod2-chat-translator/releases/tag/qt-preview-abcdef123456"}
+    assert result["tag"] == "qt-preview-abcdef123456"
+    assert result["url"] == "https://github.com/kriskarter/cod2-chat-translator/releases/tag/qt-preview-abcdef123456"
 
 
 def test_history_export_is_explicit_and_hud_position_is_bounded(tmp_path):

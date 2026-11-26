@@ -165,8 +165,13 @@ def test_qml_stars_context_presence_and_persistence(tmp_path):
         assert state.isFriend("A^^1<&")
         click(window,"friends_indicator")
         assert find(window.contentItem(),"friends_presence_list") is not None
+        panel=window.findChild(__import__("PySide6.QtCore",fromlist=["QObject"]).QObject,"friends_panel")
+        assert panel.property("height")<400
+        initial_height=panel.property("height")
         assert state.friendCount==2
         assert state.addFriend("Offline fixture")
+        QTest.qWait(50)
+        assert panel.property("height")>initial_height
         screenshot(window,"friends_panel_online_offline")
         state._apply_presence_round((snap(A,["^2Medic","^1A^^1<&"]),snap(B,state="limited")))
         screenshot(window,"friends_panel_unknown")

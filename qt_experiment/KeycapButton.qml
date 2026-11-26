@@ -15,6 +15,7 @@ Button {
         horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
     }
     background: Item {
+        Rectangle {anchors.fill:parent;anchors.margins:3;radius:13;color:"#211b13";border.color:root.active?"#b88b4b":"#574e40";opacity:root.active?.85:.4}
         Image {
             anchors.fill: parent
             source: "../assets/ui_wwii/premium_keycap.png"
