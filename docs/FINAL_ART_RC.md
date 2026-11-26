@@ -1,34 +1,35 @@
-# CoD2 Chat Translator v1.22.0 RC — composition acceptance
+# CoD2 Chat Translator v1.22.0 RC — visual and functional acceptance
 
-Draft PR #8, branch `feature/premium-ui-redesign`; no stable release or merge. Base for this pass: `b2018feb4adfc58428b5e5bfef2a19aea94bb078`.
+Draft PR #8, branch `feature/premium-ui-redesign`. Artwork/code acceptance snapshot: `af280c29b2a2abab68ede26b922b2818d66614b1`. Screenshot/documentation commit follows it; no stable release or merge.
 
-## Real application screenshots
+## Real application evidence
 
-`docs/images/final_art_rc/xvfb_*.png` contains 11 main screenshots taken by ffmpeg from the actual running Tk application at 1366×768 with Linux Xvfb. Pages: home, servers, translation, overlay, knowledge, stats, settings, history. Dialogs: server configuration, About, knowledge. The approved artistic reference is `docs/images/server_monitor_rc/reference.png`. An additional `xvfb_home_150pct.png` records the actual Tk application with simulated 150% scaling and vertical scrolling. These screenshots do not represent a Windows installation.
+The images in `docs/images/final_art_rc/` are ffmpeg captures of the actual running Python/Tk application under Linux Xvfb, not generated interface mockups and not Windows captures. Eight pages: `xvfb_home.png`, `xvfb_servers.png`, `xvfb_translation.png`, `xvfb_overlay.png`, `xvfb_knowledge.png`, `xvfb_stats.png`, `xvfb_settings.png`, `xvfb_history.png`. Three actual dialogs: `xvfb_dialog_server.png`, `xvfb_dialog_about.png`, `xvfb_dialog_knowledge_dialog.png`. Extra captures: `xvfb_home_125pct.png` at 1536×864 simulated 125%, `xvfb_home_150pct.png` and `xvfb_dialog_server_150pct.png` at 1366×768 simulated 150%, `xvfb_home_1920.png` at 1920×1080.
 
-The new banner composes a distinct complete church and a larger soldier over a city panorama, preserving their aspect ratio. The logo is a separate asset and the subtitle is legible below it. The tab dividers sit between labels. The green F8/F9 and lower rail toggles remain live checkbuttons. The server list uses actual UDP observations; the five visible player rows are real data, with color runs preserved. A missing game journal is now explicitly signaled, and on Windows the game-window state is separately detected. All expert pages share the graphite palette; the history uses the same styled scrollbar; About uses the approved metallic logo.
+The approved reference remains `docs/images/server_monitor_rc/reference.png`. Compared with it, the new header is one coherent city panorama rather than separately cut-out soldier/church assets; it shows the soldier's helmet, torso and gear, ruined streets and a complete church. Logo, stars, rule and caption remain distinct layers. Cards F8/F9 reveal separate artwork without opaque content rectangles. The steel texture continues between panels, and the extra field-gear illustration appears only on tall desktop screens. Navigation, monitor, lower rail and expert pages use the same restrained graphite/bronze palette.
 
-Compared with the reference, the application still has simpler expert forms and no decorative crate/helmet in the compact Home. Its native Windows titlebar requests dark DWM chrome where supported. At 150% simulated Tk scale on 1366×768, Home scrolls to preserve live controls. Real Windows scale, titlebar and F10 overlay require native validation.
+Remaining visual differences from the reference: the subject is seen from behind instead of facing the viewer; the navigation and table still use styled Tk/ttk primitives, so selected rows remain a solid muted bronze rather than a true soft gradient; expert forms and modal dialogs are less richly composed than the Home page. The Windows native titlebar and controls may differ from these Linux captures.
 
-## Functional verification
+## Verification
 
-- `pytest -q`: 221 passed, 1 skipped.
-- Synthetic semantic safety checks: 32/32, zero unsafe accepted and zero valid rejected. This is not an actual in-game translation benchmark.
-- Real application smoke at 1366×768, 1536×864 and 1920×1080; simulated 100%, 125%, 150% Tk scales; RU, UK and EN; navigation, F8/F9, settings and overlay callbacks, preserved player scroll. At 1366×768 / 100%, Home content is 490 px inside a 495 px viewport.
-- Server/players in the screenshots came from a real CoD2 UDP query. An offline Windows computer was not touched. Native F10, installation and Windows DPI cannot be attested by Linux/Xvfb.
+- `pytest -q`: 222 passed, 1 skipped (tested against the final visual code).
+- `tools/smart_quality_check.py`: 32/32 authored semantic invariants; zero unsafe accepted, zero valid rejected. This is not measured live translation accuracy.
+- Real application smoke: eight pages, three dialogs, RU/UK/EN, F8/F9 switches and keycap activation, overlay edit, Smart Engine, settings callbacks, preserved roster scroll. 1366×768 100%: Home content 490 px, viewport 495 px, no scroll. 1536×864 simulated 125%: content 541 px, viewport 578 px, no scroll. 1366×768 simulated 150%: content 512 px, viewport 535 px, no scroll and dialogs fit. 1920×1080: content 743 px, viewport 794 px, no scroll.
+- A live UDP response from CLASSIC OBORONA `146.59.34.100:28960` reported online, map `mp_harbor`, 12/37 clients, 12 real player records, 37 ms server query in the sampled call. All 12 player ping fields were reported as 0 by the game server. The UI preserves that literal reported value in neutral color with a tooltip explaining that actual latency is unknown; it does not call it an ideal connection. Literal `^^` and unknown `^x` name sequences are retained, while recognized CoD2 color codes remain colored.
+- A real Windows install, DPI behavior, F10 overlay atop the game, in-game hotkeys and CPU use during play are **unverified** because the owner's Windows machine was offline. Linux Xvfb is not a Windows substitute.
 
-## Performance — same VPS, one run per revision
+## Performance
 
-Python/Tk under 1366×768 Xvfb with empty isolated configuration. CPU measures seconds of process time; memory is peak resident set size in MiB. The previous RC values below were recorded for `b2018feb` on the same VPS. One-run results vary with host load.
+Same VPS and isolated empty configuration at 1366×768 Xvfb. Single samples; CPU is process time, RSS is process peak. Previous RC `b2018feb` values were measured on the same host.
 
-| Phase | Previous RC `b2018feb` | This pass |
+| Measurement | Previous RC | Final visual code |
 | --- | ---: | ---: |
-| Startup wall time | 5.686 s | 3.594 s |
-| Startup CPU time | 3.221 s | 3.039 s |
-| Startup peak RSS | 134.2 MiB | 141.6 MiB |
-| Four seconds idle, CPU | 0.593 s | 0.619 s |
-| Peak RSS after idle | 142.0 MiB | 149.6 MiB |
-| Four seconds following manual refresh, CPU | 0.158 s | 0.153 s |
-| Peak RSS following refresh | 142.0 MiB | 149.6 MiB |
+| Startup wall | 5.686 s | 5.412 s |
+| Startup CPU | 3.221 s | 3.158 s |
+| Startup peak RSS | 134.2 MiB | 134.5 MiB |
+| Four seconds idle CPU | 0.593 s | 0.654 s |
+| Peak RSS after idle | 142.0 MiB | 142.7 MiB |
+| Four seconds after refresh CPU | 0.158 s | 0.139 s |
+| Peak RSS after refresh | 142.0 MiB | 142.7 MiB |
 
-The additional independent full-height church asset increases resident memory by about 8 MiB in this sample; no continuous full-frame animation was added. Native Windows idle, in-game CPU and graphics memory remain unmeasured.
+The visual pass increased idle peak RSS by 0.7 MiB in this sample. No constant full-frame animation or extra server process was introduced. Windows runtime values and GPU memory remain unmeasured.
