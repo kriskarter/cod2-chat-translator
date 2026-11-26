@@ -59,6 +59,12 @@ class PrototypeState(QObject):
         self._rows = {row.address: row for row in rows}
 
     @Property(bool, constant=True)
+    def overlayAvailable(self): return False
+
+    @Property(bool, constant=True)
+    def translationAvailable(self): return False
+
+    @Property(bool, constant=True)
     def demo(self): return self._demo
 
     @Property(str, notify=changed)

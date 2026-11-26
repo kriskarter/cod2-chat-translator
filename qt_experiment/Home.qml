@@ -7,11 +7,12 @@ ApplicationWindow {
     visible: true
     width: 1366; height: 768
     minimumWidth: 900; minimumHeight: 620
-    title: "CoD2 Chat Translator — " + (prototype.demo ? "демонстрация" : "UDP Monitor · разработка")
+    title: "CoD2 Chat Translator — " + (prototype.demo ? "демонстрация" : prototype.translationAvailable ? "Translation · разработка" : "UDP Monitor · разработка")
     color: "#111313"
     property bool compact: width < 1100
     property color ink: "#f5e7c9"
     property int navIndex: 0
+    property string activePage: "home"
     MetalDialog {
         id: addDialog
         anchors.centerIn: parent
@@ -67,20 +68,22 @@ ApplicationWindow {
                     delegate: NavigationTab {
                         required property var modelData
                         required property int index
+                        objectName: "nav_" + modelData.key
                         text: modelData.name
                         glyph: "icons/" + modelData.icon + ".svg"
                         selected: index === window.navIndex
-                        enabled: index === 0 || prototype.demo
+                        enabled: index === 0 || prototype.demo || (prototype.translationAvailable && (modelData.key === "settings" || modelData.key === "history"))
                         Layout.fillWidth: true; Layout.fillHeight: true
                         onClicked: {
-                            // Only Home is implemented in this comparison entry point.
-                            prototype.request("nav:" + modelData.key)
+                            if (prototype.translationAvailable) { window.navIndex = index; window.activePage = modelData.key }
+                            else prototype.request("nav:" + modelData.key)
                         }
                     }
                 }
             }
         }
         RowLayout {
+            visible: window.activePage === "home"
             Layout.fillWidth: true; Layout.fillHeight: true
             Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.topMargin: 10; Layout.bottomMargin: 8
             spacing: 12
@@ -90,15 +93,20 @@ ApplicationWindow {
                 spacing: 10
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F8"; heading: "Входящий перевод"; description: "Чат → русский"
-                    active: prototype.f8; compact: window.compact; controlsEnabled: prototype.demo
+                    keyName: "F8"; heading: "Входящий перевод"; description: prototype.translationAvailable ? "Чат → " + prototype.targetLanguage : "Чат → русский"
+                    active: prototype.f8; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "../assets/ui_premium/translation_card_source.jpg"
                     onToggled: prototype.toggle("f8")
                 }
+                MetalButton {
+                    objectName: "manual_outgoing"
+                    visible: prototype.translationAvailable; Layout.fillWidth: true
+                    text: "Открыть ручной перевод"; onClicked: { window.activePage = "outgoing"; window.navIndex = -1 }
+                }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; heading: "Исходящий перевод"; description: "Русский → English"
-                    active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo
+                    keyName: "F9"; heading: "Исходящий перевод"; description: prototype.translationAvailable ? "Ручной перевод текста" : "Русский → English"
+                    active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "../assets/ui_premium/tank_card.png"
                     onToggled: prototype.toggle("f9")
                 }
@@ -133,16 +141,22 @@ ApplicationWindow {
                 }
             }
         }
+        Loader {
+            active: prototype.translationAvailable && window.activePage !== "home"
+            visible: active; Layout.fillWidth: true; Layout.fillHeight: true
+            Layout.margins: 17
+            sourceComponent: TranslationWorkspace { page: window.activePage }
+        }
         MetalPanel {
             Layout.fillWidth: true; Layout.preferredHeight: 74
             Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.bottomMargin: 8
             RowLayout {
                 anchors.fill: parent; anchors.leftMargin: 34; anchors.rightMargin: 34; spacing: 24
-                OverlayControl { Layout.fillWidth: true; active: prototype.overlay; controlsEnabled: prototype.demo; onToggled: prototype.toggle("overlay") }
+                OverlayControl { Layout.fillWidth: true; active: prototype.overlay; controlsEnabled: prototype.demo || prototype.overlayAvailable; onToggled: prototype.toggle("overlay") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
-                SmartEngineControl { Layout.fillWidth: true; active: prototype.smart; controlsEnabled: prototype.demo; onToggled: prototype.toggle("smart") }
+                SmartEngineControl { Layout.fillWidth: true; active: prototype.smart; controlsEnabled: prototype.demo || prototype.translationAvailable; onToggled: prototype.toggle("smart") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
-                SystemStatusPanel { Layout.fillWidth: true; statusText: prototype.status; ready: false }
+                SystemStatusPanel { Layout.fillWidth: true; statusText: prototype.translationAvailable ? prototype.translationStatus : prototype.status; ready: false }
             }
         }
     }

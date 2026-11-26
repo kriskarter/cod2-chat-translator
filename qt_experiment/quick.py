@@ -12,7 +12,16 @@ from .common import PrototypeState, preview_state
 
 def main():
     app = QGuiApplication(sys.argv)
-    if '--live-monitor' in sys.argv:
+    if '--live-translation' in sys.argv:
+        from .translation_runtime import TranslationState, read_translation_config
+        config = Path(sys.argv[sys.argv.index('--config') + 1]) if '--config' in sys.argv else None
+        exe = Path(sys.argv[sys.argv.index('--game-exe') + 1]) if '--game-exe' in sys.argv else None
+        log = Path(sys.argv[sys.argv.index('--log') + 1]) if '--log' in sys.argv else None
+        knowledge = config.with_name('knowledge_v2.json') if config else None
+        state = TranslationState(read_translation_config(config), exe, log, knowledge)
+        app.aboutToQuit.connect(state.stop)
+        state.start()
+    elif '--live-monitor' in sys.argv:
         from .live_monitor import LiveMonitorState, read_monitor_settings
         config = Path(sys.argv[sys.argv.index('--config') + 1]) if '--config' in sys.argv else None
         exe = Path(sys.argv[sys.argv.index('--game-exe') + 1]) if '--game-exe' in sys.argv else None
