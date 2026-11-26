@@ -103,7 +103,7 @@ class PlayerRoster(tk.Frame):
             self.fields[1].insert("end", f"{score if score is not None else '—'}\n")
             status=player_ping_quality(ping)
             self.fields[2].insert("end",
-                f"{ping} ms\n" if ping is not None else "—\n",
+                f"{ping} ms\n" if ping is not None and ping>=0 else "—\n",
                 "ping_"+status)
         self.fields[0].tag_configure("friend", foreground=AMBER)
         for field in self.fields:

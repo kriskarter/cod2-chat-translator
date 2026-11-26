@@ -54,7 +54,7 @@ class ServerPage:
         body.pack(fill="both",expand=True)
         body.columnconfigure(0,weight=3)
         body.columnconfigure(1,weight=2)
-        panel_height=(680 if a.root.winfo_screenheight()>=1000 else
+        panel_height=(835 if a.root.winfo_screenheight()>=1000 else
                       535 if a.root.winfo_screenheight()>=850 else 445)
         left_shell=MetalCanvas(body,height=panel_height)
         right_shell=MetalCanvas(body,height=panel_height)
@@ -126,7 +126,7 @@ class ServerPage:
         self.friends=tk.Listbox(right,bg="#1C2022",fg=GREEN,selectbackground="#67543C",
                                 selectforeground="#FFF0D4",bd=0,highlightthickness=0,
                                 font=(FONT,10),height=4,activestyle="none")
-        self.friends.pack(fill="x",padx=9,pady=5)
+        self.friends.pack(fill="both",expand=True,padx=9,pady=5)
         buttons=tk.Frame(right,bg=CARD)
         buttons.pack(fill="x",padx=8,pady=(0,7))
         tactical_action(buttons,local(a,"Игрок","Гравець","Player"),self.add_friend,icon="add").pack(side="left",padx=2)
@@ -222,7 +222,9 @@ class ServerPage:
             term=normalized_name(self.player_filter.get())
             players=[p for p in snap.players if term in normalized_name(p.name)]
             if self.player_sort.get()==self.sort_labels[1]:
-                players.sort(key=lambda p:(p.ping is None,p.ping or 0,p.name.casefold()))
+                players.sort(key=lambda p:(p.ping is None or p.ping<0,
+                                           p.ping if p.ping is not None and p.ping>=0 else 0,
+                                           p.name.casefold()))
             elif self.player_sort.get()==self.sort_labels[2]:
                 players.sort(key=lambda p:p.name.casefold())
             else:

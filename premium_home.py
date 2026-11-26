@@ -182,7 +182,10 @@ class PremiumHome:
                                  border=(7,4,7,4),sticky="nsew")
         style.layout("Monitor.Treeview.Cell",[("Monitor.selection",{"sticky":"nsew",
             "children":[("Treeitem.text",{"sticky":"nsew"})]})])
-        style.map("Monitor.Treeview",foreground=[("selected","#FFF0CF")])
+        # Explicitly replace clam's blue selection base; the translucent
+        # artwork above it then reads as bronze on every ttk platform.
+        style.map("Monitor.Treeview",background=[("selected","#594832")],
+                  foreground=[("selected","#FFF0CF")])
         style.configure("Monitor.Treeview.Heading",relief="flat",borderwidth=0)
         area=tk.Frame(box,bg=BG)
         area.pack(fill="x",padx=8,pady=(1,2))
@@ -242,8 +245,8 @@ class PremiumHome:
         rail.pack(fill="x",padx=14,pady=(0,6))
         # One textured surface carries the three sections. Only the actual
         # controls are Tk child windows; captions and separators do not hide it.
-        overlay_icon=rail.create_image(0,0,image=ui_photo(rail,"quick_screenshot.png"),anchor="center")
-        engine_icon=rail.create_image(0,0,image=ui_photo(rail,"premium_chip.png"),anchor="center")
+        overlay_icon=rail.create_image(0,0,image=ui_photo(rail,"premium_overlay_rail.png"),anchor="center")
+        engine_icon=rail.create_image(0,0,image=ui_photo(rail,"premium_chip_rail.png"),anchor="center")
         rail.create_text(0,0,text=local(a,"Оверлей","Оверлей","Overlay"),anchor="w",
                          fill=TEXT,font=(FONT,12,"bold"),tags="overlay_title")
         rail.create_text(0,0,text=local(a,"Перевод поверх игры","Переклад поверх гри",
@@ -291,25 +294,25 @@ class PremiumHome:
             for index,item in enumerate(separators,1):
                 x=round(third*index)
                 rail.coords(item,x,13,x,event.height-13)
-            rail.coords(overlay_icon,38,31+dy)
-            rail.coords("overlay_title",61,31+dy)
-            rail.coords("overlay_note",39,51+dy)
+            rail.coords(overlay_icon,43,37+dy)
+            rail.coords("overlay_title",72,31+dy)
+            rail.coords("overlay_note",70,51+dy)
             rail.coords(overlay_switch,round(third-88),25+dy)
             rail.coords(overlay_edit,35,70+dy)
             rail.coords(overlay_config,151,70+dy)
-            rail.coords(engine_icon,round(third+38),31+dy)
-            rail.coords("engine_title",round(third+61),31+dy)
-            rail.coords("engine_note",round(third+39),51+dy)
+            rail.coords(engine_icon,round(third+43),37+dy)
+            rail.coords("engine_title",round(third+72),31+dy)
+            rail.coords("engine_note",round(third+70),51+dy)
             rail.coords(engine_control,round(third*2-88),25+dy)
             rail.coords(self.dashboard.engine_engine_bullet.item,round(third+39),76+dy)
             rail.coords(self.dashboard.engine_engine_label.item,round(third+58),76+dy)
             rail.coords(self.dashboard.engine_pack_label.item,
                         round(third+176 if self.large_dpi else third+145),76+dy)
-            rail.coords("status_icon",round(third*2+29),20+dy,
-                        round(third*2+56),47+dy)
-            rail.coords("status_title",round(third*2+68),31+dy)
-            rail.coords(self.system_status.item,round(third*2+59),64+dy)
-            rail.coords(self.game_status.item,round(third*2+59),84+dy)
+            rail.coords("status_icon",round(third*2+28),19+dy,
+                        round(third*2+63),54+dy)
+            rail.coords("status_title",round(third*2+75),31+dy)
+            rail.coords(self.system_status.item,round(third*2+70),64+dy)
+            rail.coords(self.game_status.item,round(third*2+70),84+dy)
         rail.bind("<Configure>",layout,add="+")
 
     def _hide_tip(self):

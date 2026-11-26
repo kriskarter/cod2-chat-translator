@@ -119,6 +119,20 @@ def main():
         chip_draw.line((3, coord, 7, coord), fill=gold, width=2)
         chip_draw.line((21, coord, 25, coord), fill=gold, width=2)
     chip.save(OUT / "premium_chip.png", optimize=True)
+    chip.resize((36, 36), Image.Resampling.LANCZOS).save(
+        OUT / "premium_chip_rail.png", optimize=True)
+
+    # Footer symbols have their own size; enlarging a tiny widget photo in
+    # Tk would lose the edges and shift the neighboring live captions.
+    hud = Image.new("RGBA", (36, 36))
+    hd = ImageDraw.Draw(hud, "RGBA")
+    hd.line((5, 13, 18, 4, 31, 13, 18, 22, 5, 13),
+            fill=(238, 207, 147, 240), width=3, joint="curve")
+    hd.line((5, 19, 18, 28, 31, 19), fill=(166, 137, 95, 230),
+            width=3, joint="curve")
+    hd.line((5, 25, 18, 34, 31, 25), fill=(116, 146, 119, 220),
+            width=2, joint="curve")
+    hud.save(OUT / "premium_overlay_rail.png", optimize=True)
 
     # Distinct plus pictogram for the actual add-server action.
     add = Image.new("RGBA", (22, 22))

@@ -73,7 +73,9 @@ def player_ping_quality(value: int | None) -> str:
     """Classify only valid reported latency; a reported zero is ambiguous."""
     if value is None:
         return "missing"
-    if value <= 0:
+    if value < 0:
+        return "missing"
+    if value == 0:
         return "server_zero"
     if value < 70:
         return "good"

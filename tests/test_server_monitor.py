@@ -37,6 +37,7 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(snapshot.players[1].ping,0)
         self.assertEqual(player_ping_quality(snapshot.players[1].ping),"server_zero")
         self.assertEqual(player_ping_quality(None),"missing")
+        self.assertEqual(player_ping_quality(-1),"missing")
         self.assertEqual(player_ping_quality(46),"good")
         self.assertEqual(player_ping_quality(230),"poor")
 
