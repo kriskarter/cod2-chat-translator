@@ -124,13 +124,13 @@ class PremiumHome:
         combo_id=card.create_window(0,0,window=combo,anchor="nw")
         def position(event):
             left=148 if self.compact or self.large_dpi else 165
-            card.coords(title_id,left,16 if self.compact else 24)
+            card.coords(title_id,left,20 if self.compact else 24)
             for size in range(14 if self.compact else 17,8,-1):
                 card.itemconfigure(title_id,font=(FONT,size,"bold"))
                 if card.bbox(title_id)[2] <= event.width-19:
                     break
-            card.coords(note_id,left,43 if self.compact else 58)
-            controls_y=69 if self.compact else 92
+            card.coords(note_id,left,47 if self.compact else 58)
+            controls_y=72 if self.compact else 92
             card.coords(switch_id,left,controls_y)
             card.coords(combo_id,left+94,controls_y)
             # Show the full translation route below controls; no opaque strip.
@@ -156,6 +156,10 @@ class PremiumHome:
         self.friends_badge=txt(head,"",9 if self.large_dpi else 10,GREEN,bold=True)
         self.friends_badge.pack(side="right",padx=5 if self.large_dpi else 12)
         style=ttk.Style()
+        # The clam theme's default field element draws a light system rim.
+        # Keep its real keyboard-aware Treeview but remove that field border.
+        style.layout("Monitor.Treeview",[("Treeview.padding",{"sticky":"nsew",
+            "children":[("Treeview.treearea",{"sticky":"nsew"})]})])
         style.configure("Monitor.Treeview",background="#1C2022",foreground=TEXT,
                         fieldbackground="#1C2022",rowheight=29,font=(FONT,9 if self.large_dpi else 10),borderwidth=0,
                         relief="flat")
@@ -165,6 +169,7 @@ class PremiumHome:
         style.map("Monitor.Treeview.Heading",background=[("active","#565148")])
         style.map("Monitor.Treeview",background=[("selected","#65523B")],
                   foreground=[("selected","#FFF0CF")])
+        style.configure("Monitor.Treeview.Heading",relief="flat",borderwidth=0)
         area=tk.Frame(box,bg=BG)
         area.pack(fill="x",padx=8,pady=(1,2))
         columns=("star","name","map","players","ping","status")
@@ -178,6 +183,8 @@ class PremiumHome:
             self.tree.column(key,width=width,minwidth=width,stretch=key=="name",
                              anchor="w" if key=="name" else "center")
         self.tree.tag_configure("offline",foreground="#AAA69F")
+        self.tree.tag_configure("even",background="#22282A")
+        self.tree.tag_configure("odd",background="#1C2123")
         self.tree.pack(side="left",fill="both",expand=True)
         sb=ttk.Scrollbar(area,orient="vertical",style="Premium.Vertical.TScrollbar",command=self.tree.yview)
         sb.pack(side="right",fill="y")
@@ -194,7 +201,10 @@ class PremiumHome:
         self.last_update.pack(side="right",padx=7)
         self.players=PlayerRoster(box,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
                     local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),
-                    rows=2 if self.compact and self.dpi>=1.65 else 5 if self.compact else 4)
+                    rows=2 if self.compact and self.dpi>=1.65 else 5 if self.compact else 4,
+                    zero_hint=local(a,"Сервер сообщил 0 ms; задержка неизвестна",
+                                    "Сервер повідомив 0 ms; затримка невідома",
+                                    "Server reported 0 ms; actual ping unknown"))
         self.players.pack(fill="both",expand=True,padx=8,pady=(0,4))
         actions=tk.Frame(box,bg=CARD)
         actions.pack(fill="x",padx=7,pady=(0,3))
@@ -220,8 +230,14 @@ class PremiumHome:
         engine_icon=rail.create_image(0,0,image=ui_photo(rail,"premium_chip.png"),anchor="center")
         rail.create_text(0,0,text=local(a,"Оверлей","Оверлей","Overlay"),anchor="w",
                          fill=TEXT,font=(FONT,12,"bold"),tags="overlay_title")
+        rail.create_text(0,0,text=local(a,"Перевод поверх игры","Переклад поверх гри",
+                         "Translation over the game"),anchor="w",
+                         fill=MUTED,font=(FONT,9),tags="overlay_note")
         rail.create_text(0,0,text="Smart Engine",anchor="w",
                          fill=TEXT,font=(FONT,12,"bold"),tags="engine_title")
+        rail.create_text(0,0,text=local(a,"Умный игровой перевод","Розумний ігровий переклад",
+                         "Intelligent game translation"),anchor="w",
+                         fill=MUTED,font=(FONT,9),tags="engine_note")
         rail.create_oval(0,0,0,0,outline="#4A7953",fill="#93DF87",width=2,tags="status_icon")
         rail.create_text(0,0,text=local(a,"Состояние системы","Стан системи","System status"),
                          anchor="w",fill=TEXT,font=(FONT,12,"bold"),tags="status_title")
@@ -256,21 +272,23 @@ class PremiumHome:
             for index,item in enumerate(separators,1):
                 x=round(third*index)
                 rail.coords(item,x,13,x,event.height-13)
-            rail.coords(overlay_icon,34,24)
-            rail.coords("overlay_title",52,23)
-            rail.coords(overlay_switch,round(third-88),27)
-            rail.coords(overlay_edit,25,48)
-            rail.coords(overlay_config,156,48)
-            rail.coords(engine_icon,round(third+34),24)
-            rail.coords("engine_title",round(third+52),23)
-            rail.coords(engine_control,round(third*2-88),27)
-            rail.coords(self.dashboard.engine_engine_bullet.item,round(third+28),58)
-            rail.coords(self.dashboard.engine_engine_label.item,round(third+48),58)
-            rail.coords(self.dashboard.engine_pack_label.item,round(third+135),58)
-            rail.coords("status_icon",round(third*2+24),19,round(third*2+39),34)
-            rail.coords("status_title",round(third*2+54),23)
-            rail.coords(self.system_status.item,round(third*2+50),58)
-            rail.coords(self.game_status.item,round(third*2+50),83)
+            rail.coords(overlay_icon,34,31)
+            rail.coords("overlay_title",52,31)
+            rail.coords("overlay_note",29,51)
+            rail.coords(overlay_switch,round(third-88),25)
+            rail.coords(overlay_edit,25,67)
+            rail.coords(overlay_config,156,67)
+            rail.coords(engine_icon,round(third+34),31)
+            rail.coords("engine_title",round(third+52),31)
+            rail.coords("engine_note",round(third+29),51)
+            rail.coords(engine_control,round(third*2-88),25)
+            rail.coords(self.dashboard.engine_engine_bullet.item,round(third+28),76)
+            rail.coords(self.dashboard.engine_engine_label.item,round(third+48),76)
+            rail.coords(self.dashboard.engine_pack_label.item,round(third+135),76)
+            rail.coords("status_icon",round(third*2+24),23,round(third*2+39),38)
+            rail.coords("status_title",round(third*2+54),31)
+            rail.coords(self.system_status.item,round(third*2+50),67)
+            rail.coords(self.game_status.item,round(third*2+50),89)
         rail.bind("<Configure>",layout,add="+")
 
     def _hide_tip(self):
@@ -353,7 +371,9 @@ class PremiumHome:
         for item in self.tree.get_children():
             if item not in expected:self.tree.delete(item)
         for index,(address,values,state) in enumerate(rows):
-            tags=("offline",) if state not in ("online","limited") else ()
+            tags=("even" if index%2==0 else "odd",)
+            if state not in ("online","limited"):
+                tags+=("offline",)
             if self.tree.exists(address):
                 if tuple(str(v) for v in self.tree.item(address,"values"))!=tuple(str(v) for v in values) or self.tree.item(address,"tags")!=tags:
                     self.tree.item(address,values=values,tags=tags)

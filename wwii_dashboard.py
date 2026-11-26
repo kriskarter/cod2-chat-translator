@@ -7,7 +7,7 @@ from dashboard_ui import (
     FONT, tr, text, card, action, check, label_combo, ui_photo,
 )
 from server_catalog import FEATURED_SERVER
-from premium_material import MetalCanvas
+from premium_material import MetalCanvas, SteelFrame
 
 
 def nav_name(app, name):
@@ -87,7 +87,6 @@ class WWIIDashboard(Dashboard):
         app=self.app
         request_dark_native_titlebar(self.root)
         compact_dpi=float(self.root.tk.call("tk","scaling"))>=1.6
-        from premium_material import SteelFrame
         outer=SteelFrame(self.root,bg=BG)
         outer.pack(fill="both",expand=True)
         self.outer=outer
@@ -254,13 +253,22 @@ class WWIIDashboard(Dashboard):
         build_premium_home(self, page)
 
     def _expert_links(self):
+        self.expert_buttons={}
         for page_name in ("settings","translation","overlay","knowledge","stats"):
-            row=tk.Frame(self.pages[page_name],bg="#29241D",height=38)
-            row.pack(fill="x",side="top",before=self.pages[page_name].winfo_children()[0])
+            row=SteelFrame(self.pages[page_name],bg=SIDEBAR,height=36)
+            first_packed=next(child for child in self.pages[page_name].winfo_children()
+                              if child.winfo_manager()=="pack")
+            row.pack(fill="x",side="top",before=first_packed)
             if page_name=="settings":self.settings_expert_row=row
+            buttons={}
             for key in ("translation","overlay","knowledge","stats","settings"):
-                tactical_action(row,nav_name(self.app,key),lambda destination=key:self.navigate(destination)).pack(
-                    side="left",padx=5,pady=2)
+                button=ttk.Button(row,text=nav_name(self.app,key),
+                    image=ui_photo(row,"nav_"+key+".png"),compound="left",
+                    command=lambda destination=key:self.navigate(destination),
+                    style="PremiumNav.TButton",cursor="hand2",takefocus=True)
+                button.pack(side="left",fill="x",expand=True,padx=0,pady=1)
+                buttons[key]=button
+            self.expert_buttons[page_name]=buttons
 
     def navigate(self,name,*,add=False):
         if name not in self.pages:return False
@@ -275,6 +283,10 @@ class WWIIDashboard(Dashboard):
             active=key==name or (key=="settings" and name in ("translation","overlay","knowledge","stats"))
             button.configure(style="PremiumNavActive.TButton" if active
                              else "PremiumNav.TButton")
+        for buttons in getattr(self,"expert_buttons",{}).values():
+            for key,button in buttons.items():
+                button.configure(style="PremiumNavActive.TButton" if key==name
+                                 else "PremiumNav.TButton")
         return True
 
     def refresh(self):

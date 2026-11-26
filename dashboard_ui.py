@@ -179,30 +179,30 @@ def setup_theme(root: tk.Tk):
     style.configure("CardHead.TLabel", background=CARD, foreground=TEXT, font=(FONT, 12, "bold"))
     style.configure("Body.TLabel", background=BG, foreground=TEXT)
     style.configure("Muted.TLabel", background=BG, foreground=MUTED)
-    style.configure("TButton", background="#3D3528", foreground=TEXT,
-                    font=(FONT, 10, "bold"), bordercolor="#99774C",
-                    lightcolor="#94744C", darkcolor="#17130F",
-                    borderwidth=2, padding=(8, 5), relief="raised")
-    style.map("TButton", background=[("pressed", "#6A502E"), ("active", "#554027")],
+    style.configure("TButton", background="#303638", foreground=TEXT,
+                    font=(FONT, 10), bordercolor="#82745F",
+                    lightcolor="#4C5252", darkcolor="#171B1D",
+                    borderwidth=1, padding=(8, 5), relief="flat")
+    style.map("TButton", background=[("pressed", "#3D4140"), ("active", "#4C514B")],
               foreground=[("disabled", MUTED), ("active", TEXT)])
-    style.configure("Accent.TButton", background="#9E4E0B", foreground="#FFFFFF",
-                    font=(FONT, 10, "bold"), bordercolor="#F3AC52",
-                    lightcolor="#EC9E40", darkcolor="#482002",
-                    padding=(10, 5), borderwidth=2, relief="raised")
-    style.map("Accent.TButton", background=[("active", "#C97212"), ("pressed", "#733804")])
-    style.configure("Warm.TButton", background="#5E391A", foreground="#FFF1D5",
-                    bordercolor="#BC8546", padding=(10, 5))
-    style.map("Warm.TButton", background=[("active", "#BA681B"), ("pressed", "#4D2D0E")])
+    style.configure("Accent.TButton", background="#75563A", foreground="#FFF0DB",
+                    font=(FONT, 10), bordercolor="#C49560",
+                    lightcolor="#A47743", darkcolor="#30251B",
+                    padding=(10, 5), borderwidth=1, relief="flat")
+    style.map("Accent.TButton", background=[("active", "#986E42"), ("pressed", "#62452F")])
+    style.configure("Warm.TButton", background="#3E4443", foreground="#FFF1DE",
+                    bordercolor="#90816D", padding=(10, 5))
+    style.map("Warm.TButton", background=[("active", "#565D57"), ("pressed", "#343A38")])
     style.configure("TCheckbutton", background=CARD, foreground=TEXT, padding=(2, 5))
     style.map("TCheckbutton", background=[("active", CARD)],
               foreground=[("disabled", MUTED)])
-    style.configure("TCombobox", fieldbackground="#332C20", background=CARD_ALT,
-                    foreground="#201B12", arrowcolor=AMBER, bordercolor=BORDER,
-                    lightcolor=BORDER, darkcolor=BORDER, selectbackground="#B46B1C",
+    style.configure("TCombobox", fieldbackground="#252B2D", background=CARD_ALT,
+                    foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
+                    lightcolor=BORDER, darkcolor=BORDER, selectbackground="#65513C",
                     selectforeground=TEXT, padding=5)
-    style.map("TCombobox", fieldbackground=[("readonly", "#DCCBAD")],
-              foreground=[("readonly", "#21190F")])
-    style.configure("TScale", background=CARD, troughcolor="#473725", borderwidth=0)
+    style.map("TCombobox", fieldbackground=[("readonly", "#252B2D")],
+              foreground=[("readonly", TEXT)])
+    style.configure("TScale", background=CARD, troughcolor="#303739", borderwidth=0)
     if "Premium.Scale.trough" not in style.element_names():
         style.element_create("Premium.Scale.trough", "image",
             ui_photo(root, "premium_scale_trough.png"),
@@ -281,15 +281,15 @@ def setup_theme(root: tk.Tk):
                   {"sticky":"nsew"})])
     style.configure("PremiumCard.TFrame", background=CARD)
     # Real readonly comboboxes and scales keep their native semantics.
-    style.configure("TCombobox", fieldbackground="#252218", background="#382D20",
+    style.configure("TCombobox", fieldbackground="#252B2D", background="#343A3B",
                     foreground=TEXT, arrowcolor=AMBER, bordercolor=BORDER,
-                    selectbackground="#A75B11", selectforeground="#FFFFFF")
-    style.map("TCombobox", fieldbackground=[("readonly", "#29251B")],
+                    selectbackground="#68543D", selectforeground="#FFFFFF")
+    style.map("TCombobox", fieldbackground=[("readonly", "#252B2D")],
               foreground=[("readonly", TEXT)])
-    style.configure("TEntry",fieldbackground="#29251B",foreground=TEXT,
-                    insertcolor=TEXT,bordercolor="#9C7950",lightcolor="#9C7950",
-                    darkcolor="#18140F",padding=(6,4))
-    style.map("TEntry",fieldbackground=[("disabled","#211F1B")],
+    style.configure("TEntry",fieldbackground="#242A2C",foreground=TEXT,
+                    insertcolor=TEXT,bordercolor="#776D5B",lightcolor="#495050",
+                    darkcolor="#191E20",padding=(6,4))
+    style.map("TEntry",fieldbackground=[("disabled","#222729")],
               bordercolor=[("focus",AMBER)])
     if "Premium.Scrollbar.trough" not in style.element_names():
         style.element_create("Premium.Scrollbar.trough", "image",
@@ -303,9 +303,9 @@ def setup_theme(root: tk.Tk):
     style.layout("Premium.Vertical.TScrollbar", [
         ("Premium.Scrollbar.trough", {"sticky":"ns", "children":[
             ("Premium.Scrollbar.thumb", {"expand":"1", "sticky":"nsew"})]})])
-    style.configure("Premium.Vertical.TScrollbar", width=18)
+    style.configure("Premium.Vertical.TScrollbar", width=14)
     style.layout("Vertical.TScrollbar", style.layout("Premium.Vertical.TScrollbar"))
-    style.configure("Vertical.TScrollbar", width=18)
+    style.configure("Vertical.TScrollbar", width=14)
     style.layout("TCombobox", [("Combobox.field", {"sticky":"nsew", "children":[
         ("Premium.Combo.arrow", {"side":"right", "sticky":"ns"}),
         ("Combobox.padding", {"sticky":"nsew", "children":[

@@ -92,7 +92,10 @@ class ServerPage:
         sort.pack(side="right")
         sort.bind("<<ComboboxSelected>>",lambda _e:self.details())
         self.roster=PlayerRoster(roster,labels=(local(a,"Никнейм","Нікнейм","Nickname"),
-                           local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),rows=6)
+                           local(a,"Счёт","Рахунок","Score"),local(a,"Пинг","Пінг","Ping")),rows=6,
+                           zero_hint=local(a,"Сервер сообщил 0 ms; задержка неизвестна",
+                                           "Сервер повідомив 0 ms; затримка невідома",
+                                           "Server reported 0 ms; actual ping unknown"))
         self.roster.pack(fill="both",expand=True,pady=(5,0))
         txt(right,local(a,"Сведения о сервере","Відомості про сервер","Server details"),13,AMBER,True).pack(anchor="w",padx=10,pady=8)
         self.info=txt(right,"",11,bg=CARD)
@@ -105,7 +108,7 @@ class ServerPage:
         self.friends.pack(fill="x",padx=9,pady=5)
         buttons=tk.Frame(right,bg=CARD)
         buttons.pack(fill="x",padx=8,pady=(0,7))
-        tactical_action(buttons,local(a,"＋ Игрок","＋ Гравець","＋ Player"),self.add_friend).pack(side="left",padx=2)
+        tactical_action(buttons,local(a,"Игрок","Гравець","Player"),self.add_friend,icon="add").pack(side="left",padx=2)
         tactical_action(buttons,local(a,"Удалить","Видалити","Remove"),self.remove_friend).pack(side="left",padx=2)
         self.notify=tk.BooleanVar(value=a.monitor_settings["notify_friends"])
         tk.Checkbutton(right,text=local(a,"Уведомлять о появлении друга","Сповіщати про появу друга","Notify when a friend appears"),

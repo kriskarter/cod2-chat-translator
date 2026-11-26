@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from server_monitor import (Server, canonical_address, color_runs, dump_settings,
-                            load_settings, normalized_name, parse_response,
+                            load_settings, normalized_name, plain_name, player_ping_quality, parse_response,
                             query_server)
 
 
@@ -28,6 +28,17 @@ class ProtocolTests(unittest.TestCase):
     def test_cp1251_nickname_from_game(self):
         payload=STATUS+b'5 88 "^3'+ "Петрик".encode("cp1251") + b'"\n'
         self.assertEqual(parse_response("a:28960",payload,10).players[-1].name,"Петрик")
+
+    def test_literal_carets_and_server_reported_zero_latency(self):
+        self.assertEqual(plain_name("^^base ^xray ^2Medic"),"^base ^xray Medic")
+        self.assertEqual(color_runs("^xray ^2Medic"),
+                         (("^xray ","#F0E8D3"),("Medic","#87D970")))
+        snapshot=parse_response("a:28960",STATUS,37)
+        self.assertEqual(snapshot.players[1].ping,0)
+        self.assertEqual(player_ping_quality(snapshot.players[1].ping),"server_zero")
+        self.assertEqual(player_ping_quality(None),"missing")
+        self.assertEqual(player_ping_quality(46),"good")
+        self.assertEqual(player_ping_quality(230),"poor")
 
     def test_info_is_partial_not_empty_player_list(self):
         snapshot=parse_response("example.org:28960",INFO,47)

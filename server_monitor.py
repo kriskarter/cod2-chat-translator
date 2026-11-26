@@ -19,7 +19,7 @@ from server_catalog import FEATURED_SERVER
 
 MAX_SERVERS = 32
 DEFAULT_PORT = 28960
-_COLOR = re.compile(r"\^[0-9A-Za-z]")
+_COLOR = re.compile(r"\^[0-9]")
 _PLAYER = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+"(.*)"\s*$')
 _HOST = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
 _MOJIBAKE = re.compile(r"[À-ÿ]{3,}")
@@ -57,7 +57,7 @@ def color_runs(value: str) -> tuple[tuple[str, str], ...]:
     while i < len(value):
         if value[i:i+2] == "^^":
             buf += "^"; i += 2
-        elif value[i:i+1] == "^" and i + 1 < len(value) and value[i+1].isalnum():
+        elif value[i:i+1] == "^" and i + 1 < len(value) and value[i+1] in palette:
             if buf:
                 runs.append((buf, color)); buf = ""
             color = palette.get(value[i+1], color)
@@ -67,6 +67,19 @@ def color_runs(value: str) -> tuple[tuple[str, str], ...]:
     if buf:
         runs.append((buf, color))
     return tuple(runs)
+
+
+def player_ping_quality(value: int | None) -> str:
+    """Classify only valid reported latency; a reported zero is ambiguous."""
+    if value is None:
+        return "missing"
+    if value <= 0:
+        return "server_zero"
+    if value < 70:
+        return "good"
+    if value < 160:
+        return "fair"
+    return "poor"
 
 
 def parse_address(value: str) -> tuple[str, int]:

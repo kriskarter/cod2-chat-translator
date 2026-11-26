@@ -16,7 +16,8 @@ def _chassis_texture():
     from app import resource_path
     with Image.open(resource_path("assets/ui_premium/steel_source.png")) as source:
         gray = ImageOps.grayscale(source).resize((384, 384), Image.Resampling.LANCZOS)
-    return ImageOps.colorize(gray, black="#15191C", white="#32383A")
+    gray = ImageOps.autocontrast(gray, cutoff=3)
+    return ImageOps.colorize(gray, black="#171B1E", white="#3D4446")
 
 
 class SteelFrame(tk.Frame):
@@ -36,7 +37,7 @@ class SteelFrame(tk.Frame):
         self._underlay = tk.Canvas(self, highlightthickness=0, bd=0, bg="#171A1D")
         self._underlay._steel_underlay = True
         self._underlay.place(relx=0, rely=0, relwidth=1, relheight=1)
-        self._underlay.lower()
+        self._underlay.tk.call("lower", self._underlay._w)
         self._underlay.bind("<Configure>", self._tile)
 
     def _tile(self, event):
@@ -45,7 +46,7 @@ class SteelFrame(tk.Frame):
             for x in range(0, event.width, 384):
                 self._underlay.create_image(x, y, anchor="nw",
                                              image=self._tile_photo, tags="steel")
-        self._underlay.lower()
+        self._underlay.tk.call("lower", self._underlay._w)
 
 
 @lru_cache(maxsize=32)

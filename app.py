@@ -215,7 +215,7 @@ UI_STRINGS = {
         "update_none": "Установлена последняя версия.", "update_unconfigured": "Канал обновлений ещё не настроен.",
         "update_available_title": "Доступно обновление", "update_available": "Доступна версия {version}.\n\n{notes}\n\nУстановить обновление сейчас?",
         "update_error": "Не удалось проверить обновления: {error}", "choose_log": "Выбери console_mp.log", "all_files": "Все файлы",
-        "about": "О программе", "developer": "Разработчик", "github": "GitHub", "star_project": "⭐ Поддержать проект",
+        "about": "О программе", "developer": "Разработчик", "github": "GitHub", "star_project": "Поддержать проект",
         "repo_pending": "Репозиторий проекта появится после публикации публичного релиза.",
         "made_for": "Сделано для сообщества Call of Duty 2.", "close": "Закрыть",
         "custom_language": "Другой язык", "custom_prompt": "Введи код языка Google Translate, например: cs, ja, ro, ko, ar",
@@ -290,7 +290,7 @@ UI_STRINGS = {
         "update_none": "You have the latest version.", "update_unconfigured": "The update channel is not configured yet.",
         "update_available_title": "Update available", "update_available": "Version {version} is available.\n\n{notes}\n\nInstall the update now?",
         "update_error": "Could not check for updates: {error}", "choose_log": "Select console_mp.log", "all_files": "All files",
-        "about": "About", "developer": "Developer", "github": "GitHub", "star_project": "⭐ Star the project",
+        "about": "About", "developer": "Developer", "github": "GitHub", "star_project": "Star the project",
         "repo_pending": "The project repository will be available after the public release is published.",
         "made_for": "Made for the Call of Duty 2 community.", "close": "Close",
         "custom_language": "Other language", "custom_prompt": "Enter a Google Translate language code, for example: cs, ja, ro, ko, ar",
@@ -371,7 +371,7 @@ UI_STRINGS["uk"] = {
     "update_available_title": "Доступне оновлення",
     "update_available": "Доступна версія {version}.\n\n{notes}\n\nВстановити оновлення зараз?",
     "update_error": "Не вдалося перевірити оновлення: {error}", "choose_log": "Вибери console_mp.log", "all_files": "Усі файли",
-    "about": "Про програму", "developer": "Розробник", "github": "GitHub", "star_project": "⭐ Підтримати проєкт",
+    "about": "Про програму", "developer": "Розробник", "github": "GitHub", "star_project": "Підтримати проєкт",
     "repo_pending": "Репозиторій проєкту буде доступний після публікації публічного релізу.",
     "made_for": "Створено для спільноти Call of Duty 2.", "close": "Закрити",
     "custom_language": "Інша мова",
@@ -4111,7 +4111,7 @@ class ControlApp:
 
     def show_about(self) -> None:
         from premium_dialogs import dialog_body
-        from dashboard_ui import BG, CARD, TEXT, MUTED, FONT, action
+        from dashboard_ui import BG, CARD, TEXT, MUTED, FONT, action, ui_photo
         from PIL import Image, ImageTk
         win = tk.Toplevel(self.root)
         win.title(f"{self.t('about')} — {APP_NAME}")
@@ -4153,6 +4153,7 @@ class ControlApp:
                lambda: self._open_url(PROJECT_PROFILE_URL)).pack(side="left")
         repo_url = self._project_repository_url()
         star = action(links, self.t("star_project"), lambda: self._open_url(repo_url) if repo_url else None)
+        star.configure(image=ui_photo(win,"quick_star.png"),compound="left")
         star.pack(side="left", padx=(8, 0))
         if not repo_url:
             star.state(["disabled"])

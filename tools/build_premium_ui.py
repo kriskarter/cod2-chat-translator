@@ -29,7 +29,7 @@ def button(name, *, amber=False, hover=False, pressed=False, disabled=False):
     w, h = 64, 36
     im = material(w, h, start=37).convert("RGBA")
     if amber:
-        wash = (120, 67, 26, 155 if not hover else 180)
+        wash = (99, 72, 43, 152 if not hover else 177)
     elif hover:
         wash = (71, 77, 74, 95)
     else:
@@ -39,7 +39,7 @@ def button(name, *, amber=False, hover=False, pressed=False, disabled=False):
     if disabled:
         im = ImageEnhance.Contrast(im).enhance(.55)
     draw = ImageDraw.Draw(im, "RGBA")
-    rim = (255, 187, 91, 235) if amber else (183, 151, 101, 228)
+    rim = (226, 177, 108, 213) if amber else (161, 150, 127, 210)
     if pressed:
         rim = (155, 96, 37, 210)
     draw.rounded_rectangle((1, 1, w - 2, h - 2), radius=7,
@@ -80,7 +80,7 @@ def main():
     logo.save(OUT / "premium_logo_compact.png", optimize=True)
 
     plate = material(1024, 46, start=172).convert("RGBA")
-    plate = Image.alpha_composite(plate, Image.new("RGBA", plate.size, (35, 28, 17, 55)))
+    plate = Image.alpha_composite(plate, Image.new("RGBA", plate.size, (30, 36, 38, 115)))
     d = ImageDraw.Draw(plate, "RGBA")
     d.line((0, 0, 1024, 0), fill=(235, 192, 126, 210), width=2)
     d.line((0, 43, 1024, 43), fill=(11, 9, 6, 250), width=2)
@@ -91,14 +91,14 @@ def main():
     # no enclosing button outline; selection is a soft amber wash.
     for state in ("normal", "hover", "active", "pressed"):
         nav = material(64, 40, start=84).convert("RGBA")
-        glow = {"normal": (17, 22, 24, 158), "hover": (66, 52, 35, 123),
-                "active": (73, 53, 30, 128), "pressed": (80, 54, 28, 163)}[state]
+        glow = {"normal": (22, 27, 30, 185), "hover": (61, 62, 54, 155),
+                "active": (78, 66, 48, 153), "pressed": (88, 65, 39, 173)}[state]
         nav = Image.alpha_composite(nav, Image.new("RGBA", nav.size, glow))
         if state != "normal":
             sheen=Image.new("RGBA",nav.size)
             bands=ImageDraw.Draw(sheen,"RGBA")
             for y in range(40):
-                alpha=round((34 if state=="hover" else 74)*max(0,1-abs(y-17)/23))
+                alpha=round((30 if state=="hover" else 58)*max(0,1-abs(y-17)/23))
                 bands.line((0,y,64,y),fill=(229,149,62,alpha))
             nav=Image.alpha_composite(nav,sheen)
         d = ImageDraw.Draw(nav, "RGBA")
@@ -128,6 +128,18 @@ def main():
     add_draw.line((11, 6, 11, 15), fill=(250, 221, 161, 255), width=2)
     add_draw.line((6, 11, 15, 11), fill=(250, 221, 161, 255), width=2)
     add.save(OUT / "quick_add.png", optimize=True)
+    star = Image.new("RGBA", (22, 22))
+    sd = ImageDraw.Draw(star)
+    from math import cos, pi, sin
+    outline=[]
+    for index in range(10):
+        angle=-pi/2+index*pi/5
+        radius=10 if index%2==0 else 4.4
+        outline.append((round(11+cos(angle)*radius),
+                        round(11+sin(angle)*radius)))
+    sd.polygon(outline,fill=(217,169,92,230))
+    sd.line(outline+[outline[0]],fill=(255,226,163,245),width=1)
+    star.save(OUT / "quick_star.png",optimize=True)
 
     for name in ("servers", "history"):
         icon = Image.new("RGBA", (28, 28))
@@ -147,6 +159,8 @@ def main():
     # Keep the corners/edges of the approved new material independent of
     # destination width or height. ttk stretches only the neutral center.
     panel = Image.open(SRC / "generic_panel.png").convert("RGBA")
+    panel = ImageEnhance.Color(panel).enhance(.6)
+    panel = ImageEnhance.Brightness(panel).enhance(.86)
     tile = Image.new("RGBA", (160, 160))
     source = 126
     border = 42
@@ -186,7 +200,7 @@ def main():
              (138, 64, 4, 200) if on else (11, 10, 8, 200)))
         c = ImageDraw.Draw(check, "RGBA")
         c.rounded_rectangle((1, 1, 20, 20), radius=3,
-            outline=(255, 177, 72, 255) if on else (172, 146, 99, 255), width=2)
+            outline=(118, 201, 129, 255) if on else (137, 141, 132, 255), width=1)
         if on:
             c.line((5, 11, 9, 15, 17, 6), fill=(255, 240, 197, 255), width=3,
                    joint="curve")
@@ -208,19 +222,19 @@ def main():
     th.line((7, 16, 14, 16), fill=(88, 64, 37, 255), width=2)
     thumb.save(OUT / "premium_scale_thumb.png", optimize=True)
     # Small controls are nine-slice images, not Windows default scrollbars.
-    track = material(18, 48).convert("RGBA")
-    track = Image.alpha_composite(track, Image.new("RGBA", track.size, (12, 10, 8, 220)))
+    track = material(14, 48).convert("RGBA")
+    track = Image.alpha_composite(track, Image.new("RGBA", track.size, (19, 24, 26, 225)))
     d = ImageDraw.Draw(track, "RGBA")
-    d.rounded_rectangle((1, 1, 16, 46), radius=5,
-                        outline=(123, 91, 51, 235), width=2)
+    d.rounded_rectangle((1, 1, 12, 46), radius=4,
+                        outline=(103, 95, 79, 235), width=1)
     track.save(OUT / "premium_scroll_track.png", optimize=True)
-    grip = material(18, 42).convert("RGBA")
-    grip = Image.alpha_composite(grip, Image.new("RGBA", grip.size, (75, 55, 31, 175)))
+    grip = material(14, 42).convert("RGBA")
+    grip = Image.alpha_composite(grip, Image.new("RGBA", grip.size, (62, 66, 63, 185)))
     d = ImageDraw.Draw(grip, "RGBA")
-    d.rounded_rectangle((1, 1, 16, 40), radius=5,
-                        outline=(222, 174, 105, 235), width=2)
+    d.rounded_rectangle((1, 1, 12, 40), radius=4,
+                        outline=(200, 164, 112, 235), width=1)
     for y in (18, 21, 24):
-        d.line((5, y, 12, y), fill=(255, 204, 129, 180), width=1)
+        d.line((4, y, 9, y), fill=(233, 207, 161, 160), width=1)
     grip.save(OUT / "premium_scroll_grip.png", optimize=True)
     arrow = material(24, 24).convert("RGBA")
     arrow = Image.alpha_composite(arrow, Image.new("RGBA", arrow.size, (36, 29, 19, 205)))
