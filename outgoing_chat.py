@@ -616,8 +616,13 @@ class KeyboardCapture:
     но CoD2 остаётся foreground-приложением.
     """
 
-    def __init__(self, events: queue.Queue) -> None:
+    def __init__(self, events: queue.Queue, *, game_scope=None) -> None:
         self.events = events
+        self.game_scope = game_scope
+        self.f8_down = False
+        self._stop_requested = threading.Event()
+        self._thread_id = None
+        self._thread = None
         self.active = False
         self.enabled = True
 
@@ -640,11 +645,23 @@ class KeyboardCapture:
             self.f9_down = False
 
     def start(self) -> None:
-        threading.Thread(
+        if self._thread is not None:
+            return
+        self._thread = threading.Thread(
             target=self._safe_run,
             daemon=True,
             name="OutgoingKeyboardHook",
-        ).start()
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self.set_enabled(False)
+        self._stop_requested.set()
+        if os.name == "nt" and self._thread_id:
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            user32.PostThreadMessageW.argtypes = [wintypes.DWORD, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+            user32.PostThreadMessageW.restype = wintypes.BOOL
+            user32.PostThreadMessageW(self._thread_id, 0x0012, 0, 0)
 
     def _safe_run(self) -> None:
         try:
@@ -871,6 +888,24 @@ class KeyboardCapture:
             if key_up:
                 self.down_keys.discard(vk)
 
+            # Optional Qt mode scopes all game actions to the actual game.
+            # Default Tk behaviour is unchanged.
+            if self.game_scope is not None:
+                if self._stop_requested.is_set():
+                    return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
+                if vk in (0x77, VK_F9, VK_F10) or self.active:
+                    if not self.game_scope():
+                        if self.active:
+                            self.active = False
+                            self.events.put(("system_escape", None))
+                        self.f8_down = self.f9_down = self.f10_down = False
+                        return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
+                if vk == 0x77:
+                    if key_down and not self.f8_down:
+                        self.events.put(("f8", None))
+                    self.f8_down = bool(key_down)
+                    return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
+
             # F9 принадлежит исходящему чату только когда
             # функция включена. Иначе клавиша остаётся игре.
             if vk == VK_F9 and self.enabled:
@@ -1044,13 +1079,17 @@ class KeyboardCapture:
             )
             return
 
-        self.events.put(
-            ("hook_ready", None)
-        )
-
         msg = wintypes.MSG()
+        kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+        user32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]
+        user32.PeekMessageW.restype = wintypes.BOOL
+        user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 0)
+        self._thread_id = kernel32.GetCurrentThreadId()
+        self.events.put(("hook_ready", None))
 
         try:
+            if self._stop_requested.is_set():
+                return
             while (
                 user32.GetMessageW(
                     ctypes.byref(msg),
@@ -1072,6 +1111,7 @@ class KeyboardCapture:
                     self.hook
                 )
                 self.hook = None
+            self._thread_id = None
 
 
 class OutgoingChatController:

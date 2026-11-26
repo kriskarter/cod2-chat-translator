@@ -399,10 +399,14 @@ def send_cod2_chat_message(text: str) -> tuple[bool, str]:
         time.sleep(0.10)
 
         # CoD2 у пользователя подтверждённо принимает Ctrl+V в чате.
+        if not is_cod2_foreground():
+            return False, "Фокус ушёл с CoD2 — отправка отменена"
         _paste()
         time.sleep(0.12)
 
         # Реальная отправка сообщения.
+        if not is_cod2_foreground():
+            return False, "Фокус ушёл с CoD2 — отправка отменена"
         _tap(SCAN_ENTER)
         time.sleep(0.10)
 

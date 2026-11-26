@@ -56,7 +56,12 @@ MetalPanel {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     TextArea { text: prototype.outgoingResult; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap }
                 }
-                Text { text: "Глобальная клавиша F9 и автоматическая отправка ещё не перенесены."; color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Text {
+                    text: prototype.gameHotkeysReady ? "Игровые F8/F9/F10 подключены · F9 и Enter отправляют только в активную CoD2." :
+                          prototype.gameHotkeysEnabled ? "Игровой keyboard hook ещё не готов." : "Игровые клавиши выключены в этом запуске."
+                    color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                }
+                Text { text: "Ручной режим не отправляет сообщения в игру."; color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             }
             ListView {
                 id: history

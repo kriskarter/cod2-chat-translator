@@ -6,6 +6,7 @@ runtime is opt-in, reads the supplied configuration, and never writes it.
 from __future__ import annotations
 
 import json
+import os
 import queue
 import threading
 from collections import deque
@@ -41,7 +42,7 @@ class TranslationState(LiveMonitorState):
     on_log_message = ControlApp.on_log_message
     _on_log_control = ControlApp._on_log_control
 
-    def __init__(self, config, game_exe=None, log_path=None, installed_knowledge=None):
+    def __init__(self, config, game_exe=None, log_path=None, installed_knowledge=None, game_hotkeys=False):
         super().__init__(load_settings(config.get("server_monitor")), game_exe)
         self.ui_language = config.get("ui_language", "ru")
         self._translation_status = "Ожидание запуска"
@@ -96,6 +97,53 @@ class TranslationState(LiveMonitorState):
         self._timer.setInterval(80)
         self._timer.timeout.connect(self._drain)
         self._started = False
+        self._game = None
+        self._screenshot_in_progress = False
+        if game_hotkeys and os.name == "nt":
+            from .game_controls import GameControls
+            self._game = GameControls(self, config.get("overlay", {}),
+                                      config.get("outgoing_source_language", self.ui_language),
+                                      config.get("outgoing_target_language", "en"))
+
+    _screenshot_directory = ControlApp._screenshot_directory
+    _screenshot_status = ControlApp._screenshot_status
+    def _capture_game_screenshot_worker(self):
+        # Never fall back to capturing a different application or whole desktop.
+        import time
+        from PIL import ImageGrab
+        from app import find_cod2_window, _monitor_rect_for_window
+        from outgoing_send import is_cod2_foreground
+        try:
+            if not is_cod2_foreground():
+                raise RuntimeError("CoD2 не в фокусе")
+            hwnd = find_cod2_window()
+            if not hwnd:
+                raise RuntimeError("Окно CoD2 не найдено")
+            left, top, width, height = _monitor_rect_for_window(hwnd)
+            if width <= 0 or height <= 0 or not is_cod2_foreground():
+                raise RuntimeError("Окно CoD2 недоступно")
+            image = ImageGrab.grab(bbox=(left, top, left+width, top+height),
+                                   include_layered_windows=True, all_screens=True)
+            path = self._screenshot_directory() / f"CoD2_Chat_Translator_{time.strftime('%Y-%m-%d_%H-%M-%S')}_{time.time_ns()%1000000000:09d}.png"
+            image.save(path, format="PNG")
+            self.ui_queue.put(("screenshot_saved", str(path)))
+        except Exception as error:
+            self.ui_queue.put(("screenshot_error", str(error)))
+        finally:
+            self._screenshot_in_progress = False
+
+    def game_status(self, text):
+        self._translation_status = text
+        self.translationChanged.emit()
+
+    def capture_game_screenshot(self):
+        if os.name != "nt" or self._screenshot_in_progress:
+            return
+        self._screenshot_in_progress = True
+        self.game_status(self._screenshot_status("capturing"))
+        threading.Thread(target=self._capture_game_screenshot_worker, daemon=True,
+                         name="QtCoD2Screenshot").start()
+
 
     def t(self, key):
         return UI_STRINGS.get(self.ui_language, UI_STRINGS["ru"]).get(key, key)
@@ -103,6 +151,12 @@ class TranslationState(LiveMonitorState):
     def _update_settings(self):
         self._f8_settings = (self._target, self._hide, self._slang,
                              self._style, self._smart, self._dedupe)
+
+    @Property(bool, notify=translationChanged)
+    def gameHotkeysReady(self): return bool(self._game and self._game.ready)
+
+    @Property(bool, constant=True)
+    def gameHotkeysEnabled(self): return self._game is not None
 
     @Property(bool, constant=True)
     def overlayAvailable(self): return self._hud.available
@@ -137,6 +191,7 @@ class TranslationState(LiveMonitorState):
             worker.start()
         self._tailer.start()
         self._timer.start()
+        if self._game: self._game.start()
 
     def stop(self):
         if self.stop_event.is_set():
@@ -145,6 +200,7 @@ class TranslationState(LiveMonitorState):
         self._timer.stop()
         self.stop_event.set()
         self._dispatcher.close()
+        if self._game: self._game.close()
         self._hud.close()
         super().stop()
         # No unbounded join on the GUI thread. Workers are daemon threads and
@@ -175,11 +231,13 @@ class TranslationState(LiveMonitorState):
             self._translation_status = "Входящий перевод включён" if self._f8 else "Входящий перевод выключен"
         elif key == "f9":
             self._f9 = not self._f9
+            if self._game and not self._f9: self._game.cancel()
             self._outgoing_id += 1
             self._outgoing_busy = False
             self._outgoing_result = ""
         elif key == "smart":
             self._smart = not self._smart
+            if self._game: self._game.cancel()
             self._update_settings()
             self._on_log_control("map_change", "smart_toggle")
             self._outgoing_id += 1
@@ -224,12 +282,17 @@ class TranslationState(LiveMonitorState):
     def _drain(self):
         changed = False
         self._hud.tick()
+        if self._game: self._game.tick()
         for _ in range(100):
             try:
                 event = self.ui_queue.get_nowait()
             except queue.Empty:
                 break
             kind = event[0]
+            if kind in ("screenshot_saved", "screenshot_error"):
+                self._translation_status = self._screenshot_status("saved", path=event[1]) if kind == "screenshot_saved" else self._screenshot_status("error", error=event[1])
+                changed = True
+                continue
             if kind == "outgoing":
                 _, request_id, ok, result = event
                 if request_id == self._outgoing_id:

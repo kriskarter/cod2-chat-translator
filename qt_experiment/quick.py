@@ -18,7 +18,7 @@ def main():
         exe = Path(sys.argv[sys.argv.index('--game-exe') + 1]) if '--game-exe' in sys.argv else None
         log = Path(sys.argv[sys.argv.index('--log') + 1]) if '--log' in sys.argv else None
         knowledge = config.with_name('knowledge_v2.json') if config else None
-        state = TranslationState(read_translation_config(config), exe, log, knowledge)
+        state = TranslationState(read_translation_config(config), exe, log, knowledge, game_hotkeys="--game-hotkeys" in sys.argv)
         app.aboutToQuit.connect(state.stop)
         state.start()
     elif '--live-monitor' in sys.argv:

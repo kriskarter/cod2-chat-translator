@@ -1,0 +1,92 @@
+"""Qt game controls: scoped hook, cancellation and verified translation handoff."""
+import os
+import time
+from types import SimpleNamespace
+from unittest.mock import Mock
+import pytest
+
+pytest.importorskip("PySide6")
+from qt_experiment.game_controls import GameControls
+from qt_experiment.native_hud import NativeHud
+
+
+class Keyboard:
+    def __init__(self, events, game_scope):
+        self.events, self.game_scope = events, game_scope
+        self.active = False
+    def set_enabled(self, enabled):
+        if not enabled:
+            self.active = False
+    def set_active(self, value): self.active = value
+    def start(self): pass
+    def stop(self): self.active = False
+
+
+def wait(game, predicate):
+    end = time.monotonic() + 3
+    while time.monotonic() < end:
+        game.tick()
+        if predicate():
+            return
+        time.sleep(.01)
+    assert predicate()
+
+
+def test_game_actions_and_cancel_stale_result():
+    focused = [False]
+    state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
+                            game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
+    surface = Mock()
+    sender = Mock(return_value=(True, ""))
+    translator = Mock(return_value="cover me")
+    game = GameControls(state, {}, "ru", "en", foreground=lambda: focused[0],
+                        keyboard_factory=Keyboard, hud_factory=lambda cfg, original: NativeHud(cfg, original, factory=lambda: surface),
+                        translator=translator, sender=sender)
+    try:
+        game.events.put(("toggle_popup", None))
+        game.tick()
+        assert not game.active
+        focused[0] = True
+        game.events.put(("f8", None))
+        game.events.put(("screenshot", None))
+        game.events.put(("toggle_popup", None))
+        game.events.put(("text", "прикрой меня"))
+        game.tick()
+        state.toggle.assert_called_once_with("overlay")
+        state.capture_game_screenshot.assert_called_once()
+        assert game.active and game.keyboard.active
+        game.events.put(("submit", None))
+        game.tick()
+        old_id = game.generation
+        focused[0] = False
+        game.tick()
+        assert not game.active and not game.keyboard.active
+        game.events.put(("result", (old_id, True, "cover me")))
+        game.tick()
+        sender.assert_not_called()
+        focused[0] = True
+        game.events.put(("toggle_popup", None))
+        game.events.put(("text", "прикрой меня"))
+        game.events.put(("submit", None))
+        wait(game, lambda: sender.called and not game.sending)
+        sender.assert_called_once_with("cover me")
+        assert not game.keyboard.active
+    finally:
+        game.close()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows hook")
+def test_native_keyboard_hook_starts_and_stops():
+    import queue
+    from outgoing_chat import KeyboardCapture
+    events = queue.Queue()
+    hook = KeyboardCapture(events, game_scope=lambda: False)
+    try:
+        hook.start()
+        event, detail = events.get(timeout=5)
+        assert event == "hook_ready", detail
+    finally:
+        hook.stop()
+        if hook._thread:
+            hook._thread.join(5)
+    assert not hook._thread.is_alive()
