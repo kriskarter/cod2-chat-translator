@@ -51,8 +51,28 @@ class PrototypeState(QObject):
         self._f9 = True
         self._overlay = True
         self._smart = True
+        self._demo = True
+        self._status = "Демонстрационные данные"
+        self._friend_count = 0
+        self._can_connect = True
         self._selected = rows[0].address if rows else ""
         self._rows = {row.address: row for row in rows}
+
+    @Property(bool, constant=True)
+    def demo(self): return self._demo
+
+    @Property(str, notify=changed)
+    def status(self): return self._status
+
+    @Property(int, notify=changed)
+    def friendCount(self): return self._friend_count
+
+    @Property(bool, notify=changed)
+    def canConnect(self): return self._can_connect
+
+    @Slot(str, str, result=bool)
+    def addServer(self, address, label):
+        return False
 
     @Property(bool, notify=changed)
     def f8(self): return self._f8

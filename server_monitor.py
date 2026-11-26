@@ -275,6 +275,12 @@ class Monitor:
     def refresh(self):
         self._wake.set()
 
+    def replace_servers(self, servers):
+        """Replace the worker input under the same lock used for snapshots."""
+        with self._lock:
+            self.settings["servers"] = list(servers)
+        self.refresh()
+
     def _run(self):
         while not self._stop.is_set():
             with self._lock:
