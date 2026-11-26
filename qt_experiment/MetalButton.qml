@@ -9,6 +9,7 @@ Button {
     font.pixelSize: 13
     font.bold: true
     implicitHeight: 36
+    implicitWidth: Math.max(74, buttonLabel.implicitWidth + (icon.visible ? 22 : 0) + 2 * padding + 6)
     padding: 8
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
@@ -26,6 +27,7 @@ Button {
                 opacity: root.enabled ? 1 : .45
             }
             Text {
+                id: buttonLabel
                 text: root.text; font: root.font
                 color: root.enabled ? "#fff0d1" : "#a4977e"
                 width: Math.min(implicitWidth, Math.max(0, root.availableWidth - (icon.visible ? 22 : 0)))

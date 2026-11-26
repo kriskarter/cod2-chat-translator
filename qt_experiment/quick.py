@@ -19,6 +19,15 @@ def main():
         log = Path(sys.argv[sys.argv.index('--log') + 1]) if '--log' in sys.argv else None
         knowledge = Path(sys.argv[sys.argv.index('--knowledge-file') + 1]) if '--knowledge-file' in sys.argv else None
         values = read_translation_config(config)
+        # Import the previous F9 language pair without modifying its file.
+        if config:
+            import json
+            try:
+                outgoing = json.loads(config.with_name("outgoing_chat.json").read_text(encoding="utf-8"))
+                if isinstance(outgoing, dict):
+                    for old, new in (("source_language","outgoing_source_language"),("target_language","outgoing_target_language"),("enabled","outgoing_enabled")):
+                        if old in outgoing: values.setdefault(new, outgoing[old])
+            except (OSError, ValueError): pass
         if config is None:
             from app import installer_language_hint
             hint = installer_language_hint()

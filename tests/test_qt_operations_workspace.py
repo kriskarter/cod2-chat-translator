@@ -41,6 +41,8 @@ def test_operations_and_localization(tmp_path):
         state.setHudValue("font", 18)
         state.setKnowledgeEnabled(False)
         state.setUiLanguage("uk")
+        state.setOutgoingRoute("uk", "de")
+        assert state.outgoingSource == "uk" and state.outgoingTarget == "de"
         assert translate("Главная", "uk") == "Головна"
         assert state.trText("Главная") == "Головна"
         state.saveSettings()
@@ -51,6 +53,7 @@ def test_operations_and_localization(tmp_path):
         assert saved["show_original"] is True and saved["overlay"]["font_size"] == 18
         assert saved["knowledge_v2_enabled"] is False
         assert saved["ui_language"] == "uk"
+        assert saved["outgoing_source_language"] == "uk" and saved["outgoing_target_language"] == "de"
         for lang in ("ru", "uk", "en"):
             state.setUiLanguage(lang)
             for page in ("home","servers","settings","history","outgoing","profiles","knowledge","notifications","about","stats","overlay"):

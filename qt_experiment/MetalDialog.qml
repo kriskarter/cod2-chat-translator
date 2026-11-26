@@ -3,6 +3,7 @@ import QtQuick.Controls
 Dialog {
     id: root
     modal: true
+    width: 390
     padding: 20
     palette.windowText: "#f5e7c9"
     palette.text: "#f5e7c9"

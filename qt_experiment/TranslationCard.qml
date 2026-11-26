@@ -25,19 +25,19 @@ MetalPanel {
         }
     }
     RowLayout {
-        anchors.fill: parent; anchors.margins: root.compact ? 13 : 18
+        anchors.fill: parent; anchors.margins: root.compact ? 9 : 18
         spacing: root.compact ? 9 : 17
         KeycapButton {
             objectName: root.keyName.toLowerCase() + "Key"
             text: root.keyName; active: root.active; enabled: root.controlsEnabled
-            Layout.preferredWidth: root.compact ? 80 : 114
+            Layout.preferredWidth: root.compact ? Math.min(74, Math.max(44, root.height - 24)) : 114
             Layout.preferredHeight: width
             onClicked: root.toggled()
         }
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
             Item { Layout.fillHeight: true }
-            Text { text: root.heading; color: "#fff0d1"; font.pixelSize: root.compact ? 15 : 22; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { text: root.heading; color: "#fff0d1"; font.pixelSize: root.compact ? 14 : 22; font.bold: true; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; Layout.fillWidth: true }
             Text { text: root.description; color: "#e8d4b3"; font.pixelSize: root.compact ? 11 : 13; elide: Text.ElideRight; Layout.fillWidth: true }
             RowLayout {
                 Rectangle { width: 8; height: 8; radius: 4; color: root.active ? "#b0db84" : "#847c6d" }

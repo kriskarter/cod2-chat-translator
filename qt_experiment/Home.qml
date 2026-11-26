@@ -6,10 +6,11 @@ ApplicationWindow {
     id: window
     visible: true
     width: 1366; height: 768
-    minimumWidth: 900; minimumHeight: 620
+    minimumWidth: 840; minimumHeight: 460
     title: "CoD2 Chat Translator — " + (prototype.demo ? (prototype.uiLanguage, prototype.trText("демонстрация")) : prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Translation · разработка")) : (prototype.uiLanguage, prototype.trText("UDP Monitor · разработка")))
     color: "#111313"
-    property bool compact: width < 1100
+    property bool compact: width < 1100 || height < 620
+    property bool shortWindow: height < 620
     property color ink: "#f5e7c9"
     property int navIndex: 0
     property string activePage: "home"
@@ -50,7 +51,7 @@ ApplicationWindow {
         spacing: 0
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(window.width / 7.4, window.height * .26)
+            Layout.preferredHeight: Math.min(window.width / 7.4, window.height * (window.shortWindow ? .19 : .26))
             clip: true
             Rectangle { anchors.fill: parent; color: "#25251e" }
             Image {
@@ -69,7 +70,7 @@ ApplicationWindow {
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#a27c49" }
         }
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 44
+            Layout.fillWidth: true; Layout.preferredHeight: window.shortWindow ? 36 : 44
             color: "#191b1a"; border.color: "#68573c"
             RowLayout {
                 anchors.fill: parent; anchors.leftMargin: 17; anchors.rightMargin: 17; anchors.topMargin: 3; anchors.bottomMargin: 3; spacing: 6
@@ -87,7 +88,7 @@ ApplicationWindow {
                         objectName: "nav_" + modelData.key
                         text: window.tr(modelData.name)
                         glyph: "icons/" + modelData.icon + ".svg"
-                        selected: index === window.navIndex
+                        selected: window.activePage === modelData.key || modelData.key === "settings" && ["profiles","knowledge","notifications","stats","overlay","outgoing"].indexOf(window.activePage) >= 0
                         enabled: index === 0 || prototype.demo || (prototype.serverManagementAvailable && modelData.key === "servers") || (prototype.translationAvailable && (modelData.key === "settings" || modelData.key === "history" || modelData.key === "about"))
                         Layout.fillWidth: true; Layout.fillHeight: true
                         onClicked: {
@@ -101,7 +102,7 @@ ApplicationWindow {
         RowLayout {
             visible: window.activePage === "home"
             Layout.fillWidth: true; Layout.fillHeight: true
-            Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.topMargin: 10; Layout.bottomMargin: 8
+            Layout.leftMargin: 12; Layout.rightMargin: 12; Layout.topMargin: window.shortWindow ? 5 : 10; Layout.bottomMargin: 5
             spacing: 12
             ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true
@@ -121,7 +122,7 @@ ApplicationWindow {
                 }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Ручной перевод текста")) : (prototype.uiLanguage, prototype.trText("Русский → English"))
+                    keyName: "F9"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
                     active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "../assets/ui_premium/tank_card.png"
                     onToggled: prototype.toggle("f9")
@@ -130,22 +131,22 @@ ApplicationWindow {
             MetalPanel {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 Layout.horizontalStretchFactor: 57
-                Layout.minimumWidth: 420
+                Layout.minimumWidth: window.compact ? 400 : 420
                 ColumnLayout {
-                    anchors.fill: parent; anchors.leftMargin: 23; anchors.rightMargin: 23; anchors.topMargin: 24; anchors.bottomMargin: 20; spacing: 8
+                    anchors.fill: parent; anchors.leftMargin: window.shortWindow ? 10 : 18; anchors.rightMargin: anchors.leftMargin; anchors.topMargin: window.shortWindow ? 9 : 18; anchors.bottomMargin: anchors.topMargin; spacing: window.shortWindow ? 3 : 7
                     RowLayout {
                         Text { text: (prototype.uiLanguage, prototype.trText("Мониторинг серверов")); color: ink; font.pixelSize: window.compact ? 17 : 21; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
                         FriendIndicator { count: prototype.friendCount }
                     }
                     ServerTable {
                         Layout.fillWidth: true; Layout.fillHeight: true
-                        Layout.minimumHeight: 82
+                        Layout.minimumHeight: window.shortWindow ? 48 : 82
                         rows: prototype.rows; selected: prototype.selected
                         onChosen: address => prototype.select(address)
                     }
                     PlayerRoster {
                         Layout.fillWidth: true; Layout.fillHeight: true
-                        Layout.minimumHeight: 70
+                        Layout.minimumHeight: window.shortWindow ? 45 : 70
                         players: prototype.players
                     }
                     RowLayout {
@@ -167,10 +168,10 @@ ApplicationWindow {
             Component { id: operationsPage; OperationsWorkspace { page: window.activePage } }
         }
         MetalPanel {
-            Layout.fillWidth: true; Layout.minimumHeight: 66; Layout.preferredHeight: 66; Layout.maximumHeight: 66
+            Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 50 : 66; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
             Layout.leftMargin: 17; Layout.rightMargin: 17; Layout.bottomMargin: 8
             RowLayout {
-                anchors.fill: parent; anchors.margins: 14; spacing: 14
+                anchors.fill: parent; anchors.margins: window.shortWindow ? 8 : 14; spacing: 10
                 OverlayControl { Layout.fillWidth: true; active: prototype.overlay; controlsEnabled: prototype.demo || prototype.overlayAvailable; onToggled: prototype.toggle("overlay") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
                 SmartEngineControl { Layout.fillWidth: true; active: prototype.smart; controlsEnabled: prototype.demo || prototype.translationAvailable; onToggled: prototype.toggle("smart") }

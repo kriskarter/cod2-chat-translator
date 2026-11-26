@@ -19,7 +19,7 @@ from app import (ControlApp, DEFAULT_CONFIG, UI_STRINGS, TARGET_LANGUAGES,
                  deep_merge, gaming_slang_transform, merge_server_profiles,
                  discover_cod2_logs, choose_active_log_from_activity, activity_snapshot, APP_VERSION, _path_key)
 from outgoing_chat import (OutgoingTranslationDispatcher, OutgoingHttpTransport,
-                           translate_outgoing_text)
+                           translate_outgoing_text, LANGUAGES as OUTGOING_LANGUAGES)
 import knowledge_v2
 import translation_memory
 from .live_monitor import LiveMonitorState
@@ -69,8 +69,12 @@ class TranslationState(LiveMonitorState):
         self._outgoing_result = ""
         self._outgoing_busy = False
         self._outgoing_id = 0
-        self._f8 = self.enabled = True
-        self._f9 = True
+        self._f8 = self.enabled = bool(config.get("qt_f8_enabled", True))
+        self._f9 = bool(config.get("outgoing_enabled", True))
+        self._out_source = config.get("outgoing_source_language", self.ui_language)
+        self._out_target = config.get("outgoing_target_language", "en")
+        if self._out_source not in OUTGOING_LANGUAGES.values(): self._out_source = "ru"
+        if self._out_target not in OUTGOING_LANGUAGES.values(): self._out_target = "en"
         self._smart = bool(config.get("smart_engine_enabled", True))
         self._target = config.get("target_language", "ru")
         if self._target not in TARGET_LANGUAGES.values():
@@ -137,8 +141,7 @@ class TranslationState(LiveMonitorState):
         if game_hotkeys and os.name == "nt":
             from .game_controls import GameControls
             self._game = GameControls(self, config.get("overlay", {}),
-                                      config.get("outgoing_source_language", self.ui_language),
-                                      config.get("outgoing_target_language", "en"))
+                                      self._out_source, self._out_target)
 
     _screenshot_directory = ControlApp._screenshot_directory
     _screenshot_status = ControlApp._screenshot_status
@@ -196,6 +199,8 @@ class TranslationState(LiveMonitorState):
             return
         config = dict(self._config)
         config.update(target_language=self._target, smart_engine_enabled=self._smart,
+                      qt_f8_enabled=self._f8, outgoing_enabled=self._f9,
+                      outgoing_source_language=self._out_source, outgoing_target_language=self._out_target,
                       log_path=str(self._log_path or ""), active_profile_path=str(self._log_path or ""),
                       server_monitor=dump_settings(self._settings), ui_language=self.ui_language,
                       server_profiles=self._profiles, auto_detect_profile=self._auto_profile,
@@ -475,6 +480,31 @@ class TranslationState(LiveMonitorState):
     def languages(self):
         return [dict(label=label, code=code) for label, code in TARGET_LANGUAGES.items()]
 
+    @Property('QVariantList', constant=True)
+    def outgoingLanguages(self):
+        return [dict(label=label, code=code) for label, code in OUTGOING_LANGUAGES.items()]
+
+    @Property(str, notify=translationChanged)
+    def outgoingSource(self): return self._out_source
+
+    @Property(str, notify=translationChanged)
+    def outgoingTarget(self): return self._out_target
+
+    @Slot(str, str)
+    def setOutgoingRoute(self, source, target):
+        if source not in OUTGOING_LANGUAGES.values() or target not in OUTGOING_LANGUAGES.values():
+            return
+        if (source, target) == (self._out_source, self._out_target):
+            return
+        self._out_source, self._out_target = source, target
+        if self._game:
+            self._game.cancel()
+            self._game.source, self._game.target = source, target
+        self._outgoing_id += 1
+        self._outgoing_busy = False
+        self._outgoing_result = ""
+        self.translationChanged.emit()
+
     @Property(bool, notify=translationChanged)
     def gameHotkeysReady(self): return bool(self._game and self._game.ready)
 
@@ -588,11 +618,11 @@ class TranslationState(LiveMonitorState):
     def submitOutgoing(self, text, source, target):
         if not self._f9 or self.stop_event.is_set():
             return
-        if not text.strip() or len(text) > 500 or target not in TARGET_LANGUAGES.values():
+        if not text.strip() or len(text) > 500 or target not in OUTGOING_LANGUAGES.values():
             self._outgoing_result = "Некорректный текст или язык"
             self.translationChanged.emit()
             return
-        if source != "auto" and source not in TARGET_LANGUAGES.values():
+        if source != "auto" and source not in OUTGOING_LANGUAGES.values():
             return
         self._outgoing_id += 1
         self._outgoing_result = ""
