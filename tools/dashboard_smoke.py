@@ -205,7 +205,14 @@ def main():
             root.update()
             app.overlay.set_visible(False)
             app.dashboard.navigate("home")
-            root.update()
+            # The art and adaptive geometry are intentionally coalesced. Wait
+            # for the settled layout rather than measuring the first transient
+            # Configure notification during a resize.
+            import time
+            until=time.monotonic()+.65
+            while time.monotonic()<until:
+                root.update()
+                time.sleep(.025)
             content_height=app.dashboard.home_content.winfo_reqheight()
             viewport_height=app.dashboard.home_canvas.winfo_height()
             has_bar=bool(app.dashboard.home_scrollbar.winfo_manager())

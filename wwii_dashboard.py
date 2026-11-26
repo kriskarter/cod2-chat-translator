@@ -292,11 +292,19 @@ class WWIIDashboard(Dashboard):
             if timer is not None:self.root.after_cancel(timer)
             def apply():
                 self._fit_header_timer=None
+                if not self.header_widget.winfo_exists():return
                 height=home_banner_height(self.root)
                 if int(self.header_widget.cget("height"))!=height:
                     self.header_widget.configure(height=height)
             self._fit_header_timer=self.root.after(120,apply)
-        self.root.bind("<Configure>",fit_header,add="+")
+        def stop_fitting(_event):
+            timer=getattr(self,"_fit_header_timer",None)
+            if timer is not None:
+                self.root.after_cancel(timer)
+                self._fit_header_timer=None
+            self.root.unbind("<Configure>",fit_bind)
+        fit_bind=self.root.bind("<Configure>",fit_header,add="+")
+        outer.bind("<Destroy>",lambda e:stop_fitting(e) if e.widget is outer else None,add="+")
         self.navigate("home")
 
     def _home(self, page):
