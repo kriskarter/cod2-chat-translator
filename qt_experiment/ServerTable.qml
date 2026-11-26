@@ -11,7 +11,9 @@ ColumnLayout {
         property var values
         property bool header: false
         property bool online: false
+        property bool favorite: false
         spacing: 7
+        Image { source: "icons/favorite.svg"; opacity: favorite ? 1 : 0; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
         Text { text: values[0]; Layout.fillWidth: true; Layout.minimumWidth: 55; color: header ? "#bcb09a" : "#f5e7c9"; elide: Text.ElideRight; font.pixelSize: header ? 11 : 13 }
         Text { text: values[1]; Layout.preferredWidth: 86; color: header ? "#bcb09a" : "#f5e7c9"; elide: Text.ElideRight; font.pixelSize: 12 }
         Text { text: values[2]; Layout.preferredWidth: 55; color: header ? "#bcb09a" : "#f5e7c9"; font.pixelSize: 12 }
@@ -45,6 +47,7 @@ ColumnLayout {
             Cells {
                 anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 9
                 values: [line.modelData.name, line.modelData.map, line.modelData.population, line.modelData.ping, line.modelData.state]
+                favorite: !!line.modelData.favorite
                 online: line.modelData.state === "online"
             }
             TapHandler { onTapped: root.chosen(line.modelData.address) }

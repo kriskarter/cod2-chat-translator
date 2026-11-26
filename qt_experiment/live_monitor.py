@@ -11,8 +11,8 @@ from pathlib import Path
 from dataclasses import replace
 from threading import Event
 
-from PySide6.QtCore import Qt, Signal, Slot
-from server_monitor import Monitor, Snapshot, Server, MAX_SERVERS, canonical_address, load_settings, normalized_name
+from PySide6.QtCore import Qt, Signal, Slot, Property
+from server_monitor import Monitor, Snapshot, Server, MAX_SERVERS, canonical_address, load_settings, normalized_name, plain_name
 from server_catalog import launch_connect_command
 from .common import PrototypeState, row_from_snapshot
 
@@ -28,6 +28,7 @@ def read_monitor_settings(path: Path | None) -> dict:
 
 class LiveMonitorState(PrototypeState):
     snapshot_received = Signal(object)
+    recordsChanged = Signal()
 
     def __init__(self, settings: dict, game_exe: Path | None = None):
         super().__init__(tuple(row_from_snapshot(Snapshot(address=s.address, name=s.label))
@@ -43,6 +44,76 @@ class LiveMonitorState(PrototypeState):
         self._monitor = Monitor(settings, self._on_worker_snapshot)
         self.snapshot_received.connect(self._apply_snapshot, Qt.ConnectionType.QueuedConnection)
         self.action.connect(self._dispatch)
+
+    def _is_favorite(self, address):
+        return any(s.address == address and s.favorite for s in self._settings["servers"])
+
+    @Property(bool, constant=True)
+    def serverManagementAvailable(self): return True
+
+    @Property('QVariantList', notify=recordsChanged)
+    def serverRecords(self):
+        return [dict(address=s.address, label=s.label, favorite=s.favorite) for s in self._settings["servers"]]
+
+    @Property('QStringList', notify=recordsChanged)
+    def friends(self):
+        return list(self._settings["friends"])
+
+    def _settings_changed(self):
+        pass
+
+    def _count_friends(self):
+        friends = {normalized_name(name) for name in self._settings["friends"]}
+        online = {normalized_name(name) for row in self._rows.values()
+                  if row.state == "online" for name, _, _ in row.players}
+        self._friend_count = len(friends & online)
+
+    @Slot(str, str, bool, result=bool)
+    def editServer(self, address, label, favorite):
+        if address not in self._rows:
+            return False
+        self._monitor.replace_servers([replace(s, label=label.strip()[:80], favorite=favorite)
+                                       if s.address == address else s for s in self._settings["servers"]])
+        self._settings_changed()
+        self.recordsChanged.emit()
+        self.rowsChanged.emit()
+        self.changed.emit()
+        return True
+
+    @Slot(str, result=bool)
+    def removeServer(self, address):
+        if address not in self._rows:
+            return False
+        self._monitor.replace_servers([s for s in self._settings["servers"] if s.address != address])
+        self._rows.pop(address)
+        if self._selected == address:
+            self._selected = next(iter(self._rows), "")
+        self._count_friends()
+        self._settings_changed()
+        self.recordsChanged.emit()
+        self.rowsChanged.emit()
+        self.changed.emit()
+        return True
+
+    @Slot(str, result=bool)
+    def addFriend(self, name):
+        name = plain_name(name.strip())[:48]
+        if not name or len(self._settings["friends"]) >= 100 or normalized_name(name) in {normalized_name(f) for f in self._settings["friends"]}:
+            return False
+        self._settings["friends"] = [*self._settings["friends"], name]
+        self._count_friends()
+        self._settings_changed()
+        self.recordsChanged.emit()
+        self.changed.emit()
+        return True
+
+    @Slot(str)
+    def removeFriend(self, name):
+        self._settings["friends"] = [f for f in self._settings["friends"] if normalized_name(f) != normalized_name(name)]
+        self._count_friends()
+        self._settings_changed()
+        self.recordsChanged.emit()
+        self.changed.emit()
 
     def start(self):
         self._monitor.start()
@@ -63,10 +134,7 @@ class LiveMonitorState(PrototypeState):
         if server is None:
             return
         self.update_snapshot(replace(snapshot, name=snapshot.name or server.label))
-        friends = {normalized_name(name) for name in self._settings["friends"]}
-        online = {normalized_name(name) for row in self._rows.values()
-                  if row.state == "online" for name, _, _ in row.players}
-        self._friend_count = len(friends & online)
+        self._count_friends()
         count = sum(row.state == "online" for row in self._rows.values())
         self._status = f"UDP: {count} из {len(self._rows)} онлайн"
         self.changed.emit()
@@ -95,7 +163,9 @@ class LiveMonitorState(PrototypeState):
             server = Server(address, label.strip()[:80], False)
             self._monitor.replace_servers([*self._settings["servers"], server])
             self.update_snapshot(Snapshot(address=address, name=server.label))
-            self._status = "Сервер добавлен до закрытия приложения"
+            self._status = "Сервер добавлен"
+            self._settings_changed()
+            self.recordsChanged.emit()
             self.changed.emit()
             return True
         except ValueError:

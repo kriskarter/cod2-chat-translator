@@ -16,7 +16,7 @@ ApplicationWindow {
     MetalDialog {
         id: addDialog
         anchors.centerIn: parent
-        title: "Добавить сервер (до закрытия)"
+        title: "Добавить сервер"
         standardButtons: Dialog.NoButton
         width: 390
         ColumnLayout {
@@ -72,10 +72,10 @@ ApplicationWindow {
                         text: modelData.name
                         glyph: "icons/" + modelData.icon + ".svg"
                         selected: index === window.navIndex
-                        enabled: index === 0 || prototype.demo || (prototype.translationAvailable && (modelData.key === "settings" || modelData.key === "history"))
+                        enabled: index === 0 || prototype.demo || (prototype.serverManagementAvailable && modelData.key === "servers") || (prototype.translationAvailable && (modelData.key === "settings" || modelData.key === "history"))
                         Layout.fillWidth: true; Layout.fillHeight: true
                         onClicked: {
-                            if (prototype.translationAvailable) { window.navIndex = index; window.activePage = modelData.key }
+                            if (prototype.translationAvailable || prototype.serverManagementAvailable) { window.navIndex = index; window.activePage = modelData.key }
                             else prototype.request("nav:" + modelData.key)
                         }
                     }
@@ -142,10 +142,12 @@ ApplicationWindow {
             }
         }
         Loader {
-            active: prototype.translationAvailable && window.activePage !== "home"
+            active: prototype.serverManagementAvailable && window.activePage === "servers" || prototype.translationAvailable && window.activePage !== "home"
             visible: active; Layout.fillWidth: true; Layout.fillHeight: true
             Layout.margins: 17
-            sourceComponent: TranslationWorkspace { page: window.activePage }
+            sourceComponent: window.activePage === "servers" ? serverPage : translationPage
+            Component { id: serverPage; ServerWorkspace { onAddRequested: addDialog.open() } }
+            Component { id: translationPage; TranslationWorkspace { page: window.activePage } }
         }
         MetalPanel {
             Layout.fillWidth: true; Layout.preferredHeight: 74

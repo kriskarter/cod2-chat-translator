@@ -18,7 +18,16 @@ def main():
         exe = Path(sys.argv[sys.argv.index('--game-exe') + 1]) if '--game-exe' in sys.argv else None
         log = Path(sys.argv[sys.argv.index('--log') + 1]) if '--log' in sys.argv else None
         knowledge = config.with_name('knowledge_v2.json') if config else None
-        state = TranslationState(read_translation_config(config), exe, log, knowledge, game_hotkeys="--game-hotkeys" in sys.argv)
+        values = read_translation_config(config)
+        store = None
+        if "--settings-file" in sys.argv:
+            from .settings_store import SettingsStore
+            target = Path(sys.argv[sys.argv.index("--settings-file") + 1])
+            if config and config.resolve() == target.resolve():
+                raise ValueError("Qt settings file must differ from the imported Tk config")
+            store = SettingsStore(target)
+            values = store.load(values)
+        state = TranslationState(values, exe, log, knowledge, game_hotkeys="--game-hotkeys" in sys.argv, settings_store=store)
         app.aboutToQuit.connect(state.stop)
         state.start()
     elif '--live-monitor' in sys.argv:

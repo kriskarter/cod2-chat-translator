@@ -64,6 +64,12 @@ class PrototypeState(QObject):
         self._rows = {row.address: row for row in rows}
 
     @Property(bool, constant=True)
+    def serverManagementAvailable(self): return False
+
+    @Property(bool, constant=True)
+    def settingsWritable(self): return False
+
+    @Property(bool, constant=True)
     def overlayAvailable(self): return False
 
     @Property(bool, constant=True)
@@ -100,10 +106,13 @@ class PrototypeState(QObject):
     @Property(str, notify=changed)
     def selected(self): return self._selected
 
+    def _is_favorite(self, address):
+        return False
+
     @Property('QVariantList', notify=rowsChanged)
     def rows(self):
         return [dict(address=r.address, name=r.name, map=r.map_name,
-                     population=r.population, ping=r.ping, state=r.state)
+                     population=r.population, ping=r.ping, state=r.state, favorite=self._is_favorite(r.address))
                 for r in self._rows.values()]
 
     @Property('QVariantList', notify=changed)

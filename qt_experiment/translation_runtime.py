@@ -23,7 +23,7 @@ import knowledge_v2
 from .live_monitor import LiveMonitorState
 from .common import ROOT
 from .native_hud import NativeHud
-from server_monitor import load_settings
+from server_monitor import load_settings, dump_settings
 
 
 def read_translation_config(path: Path | None):
@@ -42,8 +42,10 @@ class TranslationState(LiveMonitorState):
     on_log_message = ControlApp.on_log_message
     _on_log_control = ControlApp._on_log_control
 
-    def __init__(self, config, game_exe=None, log_path=None, installed_knowledge=None, game_hotkeys=False):
+    def __init__(self, config, game_exe=None, log_path=None, installed_knowledge=None, game_hotkeys=False, settings_store=None):
         super().__init__(load_settings(config.get("server_monitor")), game_exe)
+        self._config = config
+        self._store = settings_store
         self.ui_language = config.get("ui_language", "ru")
         self._translation_status = "Ожидание запуска"
         self._history = deque(maxlen=200)
@@ -151,6 +153,32 @@ class TranslationState(LiveMonitorState):
     def _update_settings(self):
         self._f8_settings = (self._target, self._hide, self._slang,
                              self._style, self._smart, self._dedupe)
+
+    @Property(bool, constant=True)
+    def settingsWritable(self): return self._store is not None
+
+    @Slot()
+    def saveSettings(self):
+        if self._store is None:
+            return
+        config = dict(self._config)
+        config.update(target_language=self._target, smart_engine_enabled=self._smart,
+                      log_path=str(self._log_path or ""), active_profile_path=str(self._log_path or ""),
+                      server_monitor=dump_settings(self._settings))
+        try:
+            self._store.save(config)
+            self._config = config
+            self.game_status("Настройки сохранены")
+        except (OSError, RuntimeError) as error:
+            self.game_status("Ошибка сохранения: " + str(error))
+
+    def _settings_changed(self):
+        # Save only on explicit user request, never from a network callback.
+        pass
+
+    @Property('QVariantList', constant=True)
+    def languages(self):
+        return [dict(label=label, code=code) for label, code in TARGET_LANGUAGES.items()]
 
     @Property(bool, notify=translationChanged)
     def gameHotkeysReady(self): return bool(self._game and self._game.ready)

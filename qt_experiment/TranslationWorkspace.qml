@@ -24,7 +24,7 @@ MetalPanel {
                 }
                 Text { text: "Язык входящего перевода"; color: "#f5e7c9" }
                 LanguageSelector {
-                    model: [{label:"Русский",code:"ru"},{label:"Українська",code:"uk"},{label:"English",code:"en"},{label:"Deutsch",code:"de"},{label:"Polski",code:"pl"},{label:"Français",code:"fr"}]
+                    model: prototype.languages
                     textRole: "label"; valueRole: "code"
                     Component.onCompleted: currentIndex = indexOfValue(prototype.targetLanguage)
                     onActivated: prototype.setTargetLanguage(currentValue)
@@ -34,7 +34,8 @@ MetalPanel {
                     Text { text: "Smart Engine"; color: "#f5e7c9" }
                     TacticalSwitch { checked: prototype.smart; onClicked: prototype.toggle("smart") }
                 }
-                Text { text: "Изменения действуют в этой сессии. Существующие файлы настроек не изменяются."; color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                AmberButton { text: "Сохранить настройки"; visible: prototype.settingsWritable; onClicked: prototype.saveSettings() }
+                Text { text: prototype.settingsWritable ? "Настройки сохраняются в отдельном Qt-файле." : "Изменения действуют в этой сессии. Существующие файлы настроек не изменяются."; color: "#c6ae88"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Item { Layout.fillHeight: true }
             }
             ColumnLayout {
