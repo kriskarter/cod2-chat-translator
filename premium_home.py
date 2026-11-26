@@ -82,7 +82,18 @@ class PremiumHome:
         self._translator(left,"f9")
         self._monitor(right)
         self._rail()
+        if self.app.root.winfo_screenheight() >= 1000:
+            self._field_gear()
         self.render()
+
+    def _field_gear(self):
+        """Use spare vertical room without covering a single live control."""
+        from app import resource_path
+        canvas=MetalCanvas(self.content,height=198)
+        canvas.pack(fill="x",padx=14,pady=(0,4))
+        with Image.open(resource_path("assets/ui_premium/field_gear.png")) as source:
+            self.photos["field_gear"]=ImageTk.PhotoImage(source.convert("RGBA"),master=canvas)
+        canvas.create_image(34,191,image=self.photos["field_gear"],anchor="sw")
 
     def _translator(self,parent,kind):
         a=self.app
