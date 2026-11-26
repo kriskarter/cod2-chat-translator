@@ -77,7 +77,8 @@ class PremiumHome:
             # content and cannot change its width or feed Configure cycles.
             rail_height=100 if height<520 else 112
             if int(self.rail.cget("height"))!=rail_height:self.rail.configure(height=rail_height)
-            monitor_height=max(330,min(545,height-rail_height-54))
+            monitor_height=max(345 if self.large_dpi else 340,
+                               min(545,height-rail_height-54))
             if int(self._monitor_box.cget("height"))!=monitor_height:
                 self._monitor_box.configure(height=monitor_height)
             card_height=max(145,min(190,(height-rail_height-43)//2))
