@@ -100,7 +100,7 @@ class PremiumHome:
         # Draw captions on the artwork itself. Tk frames are always opaque and
         # used to obscure almost all of both illustrated cards on Windows.
         title_id=card.create_text(0,0,text=title,anchor="nw",fill="#FFF1D4",
-                    font=(FONT,14 if self.compact else 17,"bold"))
+                    font=(FONT,12 if self.large_dpi else 14 if self.compact else 17,"bold"))
         note_id=card.create_text(0,0,text=note,anchor="nw",fill="#E3C8A3",font=(FONT,10))
         detail_id=card.create_text(0,0,text="",anchor="nw",fill="#F1D5A2",font=(FONT,10))
         setattr(self,kind+"_detail",CanvasText(card,detail_id))
@@ -125,7 +125,7 @@ class PremiumHome:
         def position(event):
             left=148 if self.compact or self.large_dpi else 165
             card.coords(title_id,left,20 if self.compact else 24)
-            for size in range(14 if self.compact else 17,8,-1):
+            for size in range(12 if self.large_dpi else 14 if self.compact else 17,8,-1):
                 card.itemconfigure(title_id,font=(FONT,size,"bold"))
                 if card.bbox(title_id)[2] <= event.width-19:
                     break
@@ -179,7 +179,8 @@ class PremiumHome:
         names=("★",local(a,"Сервер","Сервер","Server"),local(a,"Карта","Мапа","Map"),
                local(a,"Игроки","Гравці","Players"),local(a,"Пинг","Пінг","Ping"),
                local(a,"Статус","Стан","Status"))
-        for key,title,width in zip(columns,names,(30,140,80,75,60,80)):
+        widths=(30,140,95,75,75,92) if self.large_dpi else (30,140,80,75,60,80)
+        for key,title,width in zip(columns,names,widths):
             self.tree.heading(key,text=title,command=lambda k=key:self._sort(k))
             self.tree.column(key,width=width,minwidth=width,stretch=key=="name",
                              anchor="w" if key=="name" else "center")
@@ -285,7 +286,8 @@ class PremiumHome:
             rail.coords(engine_control,round(third*2-88),25)
             rail.coords(self.dashboard.engine_engine_bullet.item,round(third+28),72)
             rail.coords(self.dashboard.engine_engine_label.item,round(third+48),72)
-            rail.coords(self.dashboard.engine_pack_label.item,round(third+135),72)
+            rail.coords(self.dashboard.engine_pack_label.item,
+                        round(third+176 if self.large_dpi else third+135),72)
             rail.coords("status_icon",round(third*2+23),20,round(third*2+46),43)
             rail.coords("status_title",round(third*2+58),31)
             rail.coords(self.system_status.item,round(third*2+50),62)

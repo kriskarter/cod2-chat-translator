@@ -4448,7 +4448,9 @@ class ControlApp:
         row.pack(fill="x")
         ttk.Label(row, text=self.t("profile_list"), width=12).pack(side="left")
         dialog_profile_var = tk.StringVar(value=self.profile_var.get())
-        combo = ttk.Combobox(row, state="readonly", textvariable=dialog_profile_var, width=52)
+        compact_dialog = float(self.root.tk.call("tk", "scaling")) >= 1.95
+        combo = ttk.Combobox(row, state="readonly", textvariable=dialog_profile_var,
+                             width=36 if compact_dialog else 52)
         combo.pack(side="left", fill="x", expand=True)
 
         path_row = ttk.Frame(body)
@@ -4564,12 +4566,20 @@ class ControlApp:
 
         buttons = ttk.Frame(body)
         buttons.pack(fill="x", pady=(14, 0))
-        ttk.Button(buttons, text=self.t("choose_game_folder"), command=choose_game_folder).pack(side="left")
-        ttk.Button(buttons, text=self.t("use_selected_profile"), command=use_selected).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("browse"), command=add_log).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("rename_profile"), command=rename_selected).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("rescan"), command=rescan).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text=self.t("close"), command=win.destroy).pack(side="right")
+        actions = (("choose_game_folder", choose_game_folder),
+                   ("use_selected_profile", use_selected),
+                   ("browse", add_log), ("rename_profile", rename_selected),
+                   ("rescan", rescan), ("close", win.destroy))
+        if compact_dialog:
+            for index, (label, callback) in enumerate(actions):
+                ttk.Button(buttons, text=self.t(label), command=callback).grid(
+                    row=index // 3, column=index % 3, sticky="ew", padx=3, pady=3)
+            for column in range(3):
+                buttons.columnconfigure(column, weight=1)
+        else:
+            for index, (label, callback) in enumerate(actions):
+                ttk.Button(buttons, text=self.t(label), command=callback).pack(
+                    side="right" if index == 5 else "left", padx=(6, 0) if index else 0)
 
         win.update_idletasks()
         try:
