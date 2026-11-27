@@ -6,6 +6,7 @@ worker and hand immutable results to the caller's UI queue.
 from __future__ import annotations
 
 import re
+import ipaddress
 import socket
 import threading
 import time
@@ -99,12 +100,20 @@ def parse_address(value: str) -> tuple[str, int]:
             socket.inet_pton(socket.AF_INET6, host)
         except OSError as exc:
             raise ValueError("Invalid IPv6 address") from exc
+        host = str(ipaddress.IPv6Address(host))
         suffix = raw[end+2:]
     else:
         if raw.count(":") > 1:
             raise ValueError("Wrap IPv6 address in brackets")
         host, sep, suffix = raw.partition(":")
-        if not _HOST.fullmatch(host) or ".." in host:
+        if not _HOST.fullmatch(host) or ".." in host or host.isdigit():
+            raise ValueError("Invalid host")
+        if all(c in "0123456789." for c in host):
+            try:
+                host = str(ipaddress.IPv4Address(host))
+            except ValueError as exc:
+                raise ValueError("Invalid IPv4 address") from exc
+        elif any(not part or len(part) > 63 or part.startswith("-") or part.endswith("-") for part in host.split(".")):
             raise ValueError("Invalid host")
     if suffix and not suffix.isascii():
         raise ValueError("Invalid port")
@@ -118,6 +127,23 @@ def parse_address(value: str) -> tuple[str, int]:
 def canonical_address(value: str) -> str:
     host, port = parse_address(value)
     return f"[{host.lower()}]:{port}" if ":" in host else f"{host.lower()}:{port}"
+
+
+def address_fields(value: str) -> tuple[str, str]:
+    host, port = parse_address(value)
+    return host, str(port)
+
+
+def address_from_fields(host: str, port: str) -> str:
+    """An explicitly pasted host:port takes precedence over the port field."""
+    host = host.strip()
+    if host.startswith("[") and "]:" in host or host.count(":") == 1:
+        return canonical_address(host)
+    if not port.strip() or not port.strip().isascii() or not port.strip().isdigit():
+        raise ValueError("Invalid port")
+    if ":" in host and not host.startswith("["):
+        host = "[" + str(ipaddress.IPv6Address(host)) + "]"
+    return canonical_address(host + ":" + port.strip())
 
 
 @dataclass(frozen=True)
