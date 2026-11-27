@@ -181,6 +181,7 @@ MetalPanel {
                     color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                 }
 
+                Text { visible: prototype.gameHotkeyDetail.length > 0; text: prototype.gameHotkeyDetail; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Text { text: (prototype.uiLanguage, prototype.trText("Ручной режим не отправляет сообщения в игру.")); color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             }
             }
@@ -197,7 +198,7 @@ MetalPanel {
                         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 9
                         Text { text: (modelData.received || "—") + " · " + modelData.nickname + " · " + modelData.elapsed + " " + root.tr("мс"); textFormat: Text.PlainText; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
                         Text { text: modelData.original; textFormat: Text.PlainText; color: "#bcb09a"; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                        Text { text: modelData.translated || modelData.outcome; textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                        Text { text: modelData.translated || root.tr(modelData.outcome); textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     }
                 }
                 ColumnLayout {anchors.centerIn:parent;width:Math.min(parent.width-24,490);visible:history.count===0;spacing:8

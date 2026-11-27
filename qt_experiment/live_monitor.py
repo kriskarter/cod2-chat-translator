@@ -13,7 +13,7 @@ from threading import Event
 
 from PySide6.QtCore import Qt, Signal, Slot, Property
 from server_monitor import Monitor, Snapshot, Server, MAX_SERVERS, canonical_address, load_settings, normalized_name, plain_name
-from server_catalog import launch_connect_command
+from server_catalog import MULTIPLAYER_IMAGE_NAMES, launch_connect_command
 from .common import PrototypeState, row_from_snapshot
 from .friend_presence import PresenceTracker, friend_key, valid_friend, qt_monitor_settings
 
@@ -44,7 +44,7 @@ class LiveMonitorState(PrototypeState):
         self._presence.configure(settings["friends"],self._rows)
         self._game_exe = game_exe
         self._can_connect = bool(os.name == "nt" and game_exe and game_exe.is_file()
-                                 and game_exe.name.casefold() in {"cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe"})
+                                 and game_exe.name.casefold() in MULTIPLAYER_IMAGE_NAMES)
         self._closing = Event()
         self._monitor = Monitor(settings, self._on_worker_snapshot, round_callback=self._on_worker_round)
         self.snapshot_received.connect(self._apply_snapshot, Qt.ConnectionType.QueuedConnection)
@@ -202,11 +202,12 @@ class LiveMonitorState(PrototypeState):
         server = next((s for s in self._settings["servers"] if s.address == snapshot.address), None)
         if server is None:
             return
+        previous_status = self.status
         self.update_snapshot(replace(snapshot, name=snapshot.name or server.label))
-        old_status = self._status
-        count = sum(row.state == "online" for row in self._rows.values())
-        self._status = f"UDP: {count}/{len(self._rows)} " + self.trText("online")
-        if old_status != self._status: self.changed.emit()
+        self._status = "udp_count"
+        if previous_status != self.status:
+            self.changed.emit()
+
 
     @Slot(str)
     def _dispatch(self, name):

@@ -56,19 +56,17 @@ def unique_roots(roots: Iterable[Path | str]) -> list[Path]:
     return result
 
 
+MULTIPLAYER_EXECUTABLES = (
+    "CoD2MP_s.exe", "CoD2MP.exe", "cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe",
+)
+MULTIPLAYER_IMAGE_NAMES = frozenset(name.casefold() for name in MULTIPLAYER_EXECUTABLES)
+
+
 def find_multiplayer_executable(
     roots: Iterable[Path | str],
 ) -> Optional[Path]:
-    names = (
-        "CoD2MP_s.exe",
-        "CoD2MP.exe",
-        "cod2mp_s.exe",
-        "cod2mp.exe",
-        "cod2_mp.exe",
-    )
-
     for root in unique_roots(roots):
-        for name in names:
+        for name in MULTIPLAYER_EXECUTABLES:
             candidate = root / name
             try:
                 if candidate.is_file():

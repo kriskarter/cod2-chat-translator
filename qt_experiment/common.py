@@ -95,7 +95,11 @@ class PrototypeState(QObject):
     def demo(self): return self._demo
 
     @Property(str, notify=changed)
-    def status(self): return self._status
+    def status(self):
+        if self._status == "udp_count":
+            online = sum(row.state == "online" for row in self._rows.values())
+            return f"UDP · {online}/{len(self._rows)} " + self.trText("online")
+        return self.trText(self._status)
 
     @Property(int, notify=changed)
     def friendCount(self): return self._friend_count
@@ -156,7 +160,7 @@ class PrototypeState(QObject):
     @Property('QVariantList', notify=rowsChanged)
     def rows(self):
         return [dict(address=r.address, name=r.name, map=r.map_name,
-                     population=r.population, ping=r.ping, state=r.state, favorite=self._is_favorite(r.address))
+                     population=r.population, ping=r.ping.replace(" ms", " " + self.trText("мс")), state=r.state, favorite=self._is_favorite(r.address))
                 for r in self._rows.values()]
 
     def _is_friend(self, name): return False

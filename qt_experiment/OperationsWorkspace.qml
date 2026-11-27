@@ -49,7 +49,7 @@ MetalPanel {
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 14; spacing: 7
         RowLayout { Layout.fillWidth:true
-        MetalButton { text:root.tr("Назад");visible:root.page!=="about";onClicked:root.back() }
+        MetalButton { text:root.tr("Назад");surface:"quiet";sizeClass:"compact";visible:root.page!=="about";onClicked:root.back() }
         Text { Layout.fillWidth:true; text: root.tr(({profiles:"Профили",knowledge:"База знаний",notifications:"Уведомления",about:"О программе",stats:"Статистика",overlay:"Настройки оверлея"})[root.page] || (prototype.uiLanguage, prototype.trText("О программе"))); font.pixelSize: 23; font.bold: true; color: "#f5e7c9" }
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: "#786342" }
@@ -183,7 +183,7 @@ MetalPanel {
                 }
                 Text { text: root.tr("Изолированная тестовая версия. Стабильная установка не изменяется."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Rectangle {height:1;color:"#786342";Layout.fillWidth:true}
-                Text {text:root.tr("Канал обновлений")+": Qt Preview / RC · "+prototype.buildNumber;color:"#d7b77d";wrapMode:Text.WordWrap;Layout.fillWidth:true}
+                Text {text:root.tr("Канал обновлений")+": Qt Preview / RC · "+(prototype.buildNumber==="source"?root.tr("Из исходного кода"):prototype.buildNumber);color:"#d7b77d";wrapMode:Text.WordWrap;Layout.fillWidth:true}
                 Text { text: root.tr("Обновления"); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
                 RowLayout {Layout.fillWidth:true
                     MetalButton {glyph:"icons/refresh.svg";text:root.tr("Проверить обновления");enabled:!prototype.maintenanceBusy;onClicked:prototype.checkUpdates()}
@@ -223,7 +223,7 @@ MetalPanel {
                         width: statsList.width - 12; height: 52; color: "#252923"; radius: 5
                         RowLayout {
                             anchors.fill: parent; anchors.margins: 10
-                            Text { text: modelData.group; color: "#f5e7c9"; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Text { text: modelData.group.split("/").map((part,index) => index === 0 ? root.tr(part) : part).join(" · "); color: "#f5e7c9"; Layout.fillWidth: true; elide: Text.ElideRight }
                             Text { text: root.tr("Замеров") + "  " + modelData.samples; color: "#d7ceb9" }
                             Text { text: root.tr("Медиана") + "  " + modelData.p50_ms + " " + root.tr("мс"); color: "#e4c291" }
                             Text { text: root.tr("95% быстрее") + "  " + modelData.p95_ms + " " + root.tr("мс"); color: "#e4c291" }

@@ -40,7 +40,9 @@ def test_operations_and_localization(tmp_path):
         state.setPreference("original", True)
         state.applyHudPreset("text")
         assert state.preferences["opacity"] == 0 and state.preferences["width"] == 420
+        assert state.hudPreset == "text"
         state.setHudValue("messages", 7)
+        assert state.hudPreset == ""
         state.setPreference("fade", False)
         state.setHudValue("font", 18)
         state.setKnowledgeEnabled(False)

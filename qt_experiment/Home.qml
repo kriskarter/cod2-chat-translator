@@ -204,7 +204,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         MetalButton { objectName:"add_server_button"; text: (prototype.uiLanguage, prototype.trText("Добавить сервер")); glyph: "icons/add.svg"; Layout.fillWidth: true; onClicked: { if (prototype.demo) prototype.request("add_server"); else addDialog.open() } }
                         MetalButton { text: (prototype.uiLanguage, prototype.trText("Обновить")); glyph: "icons/refresh.svg"; Layout.fillWidth: true; onClicked: prototype.request("refresh") }
-                        AmberButton { objectName:"connect_button"; text: (prototype.uiLanguage, prototype.trText("Подключиться")); glyph: "icons/connect.svg"; Layout.fillWidth: true; enabled: prototype.canConnect; onClicked: prototype.request("connect") }
+                        AmberButton { objectName:"connect_button";sizeClass:window.shortWindow?"standard":"primary"; text: (prototype.uiLanguage, prototype.trText("Подключиться")); glyph: "icons/connect.svg"; Layout.fillWidth: true; enabled: prototype.canConnect; onClicked: prototype.request("connect") }
                     }
                 }
             }
@@ -220,7 +220,7 @@ ApplicationWindow {
             Component { id: operationsPage; OperationsWorkspace { page: window.activePage; onBack:window.activePage="settings" } }
         }
         MetalPanel {
-            objectName:"system_bar"
+            objectName:"system_bar"; texture:"art/console_steel.jpg"
             Image {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:6;height:2;source:"art_glint.png";fillMode:Image.Tile;opacity:.42}
             visible:window.activePage==="home" || !window.shortWindow
             Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 48 : 65; Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight

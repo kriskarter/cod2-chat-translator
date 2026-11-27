@@ -33,6 +33,8 @@ class GameControls:
         self.pending = False
         self.sending = False
         self.ready = False
+        self.hook_error = ""
+        self.last_shortcut = ""
         self.buffer = ""
         self.generation = 0
         self.preview_due = None
@@ -78,6 +80,7 @@ class GameControls:
     def open(self):
         if not self.state.f9 or not self._focused() or self.sending:
             return
+        self.state.position_outgoing_hud(self.hud.config)
         if not self.hud.enable(True):
             self.state.game_status("F9 HUD недоступен: " + self.hud.last_error)
             return
@@ -159,15 +162,21 @@ class GameControls:
                 break
             if event == "hook_ready":
                 self.ready = True
+                self.hook_error = ""
                 self.state.game_status("Игровые клавиши готовы")
             elif event == "hook_error":
                 self.ready = False
-                self.cancel(str(value))
+                self.hook_error = str(value)
+                self.cancel(self.hook_error)
             elif event == "f8" and self._focused():
+                self.last_shortcut = "F8"
                 self.state.toggle("overlay")
             elif event == "screenshot" and self._focused():
+                self.last_shortcut = "F10"
                 self.state.capture_game_screenshot()
-            elif event == "toggle_popup":
+            elif event == "toggle_popup" and self._focused():
+                self.last_shortcut = "F9"
+                self.state.game_status("F9")
                 if self.active:
                     self.cancel("F9: ввод закрыт")
                 else:

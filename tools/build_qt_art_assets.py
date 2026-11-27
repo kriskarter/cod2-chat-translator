@@ -40,6 +40,7 @@ plate("metal_button", 0, "#232521", "#4d4b40", "#746c59")
 plate("amber_button", 1, "#614322", "#a77d40", "#bd995f")
 face(2, (96, 28), "#1c291f", "#3d513a").save(OUT / "switch_face.png")
 face(0, (96, 28), "#212522", "#3b403a").save(OUT / "switch_off.png")
+face(0, (384, 64), "#171b19", "#4b493d").save(OUT / "console_steel.jpg", quality=86)
 frame = Image.new("RGBA", (64, 48))
 d = ImageDraw.Draw(frame)
 for i, color in enumerate(["#101310", "#766955", "#383c33"]):

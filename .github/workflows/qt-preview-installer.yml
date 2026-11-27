@@ -145,6 +145,13 @@ jobs:
           $p = Start-Process $exe -ArgumentList @("--size","1366x768","--screenshot","`"$out`"") -PassThru
           if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Installed EXE timeout" }
           if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Installed EXE failed" }
+      - name: Verify installed Qt hotkey startup without injecting input
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP "cod2-qt-install/CoD2ChatTranslatorQt.exe"
+          $p = Start-Process $exe -ArgumentList "--verify-game-hotkeys" -PassThru
+          if (!$p.WaitForExit(30000)) { $p.Kill(); throw "Installed keyboard initialization timed out" }
+          if ($p.ExitCode -ne 0) { throw "Installed keyboard initialization failed: $($p.ExitCode)" }
       - name: Verify reinstall preserves Qt settings and uninstall
         shell: pwsh
         run: |

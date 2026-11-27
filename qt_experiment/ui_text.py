@@ -18,6 +18,8 @@ LABELS = {
     "Новых стабильных версий нет": ("No newer stable release", "Нових стабільних версій немає"),
 }
 def translate(text, language):
+    if text in DISPLAY_KEYS:
+        text = DISPLAY_KEYS[text]
     if language == "ru" and text in ("online","offline","waiting","limited","unknown"):
         return {"online":"Онлайн","offline":"Офлайн","waiting":"Ожидание","limited":"Ограничено","unknown":"Неизвестно"}[text]
     values = LABELS.get(text)
@@ -259,3 +261,23 @@ LABELS.update({"Проверка обновлений…":("Checking for updates
 LABELS.update({'Скорость перевода': ('Translation speed', 'Швидкість перекладу'), 'мс': ('ms', 'мс'), 'Сообщений в локальном опыте': ('Messages in local experience', 'Повідомлень у локальному досвіді'), 'Медиана': ('Median', 'Медіана'), '95% быстрее': ('95% within', '95% у межах'), 'Замеров': ('Measurements', 'Вимірювань'), 'Перевод игрового чата и мониторинг серверов Call of Duty 2.': ('Game chat translation and server monitoring for Call of Duty 2.', 'Переклад ігрового чату та моніторинг серверів Call of Duty 2.'), 'Тест · Сообщение команды': ('Test · Team message', 'Тест · Повідомлення команди')})
 
 LABELS.update({"с": ("s", "с"), "Кэш перевода": ("Translation cache", "Кеш перекладу"), "История уведомлений": ("Notification history", "Історія сповіщень"), "Да": ("Yes", "Так"), "Нет": ("No", "Ні")})
+
+
+DISPLAY_KEYS = {
+    "incoming": "Входящий перевод",
+    "outgoing": "Исходящий перевод",
+    "translation_error": "Ошибка перевода",
+    "translation_service_busy": "Сервис перевода занят",
+}
+
+LABELS.update({
+    "Из исходного кода": ("Source build", "З вихідного коду"),
+    "Ошибка перевода": ("Translation failed", "Помилка перекладу"),
+    "Сервис перевода занят": ("Translation service busy", "Сервіс перекладу зайнятий"),
+    "UDP: ожидание ответа": ("UDP · Waiting for a reply", "UDP · Очікування відповіді"),
+    "UDP: обновление": ("UDP · Refreshing", "UDP · Оновлення"),
+    "Сервер добавлен": ("Server added", "Сервер додано"),
+    "Неверный адрес, повтор или достигнут лимит": ("Invalid or duplicate address, or server limit reached", "Некоректна чи повторна адреса, або досягнуто ліміту серверів"),
+})
+
+LABELS.update({"Ошибка игровых клавиш": ("Game shortcut error", "Помилка ігрових клавіш"), "Последняя игровая клавиша": ("Last game shortcut", "Остання ігрова клавіша")})

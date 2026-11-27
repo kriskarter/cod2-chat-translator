@@ -25,6 +25,7 @@ from typing import Callable, Optional
 from update_client import UpdateInfo, check_github_release, load_release_config
 from server_catalog import (
     FEATURED_SERVER,
+    MULTIPLAYER_IMAGE_NAMES,
     find_multiplayer_executable,
     launch_connect_command,
     no_window_creationflags,
@@ -76,7 +77,7 @@ SENSITIVE_LINE_TOKENS = (
     "logininfo.cfg",
 )
 
-COD2_EXECUTABLE_NAMES = {"cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe"}
+COD2_EXECUTABLE_NAMES = MULTIPLAYER_IMAGE_NAMES
 STEAM_EXECUTABLE_NAMES = {"steam.exe"}
 COD2_CONFIG_NAME = "config_mp.cfg"
 COD2_LOGFILE_VALUE = 2
@@ -3497,7 +3498,7 @@ def find_cod2_window() -> Optional[int]:
                 user32.GetWindowTextW(hwnd, buf, title_len + 1)
                 title = buf.value
             exe = process_name(int(hwnd))
-            if exe in {"cod2mp_s.exe", "cod2mp.exe", "cod2.exe"}:
+            if exe in MULTIPLAYER_IMAGE_NAMES or exe == "cod2.exe":
                 found.append(int(hwnd))
                 return False
             low = title.lower()

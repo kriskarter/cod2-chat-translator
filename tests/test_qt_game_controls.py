@@ -35,7 +35,7 @@ def wait(game, predicate):
 def test_game_actions_and_cancel_stale_result():
     focused = [False]
     state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
-                            game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
+                            position_outgoing_hud=Mock(), game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
     surface = Mock()
     sender = Mock(return_value=(True, ""))
     translator = Mock(return_value="cover me")
@@ -94,7 +94,7 @@ def test_native_keyboard_hook_starts_and_stops():
 
 def test_live_preview_never_sends_until_enter():
     state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
-                            game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
+                            position_outgoing_hud=Mock(), game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
     surface = Mock()
     sender = Mock(return_value=(True, ""))
     translator = Mock(return_value="cover me")
@@ -113,3 +113,11 @@ def test_live_preview_never_sends_until_enter():
         translator.assert_called_once()
     finally:
         game.close()
+
+
+def test_foreground_gate_accepts_all_supported_client_names(monkeypatch):
+    import outgoing_send
+    from server_catalog import MULTIPLAYER_EXECUTABLES
+    for image in (*MULTIPLAYER_EXECUTABLES, "cod2.exe", "notepad.exe", "", "cod2mp_s.exe.bak"):
+        monkeypatch.setattr(outgoing_send, "foreground_process_name", lambda: image.casefold())
+        assert outgoing_send.is_cod2_foreground() == (image in (*MULTIPLAYER_EXECUTABLES, "cod2.exe"))

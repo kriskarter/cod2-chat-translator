@@ -269,6 +269,7 @@ class TranslationState(LiveMonitorState):
                     saved=deepcopy(self._store.load(self._config));saved["ui_language"]=code;self._store.save(saved);self._config=saved
                 except (OSError,RuntimeError,ValueError) as error: self.game_status(self.trText("Ошибка сохранения")+": "+str(error))
             self.translationChanged.emit()
+            self.rowsChanged.emit()
             self.changed.emit()
 
     @Property('QVariantList', notify=translationChanged)
@@ -591,6 +592,7 @@ class TranslationState(LiveMonitorState):
         path = Path(filename).expanduser().resolve()
         if path.suffix.lower() != ".zip" or path.exists():
             self.game_status(self.trText("Укажите новый ZIP-файл"))
+            self.feedback.emit("knowledge", self.translationStatus, True)
             return
         self._experience.export(path, lambda ok, data: self.ui_queue.put(("experience_action", "export", ok, data)))
 
@@ -744,6 +746,35 @@ class TranslationState(LiveMonitorState):
     @Property(bool, notify=translationChanged)
     def gameHotkeysReady(self): return bool(self._game and self._game.ready)
 
+    @Property(str, notify=translationChanged)
+    def gameHotkeyDetail(self):
+        if not self._game:
+            return ""
+        if self._game.hook_error:
+            return self.trText("Ошибка игровых клавиш") + " · " + self._game.hook_error
+        if self._game.last_shortcut:
+            return self.trText("Последняя игровая клавиша") + " · " + self._game.last_shortcut
+        return ""
+
+    def position_outgoing_hud(self, config):
+        from app import _monitor_rect_for_window
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        user32.GetForegroundWindow.restype = wintypes.HWND
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd:
+            return
+        left, top, width, height = _monitor_rect_for_window(hwnd)
+        if width <= 0 or height <= 0:
+            return
+        incoming = self._hud.config
+        w = min(width, int(incoming.get("width", 500)))
+        h = min(height, max(140, int(incoming.get("height", 150))))
+        config.update(width=w, height=h,
+                      x=max(left, min(int(incoming.get("x", 8)), left + width - w)),
+                      y=max(top, min(int(incoming.get("y", 360)) + 165, top + height - h)))
+
     @Property(bool, constant=True)
     def gameHotkeysEnabled(self): return self._game is not None
 
@@ -783,9 +814,11 @@ class TranslationState(LiveMonitorState):
             with path.open("x",encoding="utf-8") as stream:
                 json.dump({"version":1,"received_time_basis":"local","messages":list(self._history)},stream,ensure_ascii=False,indent=2)
             self.game_status(self.trText("Экспорт сохранён") + ": " + str(path))
+            self.feedback.emit("history", self.translationStatus, False)
             return True
         except OSError as error:
             self.game_status(self.trText("Ошибка") + ": " + str(error))
+            self.feedback.emit("history", self.translationStatus, True)
             return False
 
     @Slot()
@@ -976,7 +1009,7 @@ class TranslationState(LiveMonitorState):
                 _, request_id, ok, result = event
                 if request_id == self._outgoing_id:
                     self._outgoing_busy = False
-                    self._outgoing_result = result if ok else "Ошибка: " + result
+                    self._outgoing_result = result if ok else self.trText("Ошибка") + ": " + result
                     changed = True
                 continue
             if kind == "map_change":

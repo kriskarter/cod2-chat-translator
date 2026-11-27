@@ -54,7 +54,6 @@ def main():
             values = store.load(values)
         state = TranslationState(values, exe, log, knowledge, game_hotkeys="--game-hotkeys" in sys.argv, settings_store=store)
         app.aboutToQuit.connect(state.stop)
-        state.start()
         if "--screenshot" not in sys.argv and not state.logPath:
             from PySide6.QtCore import QTimer
             QTimer.singleShot(0, state.rescanProfiles)
@@ -91,6 +90,23 @@ def main():
                     fn(hwnd,19,ctypes.byref(dark),ctypes.sizeof(dark))
             except (OSError,AttributeError):
                 pass
+    if not state.demo and state.translationAvailable:
+        state.start()
+
+    if "--verify-game-hotkeys" in sys.argv:
+        # Installed EXE probe uses the real Win32 hook without sending keyboard input.
+        from PySide6.QtCore import QEventLoop, QTimer
+        loop = QEventLoop()
+        state.translationChanged.connect(lambda: loop.quit() if state.gameHotkeysReady else None)
+        if not state.gameHotkeysReady:
+            QTimer.singleShot(8000, loop.quit)
+            loop.exec()
+        ok = state.gameHotkeysReady
+        engine.rootObjects()[0].close()
+        state.stop()
+        del engine
+        return 0 if ok else 5
+
     if "--size" not in sys.argv and "--screenshot" not in sys.argv:
         window = engine.rootObjects()[0]
         area = app.primaryScreen().availableGeometry()

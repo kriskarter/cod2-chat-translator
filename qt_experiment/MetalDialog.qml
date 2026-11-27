@@ -22,21 +22,21 @@ Dialog {
         implicitHeight: visible ? 52 : 0
         RowLayout {
             anchors.right: parent.right; anchors.top: parent.top; anchors.rightMargin: 16; spacing: 8
-        MetalButton {
-            visible: (root.standardButtons & Dialog.No) !== 0
-            text: (prototype.uiLanguage, prototype.trText("Нет"))
-            onClicked: root.reject()
-        }
-        AmberButton {
-            visible: (root.standardButtons & Dialog.Yes) !== 0
-            text: (prototype.uiLanguage, prototype.trText("Да"))
-            onClicked: root.accept()
-        }
-        MetalButton {
-            visible: (root.standardButtons & Dialog.Close) !== 0
-            text: (prototype.uiLanguage, prototype.trText("Закрыть"))
-            onClicked: root.reject()
-        }
+            MetalButton {
+                visible: (root.standardButtons & Dialog.No) !== 0
+                text: (prototype.uiLanguage, prototype.trText("Нет"))
+                onClicked: root.reject()
+            }
+            AmberButton {
+                visible: (root.standardButtons & Dialog.Yes) !== 0
+                text: (prototype.uiLanguage, prototype.trText("Да"))
+                onClicked: root.accept()
+            }
+            MetalButton {
+                visible: (root.standardButtons & Dialog.Close) !== 0
+                text: (prototype.uiLanguage, prototype.trText("Закрыть"))
+                onClicked: root.reject()
+            }
         }
     }
     palette.button: "#343730"
