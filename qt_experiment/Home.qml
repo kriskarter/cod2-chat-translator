@@ -78,12 +78,27 @@ ApplicationWindow {
         width: 390
         ColumnLayout {
             anchors.fill: parent
-            MetalTextField { id: addressField; placeholderText: "host:28960"; Layout.fillWidth: true }
-            MetalTextField { id: labelField; placeholderText: (prototype.uiLanguage, prototype.trText("Название")); Layout.fillWidth: true }
-            Text { text: prototype.status; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            Text { text: window.tr("IP-адрес или домен"); color: window.ink }
+            MetalTextField { id: addressField; objectName: "serverHostInput"; placeholderText: "148.251.139.73"; Layout.fillWidth: true
+                onEditingFinished: {
+                    let fields = prototype.pastedServerFields(text, portField.text)
+                    if (fields.host !== undefined) { text = fields.host; portField.text = fields.port }
+                }
+            }
+            Text { text: window.tr("Порт"); color: window.ink }
+            MetalTextField { id: portField; objectName: "serverPortInput"; text: "28960"; Layout.fillWidth: true; inputMethodHints: Qt.ImhDigitsOnly }
+            Text { text: window.tr("Название (необязательно)"); color: window.ink }
+            MetalTextField { id: labelField; objectName: "serverNameInput"; Layout.fillWidth: true }
+            Text { text: window.tr("Вставленный IP:порт имеет приоритет"); color: "#bcb09a"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            Text { id: addressPreview; text: prototype.serverAddressPreview(addressField.text, portField.text); color: "#e4c291"; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true }
+            Text { id: addError; text: ""; color: "#e99b83"; wrapMode: Text.WordWrap; Layout.fillWidth: true; visible: text.length > 0 }
             RowLayout {
-                MetalButton { text: (prototype.uiLanguage, prototype.trText("Отмена")); onClicked: addDialog.close() }
-                AmberButton { text: (prototype.uiLanguage, prototype.trText("Добавить")); onClicked: if (prototype.addServer(addressField.text, labelField.text)) addDialog.close() }
+                MetalButton { text: window.tr("Отмена"); onClicked: addDialog.close() }
+                AmberButton { text: window.tr("Добавить"); enabled: addressPreview.text.length > 0; onClicked: {
+                    if (prototype.addServer(addressPreview.text, labelField.text)) {
+                        addressField.clear(); portField.text = "28960"; labelField.clear(); addError.text = ""; addDialog.close()
+                    } else addError.text = window.tr("Неверный адрес, повтор или достигнут лимит")
+                } }
             }
         }
     }
