@@ -96,3 +96,18 @@ def test_uac_acceptance_requests_only_one_restart(monkeypatch):
     assert win.request_startup_elevation(True)==(True,True)
     assert win.request_startup_elevation(True,restarted=True)==(False,False)
     request.assert_called_once()
+
+def test_installer_locale_survives_policy_save_and_elevated_relaunch(tmp_path):
+    from qt_experiment.admin_policy import load_startup_settings, persist_admin_policy
+    from qt_experiment.settings_store import SettingsStore
+    path=tmp_path/"qt.json"
+    path.with_name("ui_language.txt").write_text("uk",encoding="utf-8")
+    store=SettingsStore(path)
+    defaults={"ui_language":"ru"}
+    values=load_startup_settings(store,defaults)
+    assert values["ui_language"]=="uk"
+    persist_admin_policy(store,values)
+    reopened=SettingsStore(path)
+    assert load_startup_settings(reopened,defaults)["ui_language"]=="uk"
+    reopened.save({**reopened.load({}),"ui_language":"en"})
+    assert load_startup_settings(SettingsStore(path),defaults)["ui_language"]=="en"

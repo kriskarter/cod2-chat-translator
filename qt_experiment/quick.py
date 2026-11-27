@@ -69,11 +69,8 @@ def main():
                 raise ValueError("Qt settings file must differ from the imported Tk config")
             try:
                 store = SettingsStore(target)
-                try:
-                    hint = target.with_name("ui_language.txt").read_text(encoding="utf-8").strip()
-                    if not target.exists() and hint in ("ru", "uk", "en"): values["ui_language"] = hint
-                except OSError: pass
-                values = store.load(values)
+                from .admin_policy import load_startup_settings
+                values = load_startup_settings(store, values)
                 settings_recovered = store.recovered
                 if interactive:
                     from .admin_policy import persist_admin_policy

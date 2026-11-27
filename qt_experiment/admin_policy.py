@@ -26,3 +26,20 @@ def persist_admin_policy(store, values):
     merged = dict(values)
     merged.update({VERSION_KEY: updated[VERSION_KEY], PREFERENCE_KEY: updated[PREFERENCE_KEY]})
     return merged, recovered
+
+def load_startup_settings(store, defaults):
+    """Keep the installer locale through the pre-UAC policy-only save.
+
+    The elevated child may see a newly-created settings file containing just
+    the policy. An explicit saved locale always wins over the installer hint.
+    """
+    raw = store.load({})
+    values = dict(defaults)
+    if "ui_language" not in raw:
+        try:
+            hint = store.path.with_name("ui_language.txt").read_text(encoding="utf-8").strip()
+            if hint in ("ru", "uk", "en"):
+                values["ui_language"] = hint
+        except OSError:
+            pass
+    return store.load(values)
