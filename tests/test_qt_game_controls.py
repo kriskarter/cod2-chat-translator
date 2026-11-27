@@ -139,3 +139,27 @@ def test_screenshot_discards_capture_when_window_changes(monkeypatch,tmp_path):
     grab.assert_called_once_with(window=41)
     assert state.ui_queue.get_nowait()[0]=="screenshot_error"
     assert not list(tmp_path.iterdir())
+
+
+def test_failed_send_restores_draft_and_requires_new_submit():
+    state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
+                            position_outgoing_hud=Mock(), game_status=Mock())
+    sender = Mock(side_effect=[(False,"send failed"),(True,"")])
+    game = GameControls(state, {}, "ru", "en", foreground=lambda: True,
+                        keyboard_factory=Keyboard, hud_factory=lambda cfg, orig: NativeHud(cfg,orig,factory=Mock),
+                        translator=Mock(return_value="hello"), sender=sender)
+    try:
+        game.open()
+        game.events.put(("text", "привет"))
+        wait(game, lambda: game.preview_result == "hello")
+        game.submit()
+        wait(game, lambda: game.active and not game.sending)
+        assert game.buffer == "привет"
+        assert sender.call_count == 1
+        wait(game, lambda: game.preview_result == "hello")
+        assert sender.call_count == 1
+        game.submit()
+        wait(game, lambda: not game.active and not game.sending)
+        assert sender.call_count == 2
+    finally:
+        game.close()
