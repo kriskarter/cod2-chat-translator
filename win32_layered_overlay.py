@@ -394,11 +394,16 @@ class Win32LayeredOverlay:
             raise ctypes.WinError(error)
 
     def render(self, items, config, show_original, alpha=1.0):
-        self.image, actual_height, bg_width, bg_height = build_image(
-            items,
-            config,
-            show_original,
-        )
+        if config.get("outgoing_editor") and items:
+            from qt_experiment.outgoing_hud import render_editor
+            item = items[0]
+            self.image = render_editor(item.original, item.translated, item.nickname, config)
+            bg_width, actual_height = self.image.size
+            bg_height = actual_height
+        else:
+            self.image, actual_height, bg_width, bg_height = build_image(
+                items, config, show_original,
+            )
         self.x = int(config.get("x", 8))
         self.y = int(config.get("y", 360))
         self.alpha = max(0.0, min(float(alpha), 1.0))
