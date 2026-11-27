@@ -886,6 +886,7 @@ class KeyboardCapture:
                 WM_SYSKEYUP,
             )
 
+            was_down = vk in self.down_keys
             if key_down:
                 self.down_keys.add(vk)
 
@@ -1021,9 +1022,8 @@ class KeyboardCapture:
                 return 1
 
             if vk == VK_RETURN:
-                self.events.put(
-                    ("submit", None)
-                )
+                if self.game_scope is None or not was_down:
+                    self.events.put(("submit", None))
                 return 1
 
             if vk == VK_BACK:
