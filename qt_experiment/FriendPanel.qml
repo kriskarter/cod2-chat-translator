@@ -16,7 +16,7 @@ Popup {
   spacing:10
   RowLayout {
    Layout.fillWidth:true;spacing:8
-   Image {source:"icons/friends.svg";Layout.preferredWidth:28;Layout.preferredHeight:28}
+   Image {source:"reference_art/friends.png";Layout.preferredWidth:28;Layout.preferredHeight:28}
    Text {text:root.tr("Друзья в игре: ")+prototype.friendCount;color:"#ebd6ad";font.bold:true;font.pixelSize:19;Layout.fillWidth:true}
    MetalButton {text:root.tr("Закрыть");onClicked:root.close()}
   }
@@ -36,7 +36,7 @@ Popup {
     width:Math.max(0,list.width-10);height:65;radius:5;color:"#202722";border.color:modelData.state==="online"?"#596c48":"#504c41"
     RowLayout {
      anchors.fill:parent;anchors.margins:9;spacing:8
-     Image {source:"icons/star.svg";Layout.preferredWidth:18;Layout.preferredHeight:18}
+     Image {source:"reference_art/star.png";Layout.preferredWidth:18;Layout.preferredHeight:18}
      ColumnLayout {
       Layout.fillWidth:true;spacing:3
       RowLayout {

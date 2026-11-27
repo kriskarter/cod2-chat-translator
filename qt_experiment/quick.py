@@ -11,7 +11,14 @@ from .common import PrototypeState, preview_state
 
 
 def main():
-    app = QGuiApplication(sys.argv)
+    from PySide6.QtWidgets import QApplication
+    app = QApplication(sys.argv)
+    instance = None
+    if sys.platform == "win32" and "--game-hotkeys" in sys.argv and "--settings-file" in sys.argv and "--verify-game-hotkeys" not in sys.argv:
+        from .instance import PreviewInstance
+        instance = PreviewInstance(Path(sys.argv[sys.argv.index("--settings-file") + 1]).parent)
+        if not instance.acquire():
+            return 0
     from .font_setup import ensure_ui_font
     fonts_ready = ensure_ui_font(app)
     if "--screenshot" in sys.argv and not fonts_ready:
@@ -77,6 +84,8 @@ def main():
         return 1
     if not state.demo and state.translationAvailable and "--screenshot" not in sys.argv:
         state.attach_window(engine.rootObjects()[0])
+        if instance:
+            instance.bind(engine.rootObjects()[0])
         if sys.platform == "win32":
             try:
                 import ctypes

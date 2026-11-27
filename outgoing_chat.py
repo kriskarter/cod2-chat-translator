@@ -620,6 +620,9 @@ class KeyboardCapture:
         self.events = events
         self.game_scope = game_scope
         self.f8_down = False
+        self.shortcut_trace = None
+        self.shortcut_held = set()
+        self.shortcut_at = {}
         self._stop_requested = threading.Event()
         self._thread_id = None
         self._thread = None
@@ -893,8 +896,20 @@ class KeyboardCapture:
             if self.game_scope is not None:
                 if self._stop_requested.is_set():
                     return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
-                if vk in (0x77, VK_F9, VK_F10) or self.active:
-                    if not self.game_scope():
+                is_shortcut = vk in (0x77, VK_F9, VK_F10)
+                if is_shortcut or self.active:
+                    focused = self.game_scope()
+                    if is_shortcut:
+                        if key_down and vk not in self.shortcut_held:
+                            self.shortcut_held.add(vk)
+                            self.shortcut_at[vk] = time.monotonic()
+                            edge = (vk, bool(data.flags & 0x10), focused, self.enabled)
+                            if self.shortcut_trace:
+                                self.shortcut_trace.put((self.shortcut_at[vk], *edge))
+                            self.events.put(("shortcut_hook", edge))
+                        elif key_up:
+                            self.shortcut_held.discard(vk)
+                    if not focused:
                         if self.active:
                             self.active = False
                             self.events.put(("system_escape", None))

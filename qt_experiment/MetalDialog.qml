@@ -8,10 +8,7 @@ Dialog {
     padding: 20
     palette.windowText: "#f5e7c9"
     palette.text: "#f5e7c9"
-    background: Item {
-        Rectangle { anchors.fill: parent; anchors.margins: 5; color: "#20221f"; radius: 5 }
-        ArtFrame { anchors.fill: parent }
-    }
+    background: MetalPanel {}
     header: Text {
         text: root.title; textFormat: Text.PlainText; color: "#eedcba"
         font.pixelSize: 19; font.bold: true; wrapMode: Text.WordWrap

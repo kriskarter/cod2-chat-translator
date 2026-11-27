@@ -1,6 +1,8 @@
 """Opt-in game integration. Qt owns the existing native hook and HUD."""
 from __future__ import annotations
 
+import os
+from pathlib import Path
 import queue
 import threading
 import time
@@ -11,6 +13,7 @@ from outgoing_chat import (KeyboardCapture, OutgoingTranslationDispatcher,
 from outgoing_send import is_cod2_foreground, send_cod2_chat_message
 from app import gaming_slang_transform
 from .native_hud import NativeHud
+from .shortcut_diagnostics import ShortcutDiagnostics, NAMES, SHORTCUTS
 
 
 class GameControls:
@@ -41,6 +44,9 @@ class GameControls:
         self.preview_inflight = False
         self.preview_result = ""
         self.closed = threading.Event()
+        self.diagnostics = None
+        self.rearming = False
+        self.resume_f9 = False
 
     def _focused(self):
         try:
@@ -49,12 +55,23 @@ class GameControls:
             return False
 
     def start(self):
+        if os.name == "nt" and isinstance(self.keyboard, KeyboardCapture):
+            store = getattr(self.state, "_store", None)
+            folder = store.path.parent if store else Path(os.environ["APPDATA"]) / "CoD2ChatTranslatorQtPreview"
+            try:
+                self.diagnostics = ShortcutDiagnostics(folder)
+                self.keyboard.shortcut_trace = self.diagnostics.edges
+            except OSError:
+                pass
         self.keyboard.start()
 
     def close(self):
         self.closed.set()
         self.cancel()
         self.keyboard.stop()
+        if self.diagnostics:
+            self.diagnostics.close()
+            self.diagnostics = None
         self.dispatcher.close()
         self.hud.close()
 
@@ -155,25 +172,70 @@ class GameControls:
         self.keyboard.set_enabled(self.state.f9)
         if self.active and (not self._focused() or not self.state.f9 or not self.keyboard.active):
             self.cancel("F9: ввод отменён")
+        diag = self.diagnostics
+        if self.rearming and not self.keyboard._thread.is_alive():
+            self.keyboard = KeyboardCapture(self.events, game_scope=self._focused)
+            self.keyboard.set_enabled(self.state.f9)
+            self.keyboard.shortcut_trace = diag.edges
+            self.keyboard.start()
+            self.rearming = False
+        if diag:
+            now = time.monotonic()
+            for missed in diag.missed(self.keyboard, now):
+                focused = self._focused()
+                diag.write("async_edge key=%s game_focus=%s %s", NAMES[missed], focused, diag.focus())
+                if not focused:
+                    continue
+                if missed == "toggle_popup" and self.state.f9 and not self.rearming:
+                    if self.active:
+                        self.cancel()
+                    else:
+                        self.resume_f9 = True
+                    # Reinstall before opening text input after a missed hook edge.
+                    self.keyboard.stop()
+                    self.ready = False
+                    self.rearming = True
+                    diag.write("F9 hook_rearm")
+                elif missed != "toggle_popup":
+                    self.events.put((missed, "poll"))
+            if now - diag.heartbeat >= 30:
+                diag.heartbeat = now
+                diag.write("qt_tick hook_thread_alive=%s queue=%d", self.keyboard._thread.is_alive(), self.events.qsize())
         for _ in range(100):
             try:
                 event, value = self.events.get_nowait()
             except queue.Empty:
                 break
+            if diag:
+                if event == "shortcut_hook":
+                    vk, injected, accepted, enabled = value
+                    diag.write("hook_edge key=%s injected=%s game_focus_at_hook=%s f9_enabled=%s qt_dequeued=yes current_%s",
+                               NAMES[SHORTCUTS[vk]], injected, accepted, enabled, diag.focus())
+                elif event in NAMES:
+                    diag.write("qt_dispatch key=%s source=%s focus=%s", NAMES[event], value or "hook", self._focused())
+                elif event in ("hook_ready", "hook_error"):
+                    diag.write("%s %s", event, value or "")
             if event == "hook_ready":
                 self.ready = True
                 self.hook_error = ""
                 self.state.game_status("Игровые клавиши готовы")
+                if self.resume_f9 and not self.rearming:
+                    self.resume_f9 = False
+                    if self._focused() and self.state.f9:
+                        self.events.put(("toggle_popup", "rearmed"))
             elif event == "hook_error":
                 self.ready = False
+                self.resume_f9 = False
                 self.hook_error = str(value)
                 self.cancel(self.hook_error)
             elif event == "f8" and self._focused():
                 self.last_shortcut = "F8"
                 self.state.toggle("overlay")
+                if diag: diag.write("F8 overlay_enabled=%s", self.state.overlay)
             elif event == "screenshot" and self._focused():
                 self.last_shortcut = "F10"
                 self.state.capture_game_screenshot()
+                if diag: diag.write("F10 capture_requested")
             elif event == "toggle_popup" and self._focused():
                 self.last_shortcut = "F9"
                 self.state.game_status("F9")
@@ -181,6 +243,7 @@ class GameControls:
                     self.cancel("F9: ввод закрыт")
                 else:
                     self.open()
+                if diag: diag.write("F9 input_active=%s hud_enabled=%s hud_error=%s", self.active, self.hud.enabled, self.hud.last_error)
             elif event in ("cancel", "system_escape"):
                 self.cancel("F9: ввод отменён")
             elif event == "submit":

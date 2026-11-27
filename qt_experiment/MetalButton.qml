@@ -10,11 +10,12 @@ Button {
     readonly property bool gold: surface === "amber" || selected
     readonly property bool hasGlyph: glyph.toString().length > 0
     readonly property int slice: 6
+    property int glyphSize: 16
     font.family: "Segoe UI"
     font.pixelSize: 13
     font.bold: true
     implicitHeight: sizeClass === "primary" ? 40 : sizeClass === "compact" ? 28 : sizeClass === "icon" ? 30 : 36
-    implicitWidth: Math.max(text.length ? 56 : 30, caption.implicitWidth + (hasGlyph ? 16 : 0) + row.spacing + leftPadding + rightPadding)
+    implicitWidth: Math.max(text.length ? 56 : 30, caption.implicitWidth + (hasGlyph ? glyphSize : 0) + row.spacing + leftPadding + rightPadding)
     leftPadding: sizeClass === "icon" ? 4 : sizeClass === "compact" ? 8 : 12
     rightPadding: leftPadding
     topInset: 0; bottomInset: 0
@@ -31,7 +32,7 @@ Button {
             Image {
                 visible: root.hasGlyph
                 source: root.glyph
-                width: 16; height: 16
+                width: root.glyphSize; height: width
                 anchors.verticalCenter: parent.verticalCenter
                 fillMode: Image.PreserveAspectFit
             }
@@ -42,15 +43,18 @@ Button {
                 textFormat: Text.PlainText
                 font: root.font
                 color: root.enabled ? "#fff0d3" : "#b4b1a6"
-                width: Math.min(implicitWidth, Math.max(0, root.availableWidth - (root.hasGlyph ? 16 + row.spacing : 0)))
+                width: Math.min(implicitWidth, Math.max(0, root.availableWidth - (root.hasGlyph ? root.glyphSize + row.spacing : 0)))
                 anchors.verticalCenter: parent.verticalCenter
                 elide: Text.ElideRight
             }
         }
     }
     background: BorderImage {
-        source: "art/" + (root.gold ? "amber_button" : "metal_button")
-                + (!root.enabled ? "_disabled" : root.down ? "_pressed" : root.activeFocus ? "_focused" : root.hovered ? "_hover" : "") + ".png"
+        source: root.gold ? "reference_art/button_amber.png" : "reference_art/button_steel.png"
+        Rectangle {
+            anchors.fill: parent; anchors.margins: 2; radius: 4
+            color: !root.enabled ? "#8820201f" : root.down ? "#58050000" : root.hovered ? "#22ffe1a3" : "transparent"
+        }
         opacity: root.surface === "quiet" && !root.hovered && !root.visualFocus && !root.down ? .35 : 1
         border { left: root.slice; right: root.slice; top: root.slice; bottom: root.slice }
         Rectangle {

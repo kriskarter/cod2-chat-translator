@@ -28,7 +28,7 @@ MetalPanel {
  ColumnLayout {
   anchors.fill:parent;anchors.margins:7;spacing:2
   RowLayout {
-   Image {source:"icons/friends.svg";Layout.preferredWidth:17;Layout.preferredHeight:17}
+   Image {source:"reference_art/friends.png";Layout.preferredWidth:17;Layout.preferredHeight:17}
    Text {text:root.tr("Игроки на сервере")+" · "+root.population;color:"#e2c493";font.pixelSize:13;font.bold:true;Layout.fillWidth:true}
   }
   component Cells: RowLayout {
@@ -49,15 +49,15 @@ MetalPanel {
      onClicked:prototype.toggleFriend(dataRow.rawName)
      ToolTip {id:starTip;parent:starButton;visible:starButton.hovered;delay:550;text:starButton.Accessible.name
       background:Rectangle {radius:4;color:"#272d27";border.color:"#8a7551"}
-      contentItem:Text {text:starTip.text;color:"#f1dfbd";font.pixelSize:12}
+      contentItem:Text {text:starTip.text;color:"#f1dfbd";font.pixelSize:root.width<520?11:15}
      }
     }
    }
-   Text {id:nickLabel;objectName:!heading?"player_nick_"+dataRow.name:"";clip:true;Layout.minimumWidth:0;text:heading?root.tr("Никнейм"):dataRow.richName;textFormat:heading?Text.PlainText:Text.RichText;elide:Text.ElideRight;color:"#ddceae";Layout.fillWidth:true;font.pixelSize:12
+   Text {id:nickLabel;objectName:!heading?"player_nick_"+dataRow.name:"";clip:true;Layout.minimumWidth:0;text:heading?root.tr("Никнейм"):dataRow.richName;textFormat:heading?Text.PlainText:Text.RichText;elide:Text.ElideRight;color:"#ddceae";Layout.fillWidth:true;font.pixelSize:root.width<520?11:15
     TapHandler {enabled:!heading&&prototype.serverManagementAvailable;acceptedButtons:Qt.RightButton;onTapped:(eventPoint,button)=>root.openPlayerMenu(dataRow,nickLabel,eventPoint.position)}
    }
-   Text {text:heading?root.tr("Счёт"):dataRow.score;color:"#ddceae";Layout.preferredWidth:56;font.pixelSize:12;horizontalAlignment:Text.AlignRight}
-   Text {text:heading?root.tr("Пинг"):dataRow.ping;color:heading?"#ddceae":dataRow.pingQuality==="good"?"#b8dc89":dataRow.pingQuality==="fair"?"#e0c37a":dataRow.pingQuality==="poor"?"#e68b74":"#b1ada2";Layout.preferredWidth:52;font.pixelSize:12;horizontalAlignment:Text.AlignRight}
+   Text {text:heading?root.tr("Счёт"):dataRow.score;color:"#ddceae";Layout.preferredWidth:root.width*.14;font.pixelSize:root.width<520?11:15;horizontalAlignment:Text.AlignHCenter}
+   Text {text:heading?root.tr("Пинг"):dataRow.ping;color:heading?"#ddceae":dataRow.pingQuality==="good"?"#b8dc89":dataRow.pingQuality==="fair"?"#e0c37a":dataRow.pingQuality==="poor"?"#e68b74":"#b1ada2";Layout.preferredWidth:root.width*.18;font.pixelSize:root.width<520?11:15;horizontalAlignment:Text.AlignHCenter}
   }
   Item {Layout.fillWidth:true;Layout.preferredHeight:21;Cells {anchors.fill:parent;anchors.leftMargin:5;anchors.rightMargin:13;heading:true;dataRow:({})}}
   ListView {
@@ -65,10 +65,10 @@ MetalPanel {
    ScrollBar.vertical:MetalScrollBar {}
    delegate:Rectangle {
     id:row;required property int index;required property var modelData
-    width:Math.max(0,roster.width-9);height:22;color:index%2?"#1a1e1c":"#242824";radius:2
+    width:Math.max(0,roster.width-9);height:root.width<520?21:25;color:index%2?"#1c1c1b":"#111212";radius:2
     Cells {anchors.fill:parent;anchors.leftMargin:5;anchors.rightMargin:4;dataRow:row.modelData}
    }
-   Text {anchors.centerIn:parent;visible:roster.count===0;text:root.tr("Нет данных об игроках");color:"#a8a69b";font.pixelSize:12}
+   Text {anchors.centerIn:parent;visible:roster.count===0;text:root.tr("Нет данных об игроках");color:"#a8a69b";font.pixelSize:root.width<520?11:15}
   }
  }
 }

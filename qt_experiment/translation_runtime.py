@@ -390,14 +390,16 @@ class TranslationState(LiveMonitorState):
         old=labels.get(event.old_address,event.old_address)
         new=labels.get(event.new_address,event.new_address)
         detail=name+" · "+(old+" → "+new if event.kind=="move" else new or old)
+        server = self._rows.get(event.new_address or event.old_address)
+        if server and server.map_name and server.map_name != "—":
+            detail += " · " + server.map_name
         self._notifications.appendleft(title+": "+detail)
-        self.friendNotice.emit(title,detail)
         # In-app notification is custom QML. When not active use native
         # notification delivery; its sound flag is controlled independently.
         active=bool(self._notice_window and self._notice_window.isActive())
         sound=bool(self._settings["notify_sound"])
-        if self._notifier and not active:
-            self._notifier.show(title,detail,sound=False)
+        if active or not self._notifier or not self._notifier.show(title,detail,sound=False):
+            self.friendNotice.emit(title,detail)
         now=time.monotonic()
         if sound and now-self._last_friend_sound_at>=2.5:
             self._last_friend_sound_at=now
@@ -544,8 +546,10 @@ class TranslationState(LiveMonitorState):
     def attach_window(self, window):
         self._notice_window=window
         if os.name == "nt":
-            from windows_friend_notice import FriendNotice
-            self._notifier = FriendNotice(int(window.winId()))
+            from .tray import WindowTray
+            if self._notifier:
+                self._notifier.close()
+            self._notifier = WindowTray(window, self.trText)
             if self._overlay_on_start:
                 self._overlay = self._hud.enable(True)
                 self.changed.emit()
@@ -755,6 +759,13 @@ class TranslationState(LiveMonitorState):
         if self._game.last_shortcut:
             return self.trText("Последняя игровая клавиша") + " · " + self._game.last_shortcut
         return ""
+
+    @Slot()
+    def openShortcutLog(self):
+        if self._game and self._game.diagnostics and self._game.diagnostics.path:
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._game.diagnostics.path))
 
     def position_outgoing_hud(self, config):
         from app import _monitor_rect_for_window

@@ -3,48 +3,46 @@ import QtQuick.Controls
 
 Switch {
     id: root
-    implicitWidth: 68
-    implicitHeight: 30
-    padding: 0
-    hoverEnabled: true
+    property bool cardStyle: false
+    implicitWidth: cardStyle ? 124 : 76; implicitHeight: cardStyle ? 38 : 31
+    padding: 0; hoverEnabled: true
     focusPolicy: Qt.StrongFocus
+    readonly property string stateText: (prototype.uiLanguage, prototype.trText(
+        cardStyle ? (checked ? "Активен" : "Выключен") : (checked ? "Вкл" : "Выкл")))
     indicator: Item {
         anchors.centerIn: parent
-        width: Math.min(root.width, 66); height: 24
-        opacity: root.enabled ? 1 : .45
-        Rectangle {
-            anchors.fill: parent; radius: 4
-            color: "#131813"
-            border.color: root.visualFocus ? "#f2c578" : root.hovered ? "#af9e7b" : "#675f4b"
-        }
-        Image {
-            anchors.fill: parent; anchors.margins: 3
-            source: root.checked ? "art/switch_face.png" : "art/switch_off.png"
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            x: root.checked ? 6 : 24
-            width: parent.width - 30
-            horizontalAlignment: Text.AlignHCenter
-            text: (prototype.uiLanguage, prototype.trText(root.checked ? "Вкл" : "Выкл"))
-            font.pixelSize: 10; font.bold: true
-            color: root.checked ? "#d1e7ad" : "#ccc8ba"
+        width: parent.width; height: Math.min(parent.height,root.cardStyle ? 38 : 29)
+        opacity: root.enabled ? 1 : .48
+        BorderImage {
+            anchors.fill: parent
+            source: root.cardStyle ? "reference_art/badge.png" : "reference_art/toggle.png"
+            border { left: 9; right: 9; top: 7; bottom: 7 }
         }
         Rectangle {
-            x: root.checked ? parent.width - width - 4 : 4
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16; height: 16; radius: 3
-            gradient: Gradient {
-                GradientStop { position: 0; color: "#998f75" }
-                GradientStop { position: .38; color: "#696959" }
-                GradientStop { position: 1; color: "#383b32" }
+            anchors.fill: parent; anchors.margins: 1; radius: root.cardStyle ? 7 : height / 2
+            visible: !root.checked || root.visualFocus || root.hovered
+            color: root.checked ? "transparent" : "#d4252622"
+            border.color: root.visualFocus ? "#f4c675" : root.hovered ? "#b7a474" : "#69675d"
+        }
+        Row {
+            anchors.centerIn: parent; spacing: root.cardStyle ? 6 : 4
+            Image {
+                visible: root.cardStyle && root.checked
+                source: "reference_art/check.png"
+                width: root.height*.66; height: width
+                anchors.verticalCenter: parent.verticalCenter
             }
-            border.color: "#b0a388"
+            Text {
+                text: root.stateText; color: root.checked ? "#d7e7a8" : "#d0c9b6"
+                font.pixelSize: root.cardStyle ? Math.max(10,Math.min(16,root.width*.132)) : 12
+                font.bold: true; anchors.verticalCenter: parent.verticalCenter
+            }
             Rectangle {
-                anchors.centerIn: parent; width: 8; height: 3; radius: 1
-                color: root.checked ? "#c4e89b" : "#42453c"
+                visible: !root.cardStyle; width: 14; height: 14; radius: 7
+                anchors.verticalCenter: parent.verticalCenter
+                color: root.checked ? "#9cda61" : "#65635b"
+                Image { anchors.fill: parent; source:"reference_art/green_lamp.png";visible:root.checked }
             }
-            Behavior on x { NumberAnimation { duration: 100 } }
         }
     }
     contentItem: Item {}

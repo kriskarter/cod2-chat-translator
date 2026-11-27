@@ -1,6 +1,6 @@
 import QtQuick
 
 BorderImage {
-    source: "art/frame.png"
-    border { left: 8; right: 8; top: 8; bottom: 8 }
+    source: "reference_art/frame.png"
+    border { left: 15; right: 15; top: 15; bottom: 15 }
 }

@@ -10,6 +10,8 @@ TextField {
     padding: 9
     implicitHeight: 38
     background: Rectangle {
+        Image { anchors.fill: parent; anchors.margins: 2; source: "reference_art/field.webp"; fillMode: Image.Tile; opacity: .65 }
+
         radius: 5
         color: root.enabled ? "#171b1c" : "#272a29"
         border.color: root.activeFocus ? "#d7a65d" : "#645b49"

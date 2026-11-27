@@ -168,7 +168,7 @@ MetalPanel {
                     id: aboutScrollContent; width:Math.min(820, aboutScroll.width-12); anchors.horizontalCenter: parent.horizontalCenter; spacing: 10
                 RowLayout {
                     Layout.fillWidth:true;spacing:22
-                    Image {source:"command_logo.png";Layout.preferredWidth:230;Layout.preferredHeight:100;fillMode:Image.PreserveAspectFit}
+                    Image {source:"reference_art/wordmark.webp";Layout.preferredWidth:230;Layout.preferredHeight:100;fillMode:Image.PreserveAspectFit}
                     ColumnLayout {Layout.fillWidth:true
                         Text {text:"CoD2 Chat Translator";color:"#f5e7c9";font.pixelSize:22;font.bold:true}
                         Text {text:root.tr("Перевод игрового чата и мониторинг серверов Call of Duty 2.");wrapMode:Text.WordWrap;Layout.fillWidth:true;color:"#d6c9ae"}

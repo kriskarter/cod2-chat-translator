@@ -176,11 +176,12 @@ MetalPanel {
                     MetalTextArea { text: prototype.outgoingResult; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap }
                 }
                 Text {
-                    text: prototype.gameHotkeysReady ? (prototype.uiLanguage, prototype.trText("Игровые F8/F9/F10 подключены · F9 и Enter отправляют только в активную CoD2.")) :
+                    text: prototype.gameHotkeysReady ? (prototype.uiLanguage, prototype.trText("Перехватчик установлен. Ожидание игровых нажатий.")) :
                           prototype.gameHotkeysEnabled ? (prototype.uiLanguage, prototype.trText("Игровой keyboard hook ещё не готов.")) : (prototype.uiLanguage, prototype.trText("Игровые клавиши выключены в этом запуске."))
                     color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                 }
 
+                MetalButton { visible: prototype.gameHotkeysEnabled; text: (prototype.uiLanguage, prototype.trText("Открыть журнал клавиш")); onClicked: prototype.openShortcutLog() }
                 Text { visible: prototype.gameHotkeyDetail.length > 0; text: prototype.gameHotkeyDetail; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Text { text: (prototype.uiLanguage, prototype.trText("Ручной режим не отправляет сообщения в игру.")); color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             }
