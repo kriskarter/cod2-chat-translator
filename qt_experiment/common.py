@@ -91,6 +91,9 @@ class PrototypeState(QObject):
     @Property(bool, constant=True)
     def translationAvailable(self): return False
 
+    @Property(bool, notify=changed)
+    def gamePrivilegeMismatch(self): return False
+
     @Property(bool, constant=True)
     def demo(self): return self._demo
 
