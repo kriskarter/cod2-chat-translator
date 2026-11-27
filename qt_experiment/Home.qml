@@ -76,11 +76,14 @@ ApplicationWindow {
         title: (prototype.uiLanguage, prototype.trText("Добавить сервер"))
         standardButtons: Dialog.NoButton
         width: 390
-        height: 365
+        height: 410
+        property string submissionError: ""
+        onOpened: submissionError = ""
         ColumnLayout {
             anchors.fill: parent
             Text { text: window.tr("IP-адрес или домен"); color: window.ink }
             MetalTextField { id: addressField; objectName: "serverHostInput"; placeholderText: "148.251.139.73"; Layout.fillWidth: true
+                onTextEdited: addDialog.submissionError = ""
                 onEditingFinished: {
                     let fields = prototype.pastedServerFields(text, portField.text)
                     if (fields.host !== undefined) { text = fields.host; portField.text = fields.port }
@@ -92,13 +95,13 @@ ApplicationWindow {
             MetalTextField { id: labelField; objectName: "serverNameInput"; Layout.fillWidth: true }
             Text { text: window.tr("Вставленный IP:порт имеет приоритет"); color: "#bcb09a"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             Text { id: addressPreview; text: prototype.serverAddressPreview(addressField.text, portField.text); color: "#e4c291"; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true }
-            Text { id: addError; text: addressField.text.length > 0 && !addressPreview.text ? window.tr("Неверный адрес, повтор или достигнут лимит") : ""; color: "#e99b83"; wrapMode: Text.WordWrap; Layout.fillWidth: true; visible: text.length > 0 }
+            Text { id: addError; text: addDialog.submissionError || (addressField.text.length > 0 && !addressPreview.text ? window.tr("Неверный адрес, повтор или достигнут лимит") : ""); color: "#e99b83"; wrapMode: Text.WordWrap; Layout.fillWidth: true; visible: text.length > 0 }
             RowLayout {
                 MetalButton { text: window.tr("Отмена"); onClicked: addDialog.close() }
                 AmberButton { text: window.tr("Добавить"); enabled: addressPreview.text.length > 0; onClicked: {
                     if (prototype.addServer(addressPreview.text, labelField.text)) {
-                        addressField.clear(); portField.text = "28960"; labelField.clear(); addError.text = ""; addDialog.close()
-                    } else addError.text = window.tr("Неверный адрес, повтор или достигнут лимит")
+                        addressField.clear(); portField.text = "28960"; labelField.clear(); addDialog.submissionError = ""; addDialog.close()
+                    } else addDialog.submissionError = window.tr("Неверный адрес, повтор или достигнут лимит")
                 } }
             }
         }
