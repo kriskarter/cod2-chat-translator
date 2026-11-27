@@ -135,3 +135,66 @@ def test_home_hud_buttons_and_warning(state):
     assert not warnings,warnings
     window.close()
     del engine
+
+
+def test_f9_card_tracks_input_preview_send_cancel_and_focus(state):
+    focused = [True]
+    game = GameControls(state,{}, "ru","en",foreground=lambda:focused[0],keyboard_factory=Keyboard,
+        hud_factory=lambda cfg, original: NativeHud(cfg,original,factory=Mock))
+    state._game = game
+    game.ready = True
+    try:
+        for _ in range(12):
+            game.events.put(("toggle_popup",None))
+            state._drain()
+            assert state.f9 and state.f9Status == "Окно открыто"
+            game.events.put(("cancel",None))
+            state._drain()
+            assert state.f9 and state.f9Status == "Ожидание игровой клавиши"
+        game.events.put(("toggle_popup",None))
+        state._drain()
+        focused[0] = False
+        state._drain()
+        assert state.f9Status == "Ожидание игровой клавиши"
+        focused[0] = True
+        game.events.put(("toggle_popup",None))
+        game.events.put(("text","test"))
+        state._drain()
+        assert state.f9Status == "Перевод…"
+        game.pending = True
+        game.events.put(("result",(game.generation,False,"test error")))
+        state._drain()
+        assert state.f9Status == "Ошибка"
+        game.cancel()
+        game.sending = True
+        game.send_draft = "test"
+        game.send_translation = "test"
+        assert state.f9Status == "Отправка"
+        game.events.put(("sent",(True,"")))
+        state._drain()
+        assert state.f9Status == "Сообщение отправлено"
+        game.sent_until = time.monotonic()-1
+        state._drain()
+        assert state.f9 and state.f9Status == "Ожидание игровой клавиши"
+    finally:
+        game.close()
+        state._game = None
+
+
+def test_settings_backup_and_no_overwrite_after_external_edit(tmp_path):
+    path = tmp_path/"settings.json"
+    store = SettingsStore(path)
+    initial = {"server_monitor":{"servers":[{"address":"148.251.139.73:12345"}]}}
+    store.save(initial)
+    store.save(dict(initial, ui_language="uk"))
+    path.write_bytes(b"corrupt!")
+    reopened = SettingsStore(path)
+    assert reopened.load({}) == initial
+    assert reopened.recovered
+    assert path.read_bytes() == b"corrupt!"
+    reopened.save(initial)
+    assert SettingsStore(path).load({}) == initial
+    path.write_bytes(b'{"external":true}')
+    with pytest.raises(RuntimeError):
+        reopened.save({})
+    assert path.read_bytes() == b'{"external":true}'

@@ -350,3 +350,8 @@ LABELS.update({
     "Сообщение отправлено": ("Message sent", "Повідомлення надіслано"),
     "Настройки сохранятся. Windows запросит подтверждение UAC. Следующий запуск будет запрашивать права администратора.": ("Settings will be saved. Windows will request UAC confirmation. Future launches will request administrator access.", "Налаштування збережуться. Windows запросить підтвердження UAC. Наступний запуск запитуватиме права адміністратора."),
 })
+
+LABELS.update({
+    "Ошибка чтения настроек. Файл не изменён.": ("Could not read settings. File left unchanged.", "Не вдалося прочитати налаштування. Файл не змінено."),
+    "Настройки восстановлены из резервной копии": ("Settings recovered from backup", "Налаштування відновлено з резервної копії"),
+})

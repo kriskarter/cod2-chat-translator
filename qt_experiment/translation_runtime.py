@@ -59,7 +59,6 @@ class TranslationState(LiveMonitorState):
         self._outgoing_hud_config = outgoing_config(config.get("outgoing_hud"))
         self._last_outgoing_rect = None
         self._privilege_mismatch = False
-        self._auto_prompted = False
         self._always_admin = config.get("qt_always_admin") is True
         self._history_enabled = config.get("qt_history_enabled", True)
         self._hint_dismissed = bool(config.get("qt_hint_dismissed", False))
@@ -948,10 +947,6 @@ class TranslationState(LiveMonitorState):
 
         # A running application never elevates itself from a polling callback.
         # The mismatch is visible in the UI; only explicit confirmation restarts it.
-
-    def _needs_preferred_elevation(self):
-        from .shortcut_diagnostics import elevated
-        return os.name == "nt" and elevated(os.getpid()) == "False"
 
     @Property(bool, notify=translationChanged)
     def alwaysAdmin(self): return self._always_admin

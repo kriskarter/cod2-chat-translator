@@ -58,9 +58,13 @@ def test_actual_server_add_edit_and_f9_apply(tmp_path):
         QTest.qWait(60)
         assert host.property("text")=="148.251.139.73"
         assert port.property("text")=="12345"
+        find("serverNameInput").setProperty("text","Massacre Extreme All Weapons TDM")
         capture("add_server_actual.png")
         click(button(dialog,"Добавить"))
         assert state.serverRecords[0]["address"]=="148.251.139.73:12345"
+        # Reload from disk without invoking Save Settings.
+        persisted=SettingsStore(store.path).load(cfg)["server_monitor"]["servers"]
+        assert persisted == [{"address":"148.251.139.73:12345","label":"Massacre Extreme All Weapons TDM","favorite":False}]
         assert host.property("text")=="" and port.property("text")=="28960"
         window.setProperty("activePage","servers")
         QTest.qWait(150)
@@ -68,7 +72,6 @@ def test_actual_server_add_edit_and_f9_apply(tmp_path):
         click(button(find("server_workspace"),"Применить"))
         assert state.selected=="148.251.139.73:28961"
         capture("edit_server_actual.png")
-        state.saveSettings()
         assert SettingsStore(store.path).load(cfg)["server_monitor"]["servers"][0]["address"]=="148.251.139.73:28961"
         window.setProperty("activePage","outgoing")
         QTest.qWait(100)

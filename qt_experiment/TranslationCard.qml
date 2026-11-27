@@ -14,6 +14,7 @@ MetalPanel {
  property bool live:false
  property string liveStatus:""
  signal configure()
+ signal requestElevation()
  property bool needsAction: ["Несовпадение прав","Журнал не выбран","HUD скрыт"].indexOf(liveStatus)>=0
  property color statusColor: !active ? "#bcb09a" : liveStatus==="Ошибка" ? "#ee957d" : needsAction ? "#f0c076" : "#b0db84"
  signal toggled()
@@ -80,12 +81,13 @@ MetalPanel {
    Text {
     text: (prototype.uiLanguage,prototype.trText(root.liveStatus)); color:root.statusColor
     font.pixelSize:root.compact?11:12; elide:Text.ElideRight; Layout.minimumWidth:0; Layout.fillWidth:true
-    TapHandler { enabled:root.liveStatus==="Несовпадение прав"; onTapped: { if (root.Window.window && root.Window.window.confirmElevation) root.Window.window.confirmElevation() } }
+    TapHandler { enabled:root.liveStatus==="Несовпадение прав"; onTapped:root.requestElevation() }
    }
    MetalButton {
     objectName:root.keyName.toLowerCase()+"HudButton"; glyph:"icons/settings.svg"
     text:(prototype.uiLanguage,prototype.trText("Настроить"))
-    font.pixelSize:11;sizeClass:"compact";Layout.preferredWidth:Math.min(132,body.width*.58)
+    font.letterSpacing:0
+    font.pixelSize:11;sizeClass:"compact";Layout.preferredWidth:Math.min(132,body.width*.62)
     onClicked:root.configure()
    }
   }

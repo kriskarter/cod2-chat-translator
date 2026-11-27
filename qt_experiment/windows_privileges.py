@@ -34,6 +34,19 @@ def game_privilege_status():
     return running, mismatch
 
 
+def request_startup_elevation(prefer_admin, restarted=False):
+    """Return (attempted, launched); no UI or worker has been created yet."""
+    if restarted or os.name != "nt":
+        return False, False
+    from .shortcut_diagnostics import elevated
+    if elevated(os.getpid()) != "False":
+        return False, False
+    if not prefer_admin and not game_privilege_status()[1]:
+        return False, False
+    launched, _ = restart_elevated()
+    return True, launched
+
+
 def restart_elevated():
     if os.name != "nt":
         return False, "Windows only"

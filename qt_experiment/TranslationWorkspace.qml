@@ -27,7 +27,7 @@ MetalPanel {
     MetalDialog {
         id: elevationConfirm; title: root.tr("Перезапустить от имени администратора?")
         anchors.centerIn: parent; standardButtons: Dialog.Yes | Dialog.No
-        Text { width: 340; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Настройки сохранятся. Windows запросит подтверждение UAC.") }
+        Text { width: 340; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Настройки сохранятся. Windows запросит подтверждение UAC. Следующий запуск будет запрашивать права администратора.") }
         onAccepted: prototype.restartElevated()
     }
     ColumnLayout {

@@ -216,14 +216,14 @@ ApplicationWindow {
                 spacing: window.compact ? 8 : Math.min(22,window.height*.027)
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F8"; live: prototype.translationAvailable; liveStatus: live ? prototype.f8Status : ""; onConfigure: hudEditor.edit(true); heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
+                    keyName: "F8"; live: prototype.translationAvailable; liveStatus: live ? prototype.f8Status : ""; onConfigure: hudEditor.edit(true); onRequestElevation: window.confirmElevation(); heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
                     active: prototype.f8; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "reference_art/f8_plate.webp"
                     onToggled: prototype.toggle("f8")
                 }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? prototype.f9Status : ""; onConfigure: hudEditor.edit(false); heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
+                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? prototype.f9Status : ""; onConfigure: hudEditor.edit(false); onRequestElevation: window.confirmElevation(); heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
                     active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "reference_art/f9_plate.webp"
                     onToggled: prototype.toggle("f9")

@@ -39,3 +39,20 @@ def test_no_elevation_when_already_admin(monkeypatch):
     monkeypatch.setattr(win.ctypes,"WinDLL",execute,raising=False)
     assert not win.restart_elevated()[0]
     execute.assert_not_called()
+
+
+@pytest.mark.parametrize("preferred,restarted,own,mismatch,expected", [
+    (True,False,"False",False,True),
+    (False,False,"False",True,True),
+    (False,False,"False",False,False),
+    (True,True,"False",True,False),
+    (True,False,"True",True,False),
+])
+def test_startup_uac_only_before_normal_initialization(monkeypatch, preferred, restarted, own, mismatch, expected):
+    monkeypatch.setattr(win, "os", SimpleNamespace(name="nt",getpid=lambda:1234))
+    monkeypatch.setattr(shortcut_diagnostics,"elevated",lambda pid:own)
+    monkeypatch.setattr(win,"game_privilege_status",lambda:(mismatch,mismatch))
+    request=Mock(return_value=(False,"5"))
+    monkeypatch.setattr(win,"restart_elevated",request)
+    assert win.request_startup_elevation(preferred,restarted) == (expected,False)
+    assert request.call_count == int(expected)

@@ -59,30 +59,44 @@ def main():
             hint = installer_language_hint()
             if hint in ("ru", "uk", "en"): values["ui_language"] = hint
         store = None
+        startup_denied = False
         if "--settings-file" in sys.argv:
             from .settings_store import SettingsStore
             target = Path(sys.argv[sys.argv.index("--settings-file") + 1])
             if config and config.resolve() == target.resolve():
                 raise ValueError("Qt settings file must differ from the imported Tk config")
-            store = SettingsStore(target)
             try:
-                hint = target.with_name("ui_language.txt").read_text(encoding="utf-8").strip()
-                if not target.exists() and hint in ("ru", "uk", "en"): values["ui_language"] = hint
-            except OSError: pass
-            values = store.load(values)
+                store = SettingsStore(target)
+                try:
+                    hint = target.with_name("ui_language.txt").read_text(encoding="utf-8").strip()
+                    if not target.exists() and hint in ("ru", "uk", "en"): values["ui_language"] = hint
+                except OSError: pass
+                values = store.load(values)
+            except (OSError, ValueError) as error:
+                # Never boot with defaults and overwrite unreadable user data.
+                from PySide6.QtWidgets import QMessageBox
+                from .ui_text import translate
+                locale = values.get("ui_language", "ru")
+                QMessageBox.critical(None, "CoD2 Chat Translator",
+                    translate("Ошибка чтения настроек. Файл не изменён.", locale) + "\n" + str(error))
+                return 7
         if (instance and store and not restarted and "--screenshot" not in sys.argv
                 and "--verify-game-hotkeys" not in sys.argv):
-            from .windows_privileges import game_privilege_status, restart_elevated
-            from .shortcut_diagnostics import elevated
-            import os
-            if elevated(os.getpid()) == "False":
-                _, mismatch = game_privilege_status()
-                if values.get("qt_always_admin") is True or mismatch:
-                    ok, _ = restart_elevated()
-                    if ok:
-                        return 0
+            from .windows_privileges import request_startup_elevation
+            attempted, launched = request_startup_elevation(values.get("qt_always_admin") is True)
+            if launched:
+                return 0
+            startup_denied = attempted
         state = TranslationState(values, exe, log, knowledge, game_hotkeys="--game-hotkeys" in sys.argv, settings_store=store)
+        if instance and store and "--screenshot" not in sys.argv and "--verify-game-hotkeys" not in sys.argv:
+            # Normal tray/desktop quit saves current preferences. Explicit
+            # elevation and updater paths already require a successful save.
+            app.aboutToQuit.connect(state.saveSettings)
         app.aboutToQuit.connect(state.stop)
+        if store and store.recovered:
+            state.game_status("Настройки восстановлены из резервной копии")
+        elif startup_denied:
+            state.game_status("Повышение прав отменено или не удалось")
         if "--screenshot" not in sys.argv and not state.logPath:
             from PySide6.QtCore import QTimer
             QTimer.singleShot(0, state.rescanProfiles)
