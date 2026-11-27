@@ -12,6 +12,16 @@ from .common import PrototypeState, preview_state
 
 def main():
     from PySide6.QtWidgets import QApplication
+    if "--restart-parent" in sys.argv:
+        from .windows_privileges import wait_for_parent
+        index = sys.argv.index("--restart-parent")
+        try:
+            parent = int(sys.argv[index + 1])
+        except (ValueError, IndexError):
+            return 6
+        del sys.argv[index:index + 2]
+        if not wait_for_parent(parent):
+            return 6
     app = QApplication(sys.argv)
     instance = None
     if sys.platform == "win32" and "--game-hotkeys" in sys.argv and "--settings-file" in sys.argv and "--verify-game-hotkeys" not in sys.argv:
@@ -139,7 +149,7 @@ def main():
             from PySide6.QtTest import QTest
             QTest.qWait(60)
             name = sys.argv[sys.argv.index("--dialog")+1]
-            if name not in ("add_server_dialog","server_remove_dialog","history_clear_dialog","knowledge_clear_dialog","game_logging_dialog","friends_panel","update_install_dialog"):
+            if name not in ("add_server_dialog","server_remove_dialog","history_clear_dialog","knowledge_clear_dialog","game_logging_dialog","friends_panel","update_install_dialog","outgoing_hud_dialog"):
                 if not state.demo: state.stop()
                 del engine
                 return 3
