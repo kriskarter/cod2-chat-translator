@@ -7,6 +7,7 @@ Button {
     property bool selected: false
     property string sizeClass: text.length ? "standard" : "icon"
     property url glyph
+    property string hintText: ""
     readonly property bool gold: surface === "amber" || selected
     readonly property bool hasGlyph: glyph.toString().length > 0
     readonly property int slice: 6
@@ -63,6 +64,8 @@ Button {
             border.color: "#efd19a"; visible: root.visualFocus
         }
     }
-    ToolTip.visible: hovered && caption.truncated
-    ToolTip.text: text
+    MetalToolTip {
+        visible: root.hovered && (root.hintText.length > 0 || caption.truncated)
+        text: root.hintText || root.text
+    }
 }

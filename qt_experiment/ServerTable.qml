@@ -36,12 +36,9 @@ ColumnLayout {
    Cells {anchors.fill:parent;anchors.leftMargin:7;anchors.rightMargin:7;values:[line.modelData.name,line.modelData.map,line.modelData.population,line.modelData.ping,(prototype.uiLanguage,prototype.trText(line.modelData.state))];favorite:!!line.modelData.favorite;online:line.modelData.state==="online"}
    TapHandler {onTapped:root.chosen(line.modelData.address)}
    HoverHandler {id:hover}
-   ToolTip {
-    id: serverTip
-    visible: hover.hovered; delay: 400; timeout: 8000
+   MetalToolTip {
+    visible: hover.hovered
     text: (prototype.uiLanguage, prototype.trText("Название")) + ": " + line.modelData.name + "\n" + (prototype.uiLanguage, prototype.trText("Адрес")) + ": " + line.modelData.address
-    contentItem: Text { text: serverTip.text; textFormat: Text.PlainText; color: "#f5e7c9"; wrapMode: Text.WrapAnywhere; width: Math.min(400, implicitWidth) }
-    background: Rectangle { color: "#202321"; border.color: "#9b7948"; radius: 4 }
    }
   }
   Text {anchors.centerIn:parent;visible:table.count===0;text:(prototype.uiLanguage,prototype.trText("Добавьте сервер"));color:"#bcb09a"}

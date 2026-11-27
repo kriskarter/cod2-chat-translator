@@ -17,6 +17,5 @@ RowLayout {
  }
  TapHandler { onTapped:if(prototype.translationAvailable)root.configure() }
  HoverHandler { id:hover }
- ToolTip.visible:hover.hovered
- ToolTip.text:root.statusText
+ MetalToolTip { visible: hover.hovered && root.statusText.length > 0; text: root.statusText }
 }
