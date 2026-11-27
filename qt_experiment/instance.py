@@ -27,9 +27,9 @@ class PreviewInstance(QObject):
             peer.disconnectFromServer()
             return False
         QLocalServer.removeServer(self.name)
-        if not self.server.listen(self.name):
-            self.lock.unlock()
-            raise OSError(self.server.errorString())
+        # Keep the first instance usable even when local IPC is unavailable.
+        # The lock still prevents duplicate hooks and tray notifications.
+        self.server.listen(self.name)
         return True
 
     def _activate(self):

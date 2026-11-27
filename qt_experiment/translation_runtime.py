@@ -1013,6 +1013,8 @@ class TranslationState(LiveMonitorState):
                 changed = True
                 continue
             if kind in ("screenshot_saved", "screenshot_error"):
+                if self._game and self._game.diagnostics:
+                    self._game.diagnostics.write("F10 result=%s", kind)
                 self._translation_status = self._screenshot_status("saved", path=event[1]) if kind == "screenshot_saved" else self._screenshot_status("error", error=event[1])
                 changed = True
                 continue
