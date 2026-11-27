@@ -5,7 +5,10 @@ import QtQuick.Dialogs
 
 MetalPanel {
     id: root
-    function showEvidenceDialog(name) { if (name==="history_clear_dialog") historyClear.open() }
+    function showEvidenceDialog(name) {
+        if (name==="history_clear_dialog") historyClear.open()
+        else if (name==="outgoing_hud_dialog") outgoingSettings.open()
+    }
     objectName:"translation_workspace"; clip:true
     property string page: "history"
     signal navigate(string page)
@@ -19,6 +22,122 @@ MetalPanel {
         id:historyClear;objectName:"history_clear_dialog";title:root.tr("Очистить историю?");anchors.centerIn:parent;standardButtons:Dialog.Yes|Dialog.No
         Text {text:root.tr("Удаляются только сообщения текущей сессии.");color:"#f5e7c9"}
         onAccepted:prototype.clearHistory()
+    }
+    MetalDialog {
+        id: elevationConfirm; title: root.tr("Перезапустить от имени администратора?")
+        anchors.centerIn: parent; standardButtons: Dialog.Yes | Dialog.No
+        Text { width: 340; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Настройки сохранятся. Windows запросит подтверждение UAC.") }
+        onAccepted: prototype.restartElevated()
+    }
+    MetalDialog {
+        id: outgoingSettings; objectName: "outgoing_hud_dialog"
+        title: root.tr("Настройки игрового окна F9")
+        anchors.centerIn: parent; standardButtons: Dialog.NoButton
+        width: Math.min(620, root.width - 24)
+        height: Math.min(560, root.height + 145)
+        property var draft: ({})
+        property var screen: ({width:1366,height:768})
+        property string previewSource: ""
+        function updateValue(key, value) {
+            let next = Object.assign({}, draft)
+            next[key] = value
+            draft = next
+            previewTimer.restart()
+        }
+        function updatePosition(x, y) {
+            let next = Object.assign({}, draft)
+            next.x = Math.max(0, Math.min(screen.width - Math.min(screen.width, next.width), Math.round(x)))
+            next.y = Math.max(0, Math.min(screen.height - Math.min(screen.height, next.height), Math.round(y)))
+            draft = next
+        }
+        onOpened: {
+            screen = prototype.outgoingScreenSize()
+            draft = prototype.outgoingHudSettings
+            previewSource = prototype.outgoingHudPreview(draft)
+        }
+        onClosed: { previewTimer.stop(); previewSource = "" }
+        Timer { id: previewTimer; interval: 50; onTriggered: outgoingSettings.previewSource = prototype.outgoingHudPreview(outgoingSettings.draft) }
+        ColumnLayout {
+            anchors.fill: parent; spacing: 5
+            Flickable {
+                id: optionsScroll; Layout.fillWidth: true; Layout.fillHeight: true
+                clip: true; contentWidth: width; contentHeight: optionsBody.implicitHeight
+                ScrollBar.vertical: MetalScrollBar {}
+                ColumnLayout {
+                    id: optionsBody; width: optionsScroll.width - 12
+                    spacing: 4
+                    Text { text: root.tr("Перетащите тестовый HUD"); color: "#c6ae88"; Layout.fillWidth: true }
+                    Rectangle {
+                        id: previewScreen; Layout.fillWidth: true; Layout.preferredHeight: 155
+                        color: "#151a19"; border.color: "#645b49"; clip: true
+                        property real scaleFactor: Math.min(width / Math.max(1, outgoingSettings.screen.width), height / Math.max(1, outgoingSettings.screen.height))
+                        Item {
+                            id: screenArea
+                            anchors.centerIn: parent
+                            width: outgoingSettings.screen.width * previewScreen.scaleFactor
+                            height: outgoingSettings.screen.height * previewScreen.scaleFactor
+                            Rectangle { anchors.fill: parent; color: "#292d29"; border.color: "#867255" }
+                            Image {
+                                id: hudPreview; objectName: "outgoingHudPreview"
+                                source: outgoingSettings.previewSource
+                                x: Math.min(Math.max(0, Number(outgoingSettings.draft.x || 0) * previewScreen.scaleFactor), Math.max(0, parent.width-width))
+                                y: Math.min(Math.max(0, Number(outgoingSettings.draft.y || 0) * previewScreen.scaleFactor), Math.max(0, parent.height-height))
+                                width: Math.min(parent.width, Number(outgoingSettings.draft.width || 720) * previewScreen.scaleFactor)
+                                height: Math.min(parent.height, sourceSize.width > 0 ? width * sourceSize.height / sourceSize.width : Number(outgoingSettings.draft.height || 200) * previewScreen.scaleFactor)
+                                fillMode: Image.PreserveAspectFit
+                                MouseArea {
+                                    anchors.fill: parent; cursorShape: Qt.SizeAllCursor
+                                    property real offsetX: 0; property real offsetY: 0
+                                    onPressed: mouse => { offsetX = mouse.x; offsetY = mouse.y }
+                                    onPositionChanged: mouse => {
+                                        if (!pressed) return
+                                        let point = mapToItem(screenArea, mouse.x, mouse.y)
+                                        outgoingSettings.updatePosition((point.x-offsetX)/previewScreen.scaleFactor,(point.y-offsetY)/previewScreen.scaleFactor)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "X"; color: "#f5e7c9" }
+                        MetalTextField { id: f9x; text: String(outgoingSettings.draft.x || 0); Layout.fillWidth: true; onEditingFinished: outgoingSettings.updatePosition(Number(text)||0, outgoingSettings.draft.y) }
+                        Text { text: "Y"; color: "#f5e7c9" }
+                        MetalTextField { id: f9y; text: String(outgoingSettings.draft.y || 0); Layout.fillWidth: true; onEditingFinished: outgoingSettings.updatePosition(outgoingSettings.draft.x, Number(text)||0) }
+                    }
+                    Repeater {
+                        model: [{key:"width",label:"Ширина",lo:300,hi:1600,step:10},
+                                {key:"height",label:"Высота",lo:145,hi:1200,step:5},
+                                {key:"font_size",label:"Размер текста",lo:9,hi:28,step:1},
+                                {key:"background_opacity",label:"Непрозрачность фона",lo:.35,hi:.95,step:.05}]
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.preferredWidth: 145; elide: Text.ElideRight }
+                            MetalSlider {
+                                from: modelData.lo; to: modelData.hi; stepSize: modelData.step
+                                value: Number(outgoingSettings.draft[modelData.key] === undefined ? modelData.lo : outgoingSettings.draft[modelData.key])
+                                Layout.fillWidth: true
+                                onMoved: outgoingSettings.updateValue(modelData.key, value)
+                            }
+                            Text { text: modelData.key === "background_opacity" ? Math.round(100*Number(outgoingSettings.draft[modelData.key] || 0))+"%" : String(Math.round(Number(outgoingSettings.draft[modelData.key] || 0))); color: "#e4c291"; Layout.preferredWidth: 45 }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: root.tr("Автоматическая высота"); color: "#f5e7c9"; Layout.fillWidth: true }
+                        TacticalSwitch { checked: outgoingSettings.draft.auto_height !== false; onClicked: outgoingSettings.updateValue("auto_height",checked) }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                MetalButton { text: root.tr("Сбросить"); onClicked: { outgoingSettings.draft = prototype.defaultOutgoingHud(); previewTimer.restart() } }
+                Item { Layout.fillWidth: true }
+                MetalButton { text: root.tr("Отмена"); onClicked: outgoingSettings.close() }
+                AmberButton { text: root.tr("Применить"); onClicked: if (prototype.applyOutgoingHud(outgoingSettings.draft)) outgoingSettings.close() }
+            }
+        }
     }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: root.height < 350 ? 10 : 16; spacing: 8
@@ -183,6 +302,11 @@ MetalPanel {
                     color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                 }
 
+                MetalButton { objectName: "outgoingHudSettingsButton"; text: root.tr("Настройки игрового окна F9"); onClicked: outgoingSettings.open() }
+                Text { visible: prototype.gamePrivilegeMismatch; color: "#f1ac93"; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                    text: root.tr("CoD2 запущена от администратора, а переводчик — нет. Игровые клавиши и отправка могут не работать. По возможности запустите обе программы без повышения прав.") }
+                MetalButton { visible: prototype.gamePrivilegeMismatch && prototype.settingsWritable; text: root.tr("Перезапустить переводчик от имени администратора"); onClicked: elevationConfirm.open() }
+                Text { visible: prototype.gameHotkeysEnabled; text: root.tr(prototype.gameRunning ? "Игра запущена" : "Игра не запущена"); color: "#bcb09a" }
                 MetalButton { visible: prototype.gameHotkeysEnabled; text: (prototype.uiLanguage, prototype.trText("Открыть журнал клавиш")); onClicked: prototype.openShortcutLog() }
                 Text { visible: prototype.gameHotkeyDetail.length > 0; text: prototype.gameHotkeyDetail; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Text { text: (prototype.uiLanguage, prototype.trText("Ручной режим не отправляет сообщения в игру.")); color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
