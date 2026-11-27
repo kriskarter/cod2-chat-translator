@@ -289,6 +289,7 @@ class Monitor:
         self.round_callback = round_callback
         self.snapshots: dict[str, Snapshot] = {}
         self._lock = threading.Lock()
+        self._revision = 0
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="CoD2ServerMonitor", daemon=True)
@@ -305,7 +306,12 @@ class Monitor:
     def replace_servers(self, servers):
         """Replace the worker input under the same lock used for snapshots."""
         with self._lock:
+            previous = {s.address for s in self.settings["servers"]}
+            current = {s.address for s in servers}
             self.settings["servers"] = list(servers)
+            if current != previous:
+                self._revision += 1
+                self.snapshots = {a:s for a,s in self.snapshots.items() if a in current}
         self.refresh()
 
     def _run(self):
@@ -313,18 +319,24 @@ class Monitor:
             with self._lock:
                 servers = tuple(self.settings["servers"])
                 interval = self.settings["refresh_seconds"]
+                revision = self._revision
             round_snapshots = []
             for server in servers:
                 if self._stop.is_set():
                     break
                 snapshot = query_server(server.address)
-                old = self.snapshots.get(server.address)
-                if snapshot.state == "offline" and old:
-                    snapshot = replace(snapshot, last_success=old.last_success)
-                self.snapshots[server.address] = snapshot
+                with self._lock:
+                    if revision != self._revision:
+                        break
+                    old = self.snapshots.get(server.address)
+                    if snapshot.state == "offline" and old:
+                        snapshot = replace(snapshot, last_success=old.last_success)
+                    self.snapshots[server.address] = snapshot
                 self.callback(snapshot)
                 round_snapshots.append(snapshot)
-            if self.round_callback is not None and not self._stop.is_set():
+            with self._lock:
+                current_round = revision == self._revision
+            if current_round and self.round_callback is not None and not self._stop.is_set():
                 self.round_callback(tuple(round_snapshots))
             self._wake.wait(interval)
             self._wake.clear()
