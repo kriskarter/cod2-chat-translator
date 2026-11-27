@@ -74,12 +74,16 @@ def controls(window, role, name=None):
 
 
 def press(control):
-    try:
-        control.invoke()
-    except Exception:
-        control.click_input()
+    # Physical click also works for QML controls with incomplete UIA patterns.
+    control.click_input()
     time.sleep(.3)
 
+
+def by_id(window, suffix, role=None, enabled=True):
+    return next((w for w in window.descendants()
+        if w.element_info.automation_id.endswith("."+suffix)
+        and (role is None or w.element_info.control_type==role)
+        and w.is_visible() and (not enabled or w.is_enabled())),None)
 
 def button(window, text):
     return wait_for(lambda: next(iter(controls(window,"Button",text)),None),text)
@@ -139,9 +143,14 @@ def home(window):
     wait_for(lambda: controls(window,"Button","Add server"),"home loaded")
 
 
+def editor_fields(window):
+    return [by_id(window,key,"Edit",enabled=False) for key in
+            ("editServerHost","editServerPort","serverLabelInput")]
+
+
 def editor_values(window):
-    edits=sorted(controls(window,"Edit"),key=lambda w:w.rectangle().top)
-    return tuple(edit_value(w) for w in edits[:3]) if len(edits)>=3 else ()
+    edits=editor_fields(window)
+    return tuple(edit_value(w) for w in edits) if all(edits) else ()
 
 def save_capture(native, name):
     shot = ImageGrab.grab(window=native.handle)
@@ -170,85 +179,91 @@ def cleanup(process):
         process.wait(timeout=10)
 
 
-def add_server(window, address, port, label):
+def add_server(window,address,port,label):
     press(button(window,"Add server"))
-    def dialog_edits():
-        edits=sorted(controls(window,"Edit"),key=lambda w:w.rectangle().top)
-        return edits if len(edits)==3 else None
-    host, port_field, name = wait_for(dialog_edits,"three add-server form fields")
-    fill(host,address)
-    fill(port_field,port)
-    fill(name,label)
-    assert tuple(edit_value(w) for w in (host,port_field,name))==(address,port,label)
-    wait_for(lambda: exact_text(window,address+":"+port),"exact address preview")
+    fields=[]
+    for key in ("serverHostInput","serverPortInput","serverNameInput"):
+        fields.append(wait_for(lambda: by_id(window,key,"Edit"),key))
+    for field,value in zip(fields,(address,port,label)):
+        fill(field,value)
+    assert tuple(map(edit_value,fields))==(address,port,label)
+    # c9ec1acd8ca2 does not expose any static QML Text to Windows UIA,
+    # including its address preview. Exact fields + enabled validated Add +
+    # closed dialog + exact selected editor + persistent record prove the add.
     dump_uia(window,"form_"+port)
     press(button(window,"Add"))
-    wait_for(lambda: not controls(window,"Edit"),"server form closes after accepted add")
-
+    wait_for(lambda: by_id(window,"serverHostInput","Edit") is None,
+             "server form closes after accepted add")
 
 def verify_visible(window,address,label,stage):
-    # The legacy table is a clipped, virtualized ListView with elided names.
-    # Select the actual row and require its complete, unelided editor values.
+    # Legacy static Text and the ListView rows are absent from the UIA tree.
+    # New RC exposes ListItem name/address explicitly. For both versions,
+    # select an actual row and check the complete editable values.
     open_servers(window)
     host,port=address.rsplit(":",1)
     expected=(host,port,label)
     before=dump_uia(window,stage+"_before_scroll")
-    print(f"{stage}: full table label exposed before scroll: "
-          f"{any(label in row.get('name','') for row in before)}",flush=True)
-    header=wait_for(lambda: exact_text(window,"Server"),"server table column header")
-    r=header.rectangle()
-    x=(r.left+r.right)//2
-    y0=r.bottom+3
-    for step in range(101):
+    print(f"{stage}: full name exposed in UIA: "
+          f"{any(label in row.get('name','') and row.get('role')!='Edit' for row in before)}",
+          flush=True)
+    anchor=wait_for(lambda: by_id(window,"editServerHost","Edit",enabled=False),
+                    "server editor host")
+    r=anchor.rectangle()
+    nav=wait_for(lambda: by_id(window,"nav_home","Button"),"navigation anchor").rectangle()
+    x=(nav.left+r.left)//2
+    # Same workspace geometry in old and new RC: left table header aligns
+    # with the right host field, row height 32 and viewport at most 86.
+    # Derive coordinates from actual native UIA rectangles, not screen origin.
+    y=r.top
+    for step in range(35):
         if editor_values(window)==expected:
             break
-        for candidate in [w for w in window.descendants()
-                          if w.is_visible() and label in w.window_text()
-                          and w.element_info.control_type!="Edit"
-                          and y0<=w.rectangle().mid_point().y<=y0+82
-                          and abs(w.rectangle().mid_point().x-x)<max(100,r.width())]:
-            candidate.click_input()
+        row=next((w for w in window.descendants()
+                  if w.is_visible() and w.element_info.control_type=="ListItem"
+                  and label in w.window_text() and address in w.window_text()),None)
+        if row is not None:
+            row.click_input()
+            time.sleep(.2)
+        if editor_values(window)==expected:
+            break
+        for dy in (23,35,49,61,73,83):
+            mouse.click(coords=(x,y+dy))
             time.sleep(.15)
             if editor_values(window)==expected:
                 break
         if editor_values(window)==expected:
             break
-        # Workspace table height <=108, header=22. Click only its name column.
-        for dy in (9,27,43,61,77):
-            mouse.click(coords=(x,y0+dy))
-            time.sleep(.12)
-            if editor_values(window)==expected:
-                break
-        if editor_values(window)==expected:
-            break
-        mouse.scroll(coords=(x,y0+13),wheel_dist=-1)
+        mouse.scroll(coords=(x,y+35),wheel_dist=-1)
         time.sleep(.2)
     else:
         dump_uia(window,stage+"_not_found")
         raise AssertionError(f"{stage}: no selectable server with exact editor values "
                              f"{expected!r}; last={editor_values(window)!r}")
     assert editor_values(window)==expected
-    after=dump_uia(window,stage+"_selected")
-    print(f"{stage}: exact UI editor values {expected!r}; "
-          f"full table label exposed after scroll: "
-          f"{any(label in row.get('name','') and row.get('role')!='Edit' for row in after)}",
-          flush=True)
+    dump_uia(window,stage+"_selected")
+    print(f"{stage}: exact UI editor values {expected!r}",flush=True)
     check_record(address,label)
     home(window)
 
-
 def add_friend(window):
-    # Use the visible home friends popup, not the clipped workspace editor.
-    indicator=wait_for(lambda: next((w for w in window.descendants()
-        if w.is_visible() and w.window_text().startswith("Friends in game: ")),None),
-        "friends indicator")
-    indicator.click_input()
+    indicator=wait_for(lambda: by_id(window,"friends_indicator","Button"),
+                       "friends indicator")
+    press(indicator)
     friend=wait_for(lambda: next(iter(controls(window,"Edit")),None),"friends popup nickname")
     fill(friend,FRIEND)
-    press(button(window,"Add friend"))
+    fr=friend.rectangle()
+    def popup_add():
+        return next((w for w in controls(window,"Button","Add friend")
+                     if abs(w.rectangle().mid_point().y-fr.mid_point().y)<25
+                     and w.rectangle().left>=fr.right-5),None)
+    press(wait_for(popup_add,"friends popup add button"))
     wait_for(lambda: SETTINGS.exists() and FRIEND in
              read_config().get("server_monitor",{}).get("friends",[]),"friend autosave")
-    press(button(window,"Close"))
+    def popup_close():
+        return next((w for w in controls(window,"Button","Close")
+                     if w.element_info.automation_id and
+                     0<fr.top-w.rectangle().top<160),None)
+    press(wait_for(popup_close,"friends popup close"))
     wait_for(lambda: not controls(window,"Edit"),"friends popup closes")
 
 def assert_legacy_data():
