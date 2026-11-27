@@ -79,11 +79,22 @@ def press(control):
     time.sleep(.3)
 
 
-def by_id(window, suffix, role=None, enabled=True):
-    return next((w for w in window.descendants()
-        if w.element_info.automation_id.endswith("."+suffix)
-        and (role is None or w.element_info.control_type==role)
-        and w.is_visible() and (not enabled or w.is_enabled())),None)
+def automation_id(control):
+    # UIA providers may expose no AutomationId (None, not just "").
+    return control.element_info.automation_id or ""
+
+
+def by_id(window,suffix,role=None,enabled=True):
+    candidates=window.descendants(control_type=role) if role else window.descendants()
+    for w in candidates:
+        try:
+            if (automation_id(w).endswith("."+suffix) and w.is_visible()
+                    and (not enabled or w.is_enabled())):
+                return w
+        except Exception:
+            # A volatile roster delegate can disappear during enumeration.
+            continue
+    return None
 
 def button(window, text):
     return wait_for(lambda: next(iter(controls(window,"Button",text)),None),text)
@@ -143,14 +154,17 @@ def home(window):
     wait_for(lambda: controls(window,"Button","Add server"),"home loaded")
 
 
-def editor_fields(window):
-    return [by_id(window,key,"Edit",enabled=False) for key in
-            ("editServerHost","editServerPort","serverLabelInput")]
-
-
 def editor_values(window):
-    edits=editor_fields(window)
-    return tuple(edit_value(w) for w in edits) if all(edits) else ()
+    keys=("editServerHost","editServerPort","serverLabelInput")
+    values={}
+    for w in window.descendants(control_type="Edit"):
+        try:
+            key=automation_id(w).rsplit(".",1)[-1]
+            if key in keys and w.is_visible():
+                values[key]=edit_value(w)
+        except Exception:
+            continue
+    return tuple(values[k] for k in keys) if all(k in values for k in keys) else ()
 
 def save_capture(native, name):
     shot = ImageGrab.grab(window=native.handle)
@@ -196,9 +210,8 @@ def add_server(window,address,port,label):
              "server form closes after accepted add")
 
 def verify_visible(window,address,label,stage):
-    # Legacy static Text and the ListView rows are absent from the UIA tree.
-    # New RC exposes ListItem name/address explicitly. For both versions,
-    # select an actual row and check the complete editable values.
+    legacy=stage.startswith("old_")
+    check_record(address,label)
     open_servers(window)
     host,port=address.rsplit(":",1)
     expected=(host,port,label)
@@ -208,39 +221,61 @@ def verify_visible(window,address,label,stage):
           flush=True)
     anchor=wait_for(lambda: by_id(window,"editServerHost","Edit",enabled=False),
                     "server editor host")
+    indicator=wait_for(lambda: by_id(window,"friends_indicator","Button"),
+                       "server workspace friends indicator")
     r=anchor.rectangle()
     nav=wait_for(lambda: by_id(window,"nav_home","Button"),"navigation anchor").rectangle()
     x=(nav.left+r.left)//2
-    # Same workspace geometry in old and new RC: left table header aligns
-    # with the right host field, row height 32 and viewport at most 86.
-    # Derive coordinates from actual native UIA rectangles, not screen origin.
-    y=r.top
-    for step in range(35):
-        if editor_values(window)==expected:
+    y0=indicator.rectangle().bottom+48
+
+    def selected_address():
+        return editor_values(window)[:2]==expected[:2]
+
+    # Select a genuine row, not a value typed into the editor. The legacy
+    # table does not expose static QML text through Windows UIA.
+    for step in range(30):
+        if selected_address():
             break
-        row=next((w for w in window.descendants()
-                  if w.is_visible() and w.element_info.control_type=="ListItem"
-                  and label in w.window_text() and address in w.window_text()),None)
-        if row is not None:
-            row.click_input()
-            time.sleep(.2)
-        if editor_values(window)==expected:
+        for w in window.descendants(control_type="ListItem"):
+            try:
+                if (w.is_visible() and label in w.window_text() and address in w.window_text()
+                        and y0-10<=w.rectangle().mid_point().y<=y0+90):
+                    w.click_input()
+                    time.sleep(.2)
+                    break
+            except Exception:
+                continue
+        if selected_address():
             break
-        for dy in (23,35,49,61,73,83):
-            mouse.click(coords=(x,y+dy))
+        for dy in (9,25,41,57,73):
+            mouse.click(coords=(x,y0+dy))
             time.sleep(.15)
-            if editor_values(window)==expected:
+            if selected_address():
                 break
-        if editor_values(window)==expected:
+        if selected_address():
             break
-        mouse.scroll(coords=(x,y+35),wheel_dist=-1)
+        mouse.scroll(coords=(x,y0+15),wheel_dist=-1)
         time.sleep(.2)
     else:
         dump_uia(window,stage+"_not_found")
-        raise AssertionError(f"{stage}: no selectable server with exact editor values "
-                             f"{expected!r}; last={editor_values(window)!r}")
-    assert editor_values(window)==expected
+        raise AssertionError(f"{stage}: no selectable server {address}; last={editor_values(window)!r}")
+
+    actual=editor_values(window)
+    if legacy and actual!=expected:
+        # Observed in native run 46043202719: host/port switch immediately
+        # but label/favorite still belong to the previous selection because
+        # onSelectedAddressChanged reads a stale record binding. Recreating
+        # the legacy editor (without changing anything) loads its real record.
+        print(f"{stage}: legacy stale editor {actual!r}; reopen page",flush=True)
+        dump_uia(window,stage+"_legacy_stale_editor")
+        home(window)
+        open_servers(window)
+    # Never apply that workaround to the new RC: its live editor must
+    # immediately agree with the selected address and exact full label.
+    wait_for(lambda: editor_values(window)==expected,
+             f"{stage}: exact selected editor values {expected!r}",timeout=10)
     dump_uia(window,stage+"_selected")
+    save_capture(DESKTOP.window(handle=window.handle).wrapper_object(),stage+"_editor")
     print(f"{stage}: exact UI editor values {expected!r}",flush=True)
     check_record(address,label)
     home(window)
@@ -261,7 +296,7 @@ def add_friend(window):
              read_config().get("server_monitor",{}).get("friends",[]),"friend autosave")
     def popup_close():
         return next((w for w in controls(window,"Button","Close")
-                     if w.element_info.automation_id and
+                     if automation_id(w) and
                      0<fr.top-w.rectangle().top<160),None)
     press(wait_for(popup_close,"friends popup close"))
     wait_for(lambda: not controls(window,"Edit"),"friends popup closes")
@@ -284,6 +319,7 @@ try:
     open_servers(window)
     press(button(window,"Save settings"))
     check_record(SERVER,LABEL)
+    print("legacy add and exact persisted label confirmed",flush=True)
     home(window)
     verify_visible(window,SERVER,LABEL,"old_saved")
     add_friend(window)

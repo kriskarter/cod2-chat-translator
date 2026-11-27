@@ -202,3 +202,41 @@ def test_settings_backup_and_no_overwrite_after_external_edit(tmp_path):
     with pytest.raises(RuntimeError):
         reopened.save({})
     assert path.read_bytes() == b'{"external":true}'
+
+
+def test_server_selection_editor_uses_current_record_not_previous_binding(state):
+    first="146.59.34.100:28960"
+    second="148.251.139.73:12345"
+    assert state.addServer(first,"CLASSIC OBORONA")
+    assert state.editServer(first,"CLASSIC OBORONA",True)
+    assert state.addServer(second,"Massacre Extreme All Weapons TDM")
+    state.select(first)
+    engine=QQmlApplicationEngine()
+    warnings=[]
+    engine.warnings.connect(lambda items:warnings.extend(x.toString() for x in items))
+    engine.rootContext().setContextProperty("prototype",state)
+    engine.load(QUrl.fromLocalFile(str(ROOT/"qt_experiment/Home.qml")))
+    window=engine.rootObjects()[0]
+    try:
+        window.resize(1342,672)
+        window.setProperty("activePage","servers")
+        QTest.qWait(100)
+        host=window.findChild(QObject,"editServerHost")
+        port=window.findChild(QObject,"editServerPort")
+        label=window.findChild(QObject,"serverLabelInput")
+        favorite=window.findChild(QObject,"serverFavoriteInput")
+        assert all(obj is not None for obj in (host,port,label,favorite))
+        for address,expected in (
+            (first,("146.59.34.100","28960","CLASSIC OBORONA",True)),
+            (second,("148.251.139.73","12345","Massacre Extreme All Weapons TDM",False)),
+            (first,("146.59.34.100","28960","CLASSIC OBORONA",True)),
+            (second,("148.251.139.73","12345","Massacre Extreme All Weapons TDM",False)),
+        ):
+            state.select(address)
+            QGuiApplication.processEvents()
+            assert (host.property("text"),port.property("text"),label.property("text"),
+                    favorite.property("checked"))==expected
+        assert not warnings,warnings
+    finally:
+        window.close()
+        del engine

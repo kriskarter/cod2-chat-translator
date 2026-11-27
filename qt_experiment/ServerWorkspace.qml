@@ -18,8 +18,11 @@ MetalPanel {
         hostInput.text = fields.host || ""
         portInput.text = fields.port || "28960"
         editorError.text = ""
-        labelInput.text = record ? record.label : ""
-        favoriteInput.checked = record ? record.favorite : false
+        // selectedAddressChanged can fire before the record binding refreshes.
+        // Resolve the exact selected record now, never the previous row.
+        let selectedRecord = prototype.serverRecords.find(r => r.address === selectedAddress)
+        labelInput.text = selectedRecord ? selectedRecord.label : ""
+        favoriteInput.checked = selectedRecord ? selectedRecord.favorite : false
     }
     onSelectedAddressChanged: loadEditor()
     Component.onCompleted: loadEditor()
@@ -81,7 +84,7 @@ MetalPanel {
             MetalTextField { id: labelInput; objectName:"serverLabelInput"; enabled: !!root.record; placeholderText: (prototype.uiLanguage, prototype.trText("Название сервера")); Layout.fillWidth: true }
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Избранный сервер")); color: "#f5e7c9"; Layout.fillWidth: true }
-                TacticalSwitch { id: favoriteInput; enabled: !!root.record }
+                TacticalSwitch { id: favoriteInput; objectName: "serverFavoriteInput"; enabled: !!root.record }
             }
             RowLayout {
                 MetalButton { text: (prototype.uiLanguage, prototype.trText("Применить")); enabled: !!root.record; Layout.fillWidth: true; onClicked: {
