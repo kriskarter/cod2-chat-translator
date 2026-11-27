@@ -38,9 +38,10 @@ class GameControls:
         self.events = ShortcutQueue(getattr(state, "shortcutWake", None))
         self.keyboard = keyboard_factory(self.events, game_scope=self._focused)
         self.keyboard.set_enabled(state.f9)
-        self.hud = hud_factory({**config, "max_messages": 1, "message_ttl_seconds": 120,
-                                "background_opacity": .75, "height": max(140, int(config.get("height", 150))),
-                                "y": int(config.get("y", 360)) + 165}, True)
+        from .outgoing_hud import outgoing_config
+        self.hud = hud_factory(dict(outgoing_config(config), outgoing_editor=True,
+                                    max_messages=1, message_ttl_seconds=120,
+                                    background_only_with_messages=True, fade_enabled=False), True)
         self.transport = OutgoingHttpTransport()
         self.dispatcher = OutgoingTranslationDispatcher(self._translate, on_worker_exit=self.transport.close_current_thread)
         self.active = False
@@ -50,6 +51,8 @@ class GameControls:
         self.hook_error = ""
         self.last_shortcut = ""
         self.buffer = ""
+        self.failed_draft = ""
+        self.send_draft = ""
         self.generation = 0
         self.preview_due = None
         self.preview_inflight = False
@@ -105,7 +108,10 @@ class GameControls:
     def _display(self, caption, translation=""):
         self.hud.items.clear()
         tr = getattr(self.state, "trText", lambda value: value)
-        self.hud.add("F9 · " + tr(caption), self.buffer, translation or self.buffer or tr("Введите сообщение…"))
+        self.hud.config.update(route=self.source.upper()+" → "+self.target.upper(),
+                               editor_labels={"title":tr("F9 · Исходящий перевод"),
+                                              "input":tr("Ввод"), "translation":tr("Перевод")})
+        self.hud.add(tr(caption), self.buffer, translation)
         if not self.hud.enabled:
             self.cancel("F9 HUD недоступен: " + self.hud.last_error)
 
@@ -119,9 +125,12 @@ class GameControls:
             self.state.game_status("F9 HUD недоступен: " + self.hud.last_error)
             return
         self.active = True
-        self.buffer = ""
+        self.buffer, self.failed_draft = self.failed_draft, ""
         self.keyboard.set_active(True)
-        self._display("Enter — отправить · Esc — отменить")
+        if self.buffer:
+            self._edit()
+        else:
+            self._display("Enter — отправить · Esc — отменить")
 
     def _edit(self):
         # Every edit invalidates a previous translation before another job is queued.
@@ -129,7 +138,7 @@ class GameControls:
         self.preview_inflight = False
         self.preview_result = ""
         self.preview_due = time.monotonic() + .32 if self.buffer.strip() else None
-        self._display("Enter — отправить · Esc — отменить")
+        self._display("Перевод…" if self.buffer.strip() else "Enter — отправить · Esc — отменить")
 
     def _request_preview(self):
         text = normalize_outgoing_text(self.buffer)
@@ -167,6 +176,7 @@ class GameControls:
         if not self.active or not self._focused() or not self.state.f9:
             self.cancel("F9: фокус CoD2 потерян")
             return
+        self.send_draft = self.buffer
         self.cancel()
         self.sending = True
         self.state.game_status("F9: отправка в CoD2")
@@ -288,6 +298,13 @@ class GameControls:
             elif event == "sent":
                 self.sending = False
                 ok, error = value
+                if not ok:
+                    self.failed_draft = self.send_draft
+                    if self._focused() and self.state.f9:
+                        self.open()
+                        if self.active:
+                            self._display("Ошибка отправки · повторите Enter")
+                self.send_draft = ""
                 self.state.game_status("F9: отправлено" if ok else "F9: " + error)
             elif self.active and not self.pending:
                 if event == "text":
