@@ -792,7 +792,7 @@ class TranslationState(LiveMonitorState):
     def shortcutStatus(self, key):
         incoming = key == "F8"
         if not (self._f8 if incoming else self._f9):
-            return "Выключен"
+            return "Выкл"
         if self._privilege_mismatch:
             return "Несовпадение прав"
         game = self._game

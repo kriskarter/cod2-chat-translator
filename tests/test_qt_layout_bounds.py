@@ -59,6 +59,23 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
                         item=find_visible(content,name)
                         assert item is not None,name
                         inside(item,parent)
+                        if name.endswith("HudButton"):
+                            assert item.property("text")=={"ru":"Настроить","uk":"Налаштувати","en":"Configure"}[lang]
+                            caption=item.findChild(QObject,"button_caption")
+                            assert caption is not None and not caption.property("truncated"),(lang,width,height)
+                banner=find_visible(content,"command_banner")
+                parts=[find_visible(content,name) for name in ("command_art_left","command_logo","command_art_right")]
+                assert all(parts)
+                left,logo,right=map(bounds,parts)
+                full=bounds(banner)
+                assert abs(left[0]-full[0])<=1 and abs(right[2]-full[2])<=1
+                assert abs(left[2]-logo[0])<=1 and abs(logo[2]-right[0])<=1
+                for item in parts:
+                    assert abs(item.height()-banner.height())<=1
+                    source=item.property("sourceSize")
+                    painted_w,painted_h=item.property("paintedWidth"),item.property("paintedHeight")
+                    assert source.width()>0 and source.height()>0 and painted_w>0 and painted_h>0
+                    assert abs(painted_w/painted_h-source.width()/source.height())<.03
                 for name in ("add_server_button","connect_button","home_roster","overlaySwitch"):
                     item=find_visible(content,name)
                     assert item is not None,name

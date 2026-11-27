@@ -61,6 +61,10 @@ def test_thirty_physical_edges_update_engine_and_hud(state):
         assert state.f8 == enabled
         focused[0]=True
     assert len(state.history)==15
+    state.toggle("overlay")
+    assert not state.f8 and not state.enabled and not state.overlay
+    state.toggle("overlay")
+    assert state.f8 and state.enabled and state.overlay
 
 
 def test_late_uac_never_restarts_without_explicit_consent(state,monkeypatch):

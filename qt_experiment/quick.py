@@ -77,8 +77,11 @@ def main():
                 from PySide6.QtWidgets import QMessageBox
                 from .ui_text import translate
                 locale = values.get("ui_language", "ru")
-                QMessageBox.critical(None, "CoD2 Chat Translator",
-                    translate("Ошибка чтения настроек. Файл не изменён.", locale) + "\n" + str(error))
+                message = translate("Ошибка чтения настроек. Файл не изменён.", locale) + "\n" + str(error)
+                if "--screenshot" in sys.argv or "--verify-game-hotkeys" in sys.argv:
+                    print(message, file=sys.stderr)
+                else:
+                    QMessageBox.critical(None, "CoD2 Chat Translator", message)
                 return 7
         if (instance and store and not restarted and "--screenshot" not in sys.argv
                 and "--verify-game-hotkeys" not in sys.argv):
