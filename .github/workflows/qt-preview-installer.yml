@@ -155,12 +155,18 @@ jobs:
           $root = Join-Path $PWD "qt-evidence"
           $config = Join-Path $root "fixture.json"
           $settings = Join-Path $root "native_settings.json"
+          if (Get-Command Set-DisplayResolution -ErrorAction SilentlyContinue) {
+            try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop }
+            catch { Write-Host "Using native minimum-size capture on the runner desktop" }
+          }
           foreach ($page in @("home","servers","settings","history","outgoing","profiles","knowledge","notifications","about","stats","overlay")) {
             $out = Join-Path $root "native_installed_ru_$page.png"
             $args = @("--config", "`"$config`"", "--settings-file", "`"$settings`"", "--size", "1342x672", "--ui-language", "ru", "--page", $page, "--screenshot", "`"$out`"")
             $p = Start-Process $exe -ArgumentList $args -PassThru
             if (!$p.WaitForExit(60000)) { $p.Kill(); throw "Native installed capture timeout: $page" }
             if ($p.ExitCode -ne 0 -or !(Test-Path $out) -or (Get-Item $out).Length -lt 5000) { throw "Native installed capture failed: $page" }
+            python -c "from PIL import Image; import sys; im=Image.open(sys.argv[1]); assert im.size==(1342,672), im.size" "$out"
+            if ($LASTEXITCODE -ne 0) { throw "Native client dimensions changed: $page" }
           }
       - name: Verify installed Qt hotkey startup without injecting input
         shell: pwsh

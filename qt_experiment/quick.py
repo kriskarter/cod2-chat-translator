@@ -122,7 +122,13 @@ def main():
         window.resize(min(1536,max(840,area.width()-24)),min(864,max(460,area.height()-48)))
     if '--size' in sys.argv:
         width, height = map(int, sys.argv[sys.argv.index('--size') + 1].split('x'))
-        engine.rootObjects()[0].resize(width, height)
+        window = engine.rootObjects()[0]
+        if "--screenshot" in sys.argv and app.platformName() == "windows":
+            # The hosted Windows desktop can be narrower than the acceptance
+            # viewport. Set the native minimum before requesting the capture.
+            from PySide6.QtCore import QSize
+            window.setMinimumSize(QSize(width, height))
+        window.resize(width, height)
     if '--page' in sys.argv:
         engine.rootObjects()[0].setProperty("activePage", sys.argv[sys.argv.index("--page") + 1])
     if '--ui-language' in sys.argv and not state.demo and state.translationAvailable:
