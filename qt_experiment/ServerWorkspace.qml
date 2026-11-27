@@ -6,6 +6,7 @@ MetalPanel {
     id: root
     function showEvidenceDialog(name) { if (name==="server_remove_dialog") { removeDialog.address=selectedAddress; removeDialog.open() } }
     clip:true;objectName:"server_workspace"
+    readonly property bool compactEditor: height < 420
     signal addRequested()
     signal openFriends()
     property string selectedAddress: prototype.selected
@@ -62,26 +63,26 @@ MetalPanel {
             clip:true;contentWidth:width;contentHeight:editorBody.implicitHeight+8;boundsBehavior:Flickable.StopAtBounds
             ScrollBar.vertical:MetalScrollBar {}
         ColumnLayout {
-            id:editorBody;width:editorScroll.width-12;height:implicitHeight;spacing:4
+            id:editorBody;width:editorScroll.width-12;height:implicitHeight;spacing:root.compactEditor?3:4
             Text { text: (prototype.uiLanguage, prototype.trText("Настройки сервера")); color: "#f5e7c9"; font.pixelSize: 17; font.bold: true }
             Text { text: root.selectedAddress || (prototype.uiLanguage, prototype.trText("Выберите сервер")); color: "#bcb09a"; Layout.fillWidth: true; elide: Text.ElideRight }
-            Rectangle { visible:!!root.selectedRow;Layout.fillWidth:true;Layout.preferredHeight:46;radius:5;color:"#202621";border.color:"#675a44"
-                ColumnLayout { anchors.fill:parent;anchors.margins:7
+            Rectangle { visible:!!root.selectedRow;Layout.fillWidth:true;Layout.preferredHeight:root.compactEditor?40:46;radius:5;color:"#202621";border.color:"#675a44"
+                ColumnLayout { anchors.fill:parent;anchors.margins:root.compactEditor?4:7
                     Text {text:root.selectedRow?root.selectedRow.name:"";textFormat:Text.PlainText;elide:Text.ElideRight;Layout.fillWidth:true;font.bold:true;color:"#e9d5ae"}
                     Text {text:root.selectedRow?root.selectedRow.map+" · "+root.selectedRow.population+" · "+root.selectedRow.ping:"";color:"#bcb09a";elide:Text.ElideRight;Layout.fillWidth:true}
                 }
             }
             Text { text: (prototype.uiLanguage, prototype.trText("IP-адрес или домен")); color: "#f5e7c9" }
-            MetalTextField { id: hostInput; objectName: "editServerHost"; enabled: !!root.record; Layout.fillWidth: true
+            MetalTextField { id: hostInput; objectName: "editServerHost"; Layout.preferredHeight:root.compactEditor?32:38; padding:root.compactEditor?6:9; enabled: !!root.record; Layout.fillWidth: true
                 onEditingFinished: {
                     let fields = prototype.pastedServerFields(text, portInput.text)
                     if (fields.host !== undefined) { text = fields.host; portInput.text = fields.port }
                 }
             }
             Text { text: (prototype.uiLanguage, prototype.trText("Порт")); color: "#f5e7c9" }
-            MetalTextField { id: portInput; objectName: "editServerPort"; enabled: !!root.record; Layout.fillWidth: true; inputMethodHints: Qt.ImhDigitsOnly }
+            MetalTextField { id: portInput; objectName: "editServerPort"; Layout.preferredHeight:root.compactEditor?32:38; padding:root.compactEditor?6:9; enabled: !!root.record; Layout.fillWidth: true; inputMethodHints: Qt.ImhDigitsOnly }
             Text { id: editorError; visible: text.length > 0; color: "#e99b83"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-            MetalTextField { id: labelInput; objectName:"serverLabelInput"; enabled: !!root.record; placeholderText: (prototype.uiLanguage, prototype.trText("Название сервера")); Layout.fillWidth: true }
+            MetalTextField { id: labelInput; objectName:"serverLabelInput"; Layout.preferredHeight:root.compactEditor?32:38; padding:root.compactEditor?6:9; enabled: !!root.record; placeholderText: (prototype.uiLanguage, prototype.trText("Название сервера")); Layout.fillWidth: true }
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Избранный сервер")); color: "#f5e7c9"; Layout.fillWidth: true }
                 TacticalSwitch { id: favoriteInput; objectName: "serverFavoriteInput"; enabled: !!root.record }
