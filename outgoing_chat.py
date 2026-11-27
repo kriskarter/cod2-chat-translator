@@ -620,6 +620,7 @@ class KeyboardCapture:
         self.events = events
         self.game_scope = game_scope
         self.f8_down = False
+        self.resume_held_f9 = False
         self.shortcut_trace = None
         self.shortcut_held = set()
         self.shortcut_at = {}
@@ -1100,6 +1101,12 @@ class KeyboardCapture:
         user32.PeekMessageW.restype = wintypes.BOOL
         user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 0)
         self._thread_id = kernel32.GetCurrentThreadId()
+        if self.resume_held_f9:
+            user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
+            user32.GetAsyncKeyState.restype = ctypes.c_short
+            self.f9_down = bool(user32.GetAsyncKeyState(VK_F9) & 0x8000)
+            if self.f9_down:
+                self.shortcut_held.add(VK_F9)
         self.events.put(("hook_ready", None))
 
         try:

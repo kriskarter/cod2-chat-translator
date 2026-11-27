@@ -121,3 +121,21 @@ def test_foreground_gate_accepts_all_supported_client_names(monkeypatch):
     for image in (*MULTIPLAYER_EXECUTABLES, "cod2.exe", "notepad.exe", "", "cod2mp_s.exe.bak"):
         monkeypatch.setattr(outgoing_send, "foreground_process_name", lambda: image.casefold())
         assert outgoing_send.is_cod2_foreground() == (image in (*MULTIPLAYER_EXECUTABLES, "cod2.exe"))
+
+
+def test_screenshot_discards_capture_when_window_changes(monkeypatch,tmp_path):
+    import queue
+    import outgoing_send
+    from PIL import ImageGrab, Image
+    from qt_experiment.translation_runtime import TranslationState
+    window=Mock()
+    window.GetForegroundWindow.side_effect=(41,41,42)
+    monkeypatch.setattr(outgoing_send,"_foreground_api",lambda:(window,None))
+    monkeypatch.setattr(outgoing_send,"is_cod2_foreground",lambda:True)
+    grab=Mock(return_value=Image.new("RGB",(8,8),"white"))
+    monkeypatch.setattr(ImageGrab,"grab",grab)
+    state=SimpleNamespace(ui_queue=queue.Queue(),_screenshot_directory=lambda:tmp_path)
+    TranslationState._capture_game_screenshot_worker(state)
+    grab.assert_called_once_with(window=41)
+    assert state.ui_queue.get_nowait()[0]=="screenshot_error"
+    assert not list(tmp_path.iterdir())

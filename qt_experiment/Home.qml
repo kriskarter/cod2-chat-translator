@@ -95,7 +95,7 @@ ApplicationWindow {
     Image {
         objectName: "field_kit"
         anchors.left: parent.left; anchors.bottom: parent.bottom
-        width: Math.min(window.width * .20, window.height * .374, window.activePage === "home" ? 400 : (systemBar.height + systemBar.Layout.bottomMargin)*310/191)
+        width: Math.min(window.width * .20, window.height * .374, window.activePage === "home" && !window.laptop ? 400 : (systemBar.height + systemBar.Layout.bottomMargin + (window.activePage === "home" ? 42 : 0))*310/191)
         height: width * 191 / 310
         visible: !window.compact
         enabled: false
@@ -173,7 +173,7 @@ ApplicationWindow {
                 }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f9?"Выключен":prototype.gameHotkeysReady?"Активен":"Ручной режим") : ""; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
+                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f9?"Выключен":prototype.gameHotkeysReady?"Ожидание игровой клавиши":"Ручной режим") : ""; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
                     active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "reference_art/f9_plate.webp"
                     onToggled: prototype.toggle("f9")

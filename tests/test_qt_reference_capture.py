@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import pytest
 pytest.importorskip("PySide6")
-from PySide6.QtCore import QPointF, QUrl
+from PySide6.QtCore import QObject, QPointF, QUrl, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtTest import QTest
@@ -64,6 +64,40 @@ def capture(directory, output, check_geometry=True):
                 actual=tuple(round(v) for v in (pos.x(),pos.y(),item.width(),item.height()))
                 print(name, actual)
                 assert max(abs(a-b) for a,b in zip(actual,target))<=5,(name,actual,target)
+
+        if check_geometry:
+            for address in addresses[1:]:
+                state.removeServer(address)
+            from dataclasses import replace
+            full_roster = tuple(Player("Fixture "+str(i),i,None) for i in range(12))
+            state._apply_snapshot(replace(rounds[0],players=full_roster))
+            window.resize(1342,672)
+            QTest.qWait(50)
+            roster=scene_item(window.contentItem(),"roster_rows")
+            print("laptop_roster_rows",roster.height()/25)
+            assert roster.height() >= 150
+            for page,control,is_list in (
+                ("home", "f8Language", True), ("home","f9Target",True),
+                ("settings","uiLocaleSelector",True),("settings","styleSelector",True),
+                ("settings","logPathInput",False),("servers","serverLabelInput",False)):
+                window.setProperty("activePage",page)
+                QTest.qWait(45)
+                item=scene_item(window.contentItem(),control)
+                assert item and item.isVisible(),control
+                item.forceActiveFocus()
+                if is_list:
+                    point=item.mapToScene(QPointF(item.width()/2,item.height()/2)).toPoint()
+                    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,point)
+                    QTest.qWait(75)
+                    popup=window.findChild(QObject,control+"_popup")
+                    assert popup is not None and popup.property("opened"),control
+                    QTest.keyClick(window,Qt.Key_Down)
+                if output:
+                    assert window.grabWindow().save(str(output/("owner_"+control+".png")))
+                if is_list:
+                    QTest.keyClick(window,Qt.Key_Escape)
+                    QTest.qWait(40)
+                    assert not popup.property("visible")
     finally:
         window.close()
         state.stop()

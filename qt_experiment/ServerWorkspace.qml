@@ -64,7 +64,7 @@ MetalPanel {
                     Text {text:root.selectedRow?root.selectedRow.map+" · "+root.selectedRow.population+" · "+root.selectedRow.ping:"";color:"#bcb09a";elide:Text.ElideRight;Layout.fillWidth:true}
                 }
             }
-            MetalTextField { id: labelInput; enabled: !!root.record; placeholderText: (prototype.uiLanguage, prototype.trText("Название сервера")); Layout.fillWidth: true }
+            MetalTextField { id: labelInput; objectName:"serverLabelInput"; enabled: !!root.record; placeholderText: (prototype.uiLanguage, prototype.trText("Название сервера")); Layout.fillWidth: true }
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Избранный сервер")); color: "#f5e7c9"; Layout.fillWidth: true }
                 TacticalSwitch { id: favoriteInput; enabled: !!root.record }

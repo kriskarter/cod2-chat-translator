@@ -49,6 +49,24 @@ state._monitor.stop()
 state.addServer("127.0.0.1:28960","TEST fixture")
 state._apply_snapshot(Snapshot(address="127.0.0.1:28960",state="online",name="TEST fixture — not a live server",map_name="Toujane",clients=10,max_clients=32,ping_ms=42,players=tuple(Player(n,10+i,p) for i,(n,p) in enumerate([("^2Medic",42),("^1Sniper",0),("^4KriS",None),("^6Ghost",170),("Scout",90),("Support",35),("Rifleman",56),("Observer",73),("Engineer",44),("Player 10",82)]))))
 QTest.qWait(100);window.grabWindow().save(str(out/"home_roster_fixture.png"))
+# Measure the existing roster and presence paths with local snapshots; no UDP traffic.
+from PySide6.QtCore import QObject
+from dataclasses import replace
+roster=window.findChild(QObject, "roster_rows")
+scroll_cost=[]; refresh_cost=[]
+sample=Snapshot("127.0.0.1:28960",state="online",name="Test fixture",map_name="Toujane",
+                clients=32,max_clients=32,ping_ms=42,players=tuple(Player("Player "+str(i),i,42) for i in range(32)))
+for i in range(100):
+    t=time.perf_counter()
+    observation=replace(sample,ping_ms=40+i%5)
+    state._apply_snapshot(observation);state._apply_presence_round((observation,))
+    app.processEvents()
+    refresh_cost.append((time.perf_counter()-t)*1000)
+    t=time.perf_counter()
+    roster.setProperty("contentY", float((i*7)%320))
+    app.processEvents()
+    scroll_cost.append((time.perf_counter()-t)*1000)
+print("roster_scroll_p95_ms",round(sorted(scroll_cost)[94],2),"local_snapshot_and_friends_p95_ms",round(sorted(refresh_cost)[94],2),flush=True)
 # Actual event loop lateness, not screenshot time. Warm up then sample 15s twice.
 window.setProperty("activePage","home")
 QTest.qWait(2000)

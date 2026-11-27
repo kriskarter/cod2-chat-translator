@@ -145,6 +145,23 @@ jobs:
           $p = Start-Process $exe -ArgumentList @("--size","1366x768","--screenshot","`"$out`"") -PassThru
           if (!$p.WaitForExit(90000)) { $p.Kill(); throw "Installed EXE timeout" }
           if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Installed EXE failed" }
+      - name: Capture installed EXE using the native Windows platform
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: windows
+          QT_SCALE_FACTOR: '1'
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP "cod2-qt-install/CoD2ChatTranslatorQt.exe"
+          $root = Join-Path $PWD "qt-evidence"
+          $config = Join-Path $root "fixture.json"
+          $settings = Join-Path $root "native_settings.json"
+          foreach ($page in @("home","servers","settings","history","outgoing","profiles","knowledge","notifications","about","stats","overlay")) {
+            $out = Join-Path $root "native_installed_ru_$page.png"
+            $args = @("--config", "`"$config`"", "--settings-file", "`"$settings`"", "--size", "1342x672", "--ui-language", "ru", "--page", $page, "--screenshot", "`"$out`"")
+            $p = Start-Process $exe -ArgumentList $args -PassThru
+            if (!$p.WaitForExit(60000)) { $p.Kill(); throw "Native installed capture timeout: $page" }
+            if ($p.ExitCode -ne 0 -or !(Test-Path $out) -or (Get-Item $out).Length -lt 5000) { throw "Native installed capture failed: $page" }
+          }
       - name: Verify installed Qt hotkey startup without injecting input
         shell: pwsh
         run: |
@@ -159,7 +176,7 @@ jobs:
           $setup = Join-Path $PWD "release-qt\CoD2ChatTranslator_QtPreview_Setup.exe"
           $settings = Join-Path $env:APPDATA "CoD2ChatTranslatorQtPreview\qt_settings.json"
           New-Item -ItemType Directory -Force (Split-Path $settings) | Out-Null
-          '{"ui_language":"uk","test_update_preserve":true}' | Set-Content -Encoding utf8NoBOM $settings
+          '{"ui_language":"uk","server_profiles":[{"name":"Acceptance profile","path":"fixture"}],"server_monitor":{"servers":[{"address":"127.0.0.1:28960","label":"Acceptance server","favorite":true}],"friends":["Medic"]},"qt_overlay_enabled":true}' | Set-Content -Encoding utf8NoBOM $settings
           $before = (Get-FileHash $settings -Algorithm SHA256).Hash
           $p = Start-Process $setup -ArgumentList @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/LANG=english","/DIR=`"$dir`"") -PassThru -Wait
           if ($p.ExitCode -ne 0 -or (Get-FileHash $settings -Algorithm SHA256).Hash -ne $before) { throw "Reinstall settings preservation failed" }
@@ -174,7 +191,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: qt-preview-frozen-ui-evidence
-          path: qt-evidence/*.png
+          path: |
+            qt-evidence/*.png
+            qt-evidence/native_poll.json
           if-no-files-found: error
   publish:
     needs: build

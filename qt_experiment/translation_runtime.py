@@ -163,19 +163,17 @@ class TranslationState(LiveMonitorState):
         # Never fall back to capturing a different application or whole desktop.
         import time
         from PIL import ImageGrab
-        from app import find_cod2_window, _monitor_rect_for_window
-        from outgoing_send import is_cod2_foreground
+        from outgoing_send import _foreground_api, is_cod2_foreground
         try:
-            if not is_cod2_foreground():
+            user, _ = _foreground_api()
+            hwnd = user.GetForegroundWindow()
+            if not hwnd or not is_cod2_foreground() or hwnd != user.GetForegroundWindow():
                 raise RuntimeError("CoD2 не в фокусе")
-            hwnd = find_cod2_window()
-            if not hwnd:
-                raise RuntimeError("Окно CoD2 не найдено")
-            left, top, width, height = _monitor_rect_for_window(hwnd)
-            if width <= 0 or height <= 0 or not is_cod2_foreground():
+            image = ImageGrab.grab(window=hwnd)
+            if hwnd != user.GetForegroundWindow() or not is_cod2_foreground():
+                raise RuntimeError("Фокус CoD2 потерян")
+            if not image.width or not image.height or image.getbbox() is None:
                 raise RuntimeError("Окно CoD2 недоступно")
-            image = ImageGrab.grab(bbox=(left, top, left+width, top+height),
-                                   include_layered_windows=True, all_screens=True)
             path = self._screenshot_directory() / f"CoD2_Chat_Translator_{time.strftime('%Y-%m-%d_%H-%M-%S')}_{time.time_ns()%1000000000:09d}.png"
             image.save(path, format="PNG")
             self.ui_queue.put(("screenshot_saved", str(path)))
@@ -801,7 +799,7 @@ class TranslationState(LiveMonitorState):
     def logReady(self): return bool(self._log_path and self._log_path.is_file())
 
     @Property(bool, notify=translationChanged)
-    def engineReady(self): return self._started and not self.stop_event.is_set()
+    def engineReady(self): return self._started and not self.stop_event.is_set() and any(w.is_alive() for w in self._workers)
 
     @Property(str, constant=True)
     def appVersion(self): return APP_VERSION + " · Qt RC"

@@ -10,6 +10,7 @@ REGIONS = [
     ("F9 / key / badge / route", (17, 468, 667, 638)),
     ("Server monitor / table", (680, 262, 1521, 458)),
     ("Roster / actions", (680, 458, 1521, 698)),
+    ("Decorative equipment", (0, 639, 310, 830)),
     ("HUD / Smart Engine / status", (287, 712, 1522, 807)),
 ]
 

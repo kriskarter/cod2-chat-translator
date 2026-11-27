@@ -65,3 +65,70 @@ def test_poll_only_reads_three_keys_and_suppresses_seen_hook_edges():
     assert list(diag.missed(kb,102)) == []
     down.add(0x79)
     assert list(diag.missed(kb,103)) == ["screenshot"]
+
+
+def test_poll_runs_without_qt_ticks_and_stops_on_shutdown():
+    import queue
+    import threading
+    import time
+    from qt_experiment.shortcut_diagnostics import ShortcutDiagnostics
+    diag=ShortcutDiagnostics.__new__(ShortcutDiagnostics)
+    keys=set()
+    diag.user=SimpleNamespace(GetAsyncKeyState=lambda code:0x8000 if code in keys else 0)
+    diag.down=set()
+    diag.poll_stop=threading.Event()
+    diag.write=Mock()
+    diag.focus=lambda:"game fixture"
+    kb=SimpleNamespace(shortcut_held=set(),shortcut_at={})
+    accepted=[True]
+    events=queue.Queue()
+    diag.start_polling(lambda:kb,lambda:accepted[0],events)
+    try:
+        keys.add(0x77)
+        kind,(action,stamp)=events.get(timeout=2)
+        assert (kind,action)==("poll_shortcut","f8") and stamp<=time.monotonic()
+        time.sleep(.05)
+        assert events.empty()
+        keys.clear()
+        time.sleep(.06)
+        accepted[0]=False
+        keys.add(0x79)
+        time.sleep(.06)
+        assert events.empty()
+    finally:
+        diag.poll_stop.set()
+        diag.poll_thread.join(1)
+    assert not diag.poll_thread.is_alive()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Win32 sampling cost")
+def test_native_poll_timer_runs_while_gui_is_idle(tmp_path):
+    import json
+    import queue
+    import time
+    from pathlib import Path
+    import psutil
+    from qt_experiment.shortcut_diagnostics import ShortcutDiagnostics
+    diag = ShortcutDiagnostics(tmp_path)
+    kb = SimpleNamespace(shortcut_held=set(),shortcut_at={})
+    ticks=[]
+    def keyboard():
+        ticks.append(time.monotonic())
+        return kb
+    process=psutil.Process()
+    process.cpu_percent()
+    diag.start_polling(keyboard,lambda:False,queue.Queue())
+    try:
+        time.sleep(1.5)
+    finally:
+        diag.close()
+    cpu=process.cpu_percent()
+    assert len(ticks)>=10 and not diag.poll_thread.is_alive()
+    gaps=sorted((b-a)*1000 for a,b in zip(ticks,ticks[1:]))
+    dest=os.environ.get("COD2_QT_TEST_SCREENSHOTS")
+    if dest:
+        (Path(dest)/"native_poll.json").write_text(json.dumps({
+            "samples":len(ticks),"p95_interval_ms":round(gaps[int(len(gaps)*.95)],2),
+            "process_cpu_pct":cpu,"rss_mib":round(process.memory_info().rss/2**20,1),
+            "scenario":"Windows pytest process sleeping, isolated Win32 polling, no CoD2"
+        },indent=2),encoding="utf-8")

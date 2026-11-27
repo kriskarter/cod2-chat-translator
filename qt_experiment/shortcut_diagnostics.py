@@ -65,7 +65,10 @@ class ShortcutDiagnostics:
         self.edges = queue.SimpleQueue()
         self.worker = threading.Thread(target=self._record_edges, daemon=True, name="ShortcutTrace")
         self.worker.start()
-        self.write("start pid=%s elevated=%s other_translators=%s", os.getpid(), elevated(os.getpid()), other_translators())
+        session = wintypes.DWORD()
+        ok = ctypes.windll.kernel32.ProcessIdToSessionId(os.getpid(), ctypes.byref(session))
+        self.write("start pid=%s session=%s elevated=%s other_translators=%s",
+                   os.getpid(), session.value if ok else "unknown", elevated(os.getpid()), other_translators())
 
     def _record_edges(self):
         while True:

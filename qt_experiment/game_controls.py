@@ -98,6 +98,8 @@ class GameControls:
         self.keyboard.set_active(False)
         self.hud.enable(False)
         if message:
+            if self.diagnostics:
+                self.diagnostics.write("action_cancelled key=F9 reason=%s", message)
             self.state.game_status(message)
 
     def _display(self, caption, translation=""):
@@ -112,6 +114,8 @@ class GameControls:
             return
         self.state.position_outgoing_hud(self.hud.config)
         if not self.hud.enable(True):
+            if self.diagnostics:
+                self.diagnostics.write("hud_create_failed key=F9 error=%s", self.hud.last_error)
             self.state.game_status("F9 HUD недоступен: " + self.hud.last_error)
             return
         self.active = True
@@ -191,6 +195,7 @@ class GameControls:
         if self.rearming and not self.keyboard._thread.is_alive():
             self.keyboard = KeyboardCapture(self.events, game_scope=self._focused)
             self.keyboard.set_enabled(self.state.f9)
+            self.keyboard.resume_held_f9 = True
             self.keyboard.shortcut_trace = diag.edges
             self.keyboard.start()
             self.rearming = False
@@ -227,13 +232,13 @@ class GameControls:
                     diag.write("hook_edge key=%s injected=%s game_focus_at_hook=%s f9_enabled=%s qt_dequeued=yes current_%s",
                                NAMES[SHORTCUTS[vk]], injected, accepted, enabled, diag.focus())
                 elif event in NAMES:
-                    diag.write("qt_dispatch key=%s source=%s focus=%s", NAMES[event], value or "hook", self._focused())
+                    diag.write("qt_event_received key=%s source=%s accepted=%s", NAMES[event], value or "hook", self._focused())
                 elif event in ("hook_ready", "hook_error"):
                     diag.write("%s %s", event, value or "")
             if event == "hook_ready":
                 self.ready = True
                 self.hook_error = ""
-                self.state.game_status("Игровые клавиши готовы")
+                self.state.game_status("Перехватчик установлен. Ожидание игровых нажатий.")
                 if self.resume_f9 and not self.rearming:
                     self.resume_f9 = False
                     if self._focused() and self.state.f9:

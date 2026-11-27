@@ -45,6 +45,7 @@ ComboBox {
         }
     }
     popup: Popup {
+        objectName: root.objectName + "_popup"
         y: root.height + 2
         width: Math.max(root.width, 132)
         margins: 6; padding: 5

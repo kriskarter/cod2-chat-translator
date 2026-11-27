@@ -77,6 +77,7 @@ MetalPanel {
                                 spacing: 8
                                 Text { text: root.tr("Язык интерфейса"); color: "#e4c291"; font.bold: true }
                                 LanguageSelector {
+                                    objectName: "uiLocaleSelector"
                                     model: [{label:"Русский",code:"ru"},{label:"Українська",code:"uk"},{label:"English",code:"en"}]
                                     textRole: "label"; valueRole: "code"
                                     Component.onCompleted: currentIndex = indexOfValue(prototype.uiLanguage)
@@ -86,7 +87,7 @@ MetalPanel {
                                 Text { text: root.tr("Журнал CoD2 (console_mp.log)"); color: "#e4c291"; font.bold: true }
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    MetalTextField { id: logInput; text: prototype.logPath; placeholderText: root.tr("Путь к console_mp.log"); Layout.fillWidth: true; selectByMouse: true }
+                                    MetalTextField { id: logInput; objectName:"logPathInput"; text: prototype.logPath; placeholderText: root.tr("Путь к console_mp.log"); Layout.fillWidth: true; selectByMouse: true }
                                     MetalButton { text: root.tr("Применить"); onClicked: prototype.setLogPath(logInput.text) }
                                 }
                                 Text { text: root.tr("Язык входящего перевода"); color: "#e4c291"; font.bold: true }
@@ -114,6 +115,7 @@ MetalPanel {
                                 RowLayout {
                                     Text { text: root.tr("Стили перевода"); color: "#f5e7c9"; Layout.fillWidth: true }
                                     LanguageSelector {
+                                        objectName: "styleSelector"
                                         model: [{label:root.tr("Понятный"),code:"clear"},{label:root.tr("Живой"),code:"live"},{label:root.tr("Без цензуры"),code:"raw"}]
                                         textRole:"label";valueRole:"code"
                                         Component.onCompleted: currentIndex = indexOfValue(prototype.preferences.style)

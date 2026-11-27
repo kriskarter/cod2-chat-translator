@@ -61,7 +61,7 @@ MetalPanel {
   }
   Item {Layout.fillWidth:true;Layout.preferredHeight:21;Cells {anchors.fill:parent;anchors.leftMargin:5;anchors.rightMargin:13;heading:true;dataRow:({})}}
   ListView {
-   id:roster;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:root.players
+   id:roster;objectName:"roster_rows";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:root.players
    ScrollBar.vertical:MetalScrollBar {}
    delegate:Rectangle {
     id:row;required property int index;required property var modelData
