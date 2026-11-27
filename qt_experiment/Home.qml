@@ -192,7 +192,7 @@ ApplicationWindow {
                 }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f9?"Выключен":prototype.gameHotkeysReady?"Ожидание игровой клавиши":"Ручной режим") : ""; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
+                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f9?"Выключен":prototype.gamePrivilegeMismatch?"Несовпадение прав":prototype.gameHotkeysReady?"Ожидание игровой клавиши":"Ручной режим") : ""; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
                     active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "reference_art/f9_plate.webp"
                     onToggled: prototype.toggle("f9")
