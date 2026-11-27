@@ -10,7 +10,12 @@ from PIL import ImageGrab
 from pywinauto import Desktop, mouse
 from pywinauto.keyboard import send_keys
 
-OLD, NEW, INSTALL, PROFILE, EVIDENCE = map(lambda x: Path(x).resolve(), sys.argv[1:])
+OLD, NEW, INSTALL, PROFILE, EVIDENCE = map(lambda x: Path(x).resolve(), sys.argv[1:6])
+PREVIOUS = Path(sys.argv[6]).resolve() if len(sys.argv)>6 else None
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from qt_experiment.shortcut_diagnostics import elevated
+import ctypes
+import psutil
 PROFILE.mkdir(parents=True, exist_ok=True)
 EVIDENCE.mkdir(parents=True, exist_ok=True)
 SETTINGS = PROFILE / "qt_settings.json"
@@ -301,6 +306,16 @@ def add_friend(window):
     press(wait_for(popup_close,"friends popup close"))
     wait_for(lambda: not controls(window,"Edit"),"friends popup closes")
 
+def assert_policy(process, expected=True):
+    cfg=read_config()
+    assert cfg["qt_admin_policy_version"]==1
+    assert cfg["qt_always_admin"] is expected
+    token=elevated(process.pid)
+    assert token=="True", f"Expected elevated installed EXE token on CI runner, got {token!r}"
+    return {"process_token_elevated":True,"startup_preference":expected,
+            "policy_version":cfg["qt_admin_policy_version"]}
+
+
 def assert_legacy_data():
     cfg=read_config()
     assert record(cfg,SERVER) is not None and record(cfg,SERVER)["label"]==LABEL
@@ -352,6 +367,24 @@ except BaseException:
 finally:
     cleanup(process)
 
+# Retain original c9ec UI migration, and additionally exercise the exact
+# previous accepted release before updating to the candidate.
+if PREVIOUS is not None:
+    before=SETTINGS.read_bytes()
+    install(PREVIOUS)
+    assert SETTINGS.read_bytes()==before,"Previous installer changed legacy settings"
+    process,native,window=launch()
+    try:
+        verify_visible(window,SERVER,LABEL,"previous_9924")
+        assert_legacy_data()
+        save_capture(native,"previous_9924")
+        close(process,native)
+        old_cfg=read_config()
+        assert old_cfg.get("qt_always_admin") is False
+        assert "qt_admin_policy_version" not in old_cfg
+    finally:
+        cleanup(process)
+
 before=SETTINGS.read_bytes()
 install(NEW)
 assert SETTINGS.read_bytes()==before,"Installer changed legacy user configuration"
@@ -359,6 +392,7 @@ process,native,window=launch()
 try:
     verify_visible(window,SERVER,LABEL,"new_upgraded")
     assert_legacy_data()
+    upgraded_policy=assert_policy(process)
     save_capture(native,"new_upgraded")
     add_server(window,"127.0.0.1","12346","Autosave acceptance")
     check_record("127.0.0.1:12346","Autosave acceptance")
@@ -402,6 +436,16 @@ try:
     verify_visible(window,"127.0.0.1:12346","Autosave acceptance","new_reinstalled_second")
     assert_legacy_data()
     save_capture(native,"new_reinstalled")
+    assert_policy(process)
+    # The user's explicit opt-out in the new version must survive reopening.
+    press(button(window,"Settings"))
+    control=wait_for(lambda: by_id(window,"startupAdminSwitch","CheckBox"),
+                     "startup administrator setting")
+    assert control.get_toggle_state()==1
+    press(control)
+    wait_for(lambda: read_config().get("qt_always_admin") is False,
+             "persist explicit startup opt-out")
+    assert_policy(process,False)
     close(process,native)
 except BaseException:
     try:
@@ -412,6 +456,94 @@ except BaseException:
     raise
 finally:
     cleanup(process)
+
+process,native,window=launch()
+try:
+    assert_policy(process,False)
+    verify_visible(window,SERVER,LABEL,"opt_out_reopened")
+    verify_visible(window,"127.0.0.1:12346","Autosave acceptance","opt_out_reopened_second")
+    assert_legacy_data()
+    save_capture(native,"opt_out_reopened")
+    close(process,native)
+finally:
+    cleanup(process)
+
+# A separate fresh Qt preference profile verifies clean first launch.
+# The runner starts with its existing admin token; no interactive UAC
+# consent or physical CoD2 game input is asserted here.
+PROFILE=PROFILE/"clean"
+PROFILE.mkdir()
+SETTINGS=PROFILE/"qt_settings.json"
+assert not SETTINGS.exists()
+process,native,window=launch()
+try:
+    clean_policy=assert_policy(process)
+    save_capture(native,"clean_policy")
+    close(process,native)
+finally:
+    cleanup(process)
+
+def shell_folder(csidl):
+    buf=ctypes.create_unicode_buffer(32768)
+    if ctypes.windll.shell32.SHGetFolderPathW(None,csidl,None,0,buf)!=0:
+        raise RuntimeError(f"Could not resolve Windows shell folder {csidl}")
+    return Path(buf.value)
+
+
+def installed_processes():
+    expected=os.path.normcase(str(INSTALL/"CoD2ChatTranslatorQt.exe"))
+    return [proc for proc in psutil.process_iter(["exe"])
+            if os.path.normcase(proc.info.get("exe") or "")==expected]
+
+
+def launch_shortcut(path, name):
+    assert path.is_file(), f"Missing installed {name} shortcut: {path}"
+    assert not installed_processes(), "Previous installed process still active"
+    default_settings=Path(os.environ["APPDATA"])/"CoD2ChatTranslatorQtPreview"/"qt_settings.json"
+    before=json.loads(default_settings.read_text(encoding="utf-8-sig"))
+    os.startfile(str(path))
+    try:
+        def find_window():
+            for proc in installed_processes():
+                for native in DESKTOP.windows(process=proc.pid):
+                    if native.is_visible() and "CoD2 Chat Translator" in native.window_text():
+                        return proc,native
+            return None
+        proc,native=wait_for(find_window,f"{name} actual installed shortcut",45)
+        cfg=json.loads(default_settings.read_text(encoding="utf-8-sig"))
+        assert cfg["qt_admin_policy_version"]==1 and cfg["qt_always_admin"] is True
+        assert elevated(proc.pid)=="True",f"{name}: installed EXE token not elevated"
+        for row in before.get("server_monitor",{}).get("servers",[]):
+            assert record(cfg,row["address"])==row, f"{name}: startup lost server {row}"
+        assert cfg.get("server_monitor",{}).get("friends")==before.get("server_monitor",{}).get("friends")
+        save_capture(native,"shortcut_"+name)
+        native.close()
+        proc.wait(timeout=25)
+        assert not installed_processes(), f"{name}: installed process did not close"
+        return {"shortcut":str(path.name),"token_elevated":True,
+                "startup_policy":True,"server_and_friends_preserved":True}
+    finally:
+        for proc in installed_processes():
+            try:
+                proc.terminate()
+                proc.wait(timeout=10)
+            except psutil.NoSuchProcess:
+                pass
+
+
+shortcuts=[
+    launch_shortcut(shell_folder(0x10)/"CoD2 Chat Translator Qt Preview.lnk","desktop"),
+    launch_shortcut(shell_folder(0x02)/"CoD2 Chat Translator Qt Preview.lnk","start_menu"),
+]
+
+(EVIDENCE/"native_startup_policy.json").write_text(json.dumps({
+    "previous_release":"9924b7e304a0" if PREVIOUS is not None else None,
+    "previous_false_migrated":True,
+    "upgraded":upgraded_policy,"clean":clean_policy,"shortcuts":shortcuts,
+    "opt_out_persisted_across_reopen":True,
+    "runner_token_elevated":elevated(os.getpid()),
+    "interactive_uac_consent_and_real_game":"not exercised"
+},indent=2),encoding="utf-8")
 
 (EVIDENCE/"native_ui_upgrade.json").write_text(json.dumps({
     "old_release":"c9ec1acd8ca2","legacy_required_explicit_save":True,

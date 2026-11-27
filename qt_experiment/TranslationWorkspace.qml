@@ -27,7 +27,7 @@ MetalPanel {
     MetalDialog {
         id: elevationConfirm; title: root.tr("Перезапустить от имени администратора?")
         anchors.centerIn: parent; standardButtons: Dialog.Yes | Dialog.No
-        Text { width: 340; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Настройки сохранятся. Windows запросит подтверждение UAC. Следующий запуск будет запрашивать права администратора.") }
+        Text { width: 340; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Настройки сохранятся. Windows запросит подтверждение UAC.") }
         onAccepted: prototype.restartElevated()
     }
     ColumnLayout {
@@ -73,7 +73,7 @@ MetalPanel {
                     }
                     RowLayout {
                         Text { text:root.tr("Запрашивать права администратора при запуске"); color:"#e6d5b8" }
-                        TacticalSwitch { checked:prototype.alwaysAdmin; onClicked:prototype.setAlwaysAdmin(checked) }
+                        TacticalSwitch { objectName:"startupAdminSwitch"; Accessible.name:root.tr("Запрашивать права администратора при запуске"); checked:prototype.alwaysAdmin; onClicked:prototype.setAlwaysAdmin(checked) }
                     }
                     GridLayout {
                         Layout.fillWidth: true
@@ -209,7 +209,7 @@ MetalPanel {
                 MetalButton { objectName: "outgoingHudSettingsButton"; text: root.tr("Настройки игрового окна F9"); onClicked: root.configureHud() }
                 Text { visible: prototype.gamePrivilegeMismatch; color: "#f1ac93"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                     text: root.tr("CoD2 запущена от администратора, а переводчик — нет. Игровые клавиши и отправка могут не работать. По возможности запустите обе программы без повышения прав.") }
-                MetalButton { visible: prototype.gamePrivilegeMismatch && prototype.settingsWritable; text: root.tr("Перезапустить переводчик от имени администратора"); onClicked: elevationConfirm.open() }
+                MetalButton { visible: (prototype.gamePrivilegeMismatch || prototype.startupElevationDenied) && prototype.settingsWritable; text: root.tr("Перезапустить переводчик от имени администратора"); onClicked: elevationConfirm.open() }
                 Text { visible: prototype.gameHotkeysEnabled; text: root.tr(prototype.gameRunning ? "Игра запущена" : "Игра не запущена"); color: "#bcb09a" }
                 MetalButton { visible: prototype.gameHotkeysEnabled; text: (prototype.uiLanguage, prototype.trText("Открыть журнал клавиш")); onClicked: prototype.openShortcutLog() }
                 Text { visible: prototype.gameHotkeyDetail.length > 0; text: prototype.gameHotkeyDetail; color: "#e4c291"; wrapMode: Text.WordWrap; Layout.fillWidth: true }

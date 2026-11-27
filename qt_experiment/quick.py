@@ -60,6 +60,8 @@ def main():
             if hint in ("ru", "uk", "en"): values["ui_language"] = hint
         store = None
         startup_denied = False
+        settings_recovered = False
+        interactive = bool(instance and "--screenshot" not in sys.argv and "--verify-game-hotkeys" not in sys.argv)
         if "--settings-file" in sys.argv:
             from .settings_store import SettingsStore
             target = Path(sys.argv[sys.argv.index("--settings-file") + 1])
@@ -72,7 +74,11 @@ def main():
                     if not target.exists() and hint in ("ru", "uk", "en"): values["ui_language"] = hint
                 except OSError: pass
                 values = store.load(values)
-            except (OSError, ValueError) as error:
+                settings_recovered = store.recovered
+                if interactive:
+                    from .admin_policy import persist_admin_policy
+                    values, settings_recovered = persist_admin_policy(store, values)
+            except (OSError, ValueError, RuntimeError) as error:
                 # Never boot with defaults and overwrite unreadable user data.
                 from PySide6.QtWidgets import QMessageBox
                 from .ui_text import translate
@@ -83,8 +89,7 @@ def main():
                 else:
                     QMessageBox.critical(None, "CoD2 Chat Translator", message)
                 return 7
-        if (instance and store and not restarted and "--screenshot" not in sys.argv
-                and "--verify-game-hotkeys" not in sys.argv):
+        if interactive and store and not restarted:
             from .windows_privileges import request_startup_elevation
             attempted, launched = request_startup_elevation(values.get("qt_always_admin") is True)
             if launched:
@@ -96,10 +101,10 @@ def main():
             # elevation and updater paths already require a successful save.
             app.aboutToQuit.connect(state.saveSettings)
         app.aboutToQuit.connect(state.stop)
-        if store and store.recovered:
+        if settings_recovered:
             state.game_status("Настройки восстановлены из резервной копии")
-        elif startup_denied:
-            state.game_status("Повышение прав отменено или не удалось")
+        if startup_denied:
+            state.markStartupElevationDenied()
         if "--screenshot" not in sys.argv and not state.logPath:
             from PySide6.QtCore import QTimer
             QTimer.singleShot(0, state.rescanProfiles)

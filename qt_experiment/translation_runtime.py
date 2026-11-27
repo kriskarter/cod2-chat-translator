@@ -27,6 +27,7 @@ import translation_memory
 from .live_monitor import LiveMonitorState
 from .friend_presence import qt_monitor_settings, dump_qt_monitor_settings, display_name
 from .common import ROOT
+from .admin_policy import admin_policy, VERSION_KEY, ADMIN_POLICY_VERSION
 from .native_hud import NativeHud
 from .outgoing_hud import outgoing_config, positioned, render_editor
 from server_monitor import load_settings, dump_settings
@@ -53,12 +54,14 @@ class TranslationState(LiveMonitorState):
     _on_log_control = ControlApp._on_log_control
 
     def __init__(self, config, game_exe=None, log_path=None, installed_knowledge=None, game_hotkeys=False, settings_store=None):
+        config = admin_policy(config)
         super().__init__(qt_monitor_settings(config.get("server_monitor")), game_exe)
         self._config = config
         self._store = settings_store
         self._outgoing_hud_config = outgoing_config(config.get("outgoing_hud"))
         self._last_outgoing_rect = None
         self._privilege_mismatch = False
+        self._startup_elevation_denied = False
         self._always_admin = config.get("qt_always_admin") is True
         self._history_enabled = config.get("qt_history_enabled", True)
         self._hint_dismissed = bool(config.get("qt_hint_dismissed", False))
@@ -228,6 +231,7 @@ class TranslationState(LiveMonitorState):
         if self._store is None:
             return
         config = dict(self._config)
+        config[VERSION_KEY] = max(ADMIN_POLICY_VERSION, config.get(VERSION_KEY, ADMIN_POLICY_VERSION))
         config.update(target_language=self._target, smart_engine_enabled=self._smart,
                       qt_f8_enabled=self._f8, qt_overlay_enabled=self._overlay_on_start,
                       qt_always_admin=self._always_admin, qt_history_enabled=self._history_enabled, qt_hint_dismissed=self._hint_dismissed, outgoing_enabled=self._f9,
@@ -795,6 +799,8 @@ class TranslationState(LiveMonitorState):
             return "Выкл"
         if self._privilege_mismatch:
             return "Несовпадение прав"
+        if self._startup_elevation_denied:
+            return "Запрос прав отклонён"
         game = self._game
         if game and game.hook_error or (incoming and self._hud.last_error) or (not incoming and game and game.hud.last_error):
             return "Ошибка"
@@ -935,6 +941,13 @@ class TranslationState(LiveMonitorState):
         return self._privilege_mismatch
 
     @Property(bool, notify=translationChanged)
+    def startupElevationDenied(self): return self._startup_elevation_denied
+
+    def markStartupElevationDenied(self):
+        self._startup_elevation_denied = True
+        self.game_status("Повышение прав отменено или не удалось")
+
+    @Property(bool, notify=translationChanged)
     def gameRunning(self):
         return self._game_running
 
@@ -970,12 +983,10 @@ class TranslationState(LiveMonitorState):
 
     @Slot()
     def restartElevated(self):
-        if not (self._privilege_mismatch or self._always_admin) or self._store is None:
+        if not (self._privilege_mismatch or self._startup_elevation_denied or self._always_admin) or self._store is None:
             return
-        previous = self._always_admin
-        self._always_admin = True
+        # A one-off retry does not override an explicit startup preference.
         if not self.saveSettings():
-            self._always_admin = previous
             return
         from .windows_privileges import restart_elevated
         ok, error = restart_elevated()
@@ -983,9 +994,7 @@ class TranslationState(LiveMonitorState):
             from PySide6.QtCore import QCoreApplication
             QCoreApplication.quit()
         else:
-            self._always_admin = previous
-            self.saveSettings()
-            self.game_status("Повышение прав отменено или не удалось")
+            self.markStartupElevationDenied()
             self.feedback.emit("", self.translationStatus, True)
 
     @Property(bool, constant=True)

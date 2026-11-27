@@ -198,6 +198,33 @@ jobs:
             python -c "from PIL import Image; import sys; assert Image.open(sys.argv[1]).size==tuple(map(int,sys.argv[2].split('x')))" "$out" "$size"
             if ($LASTEXITCODE -ne 0) { throw "Native banner dimensions changed: $size" }
           }
+      - name: Native installed banner DPI matrix (simulated Qt scale)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: windows
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP "cod2-qt-install/CoD2ChatTranslatorQt.exe"
+          $root = Join-Path $PWD "qt-evidence"
+          $config = Join-Path $root "fixture.json"
+          $settings = Join-Path $root "native_banner_settings.json"
+          foreach ($scale in @(1.0,1.25,1.5)) {
+            $scaleText = $scale.ToString([Globalization.CultureInfo]::InvariantCulture)
+            $env:QT_SCALE_FACTOR = $scaleText
+            foreach ($resolution in @("1366x768","1536x864","1920x1080")) {
+              $parts = $resolution.Split("x")
+              $w = [int][Math]::Floor([int]$parts[0]/$scale)
+              $h = [int][Math]::Floor([int]$parts[1]/$scale)
+              $size = "$($w)x$($h)"
+              $out = Join-Path $root "native_dpi_$($scaleText)_$resolution.png"
+              $args = @("--config", "`"$config`"", "--settings-file", "`"$settings`"", "--size", $size, "--ui-language", "ru", "--page", "home", "--screenshot", "`"$out`"")
+              $p = Start-Process $exe -ArgumentList $args -PassThru
+              if (!$p.WaitForExit(60000)) { $p.Kill(); throw "Native DPI capture timeout: $scaleText $resolution" }
+              if ($p.ExitCode -ne 0 -or !(Test-Path $out) -or (Get-Item $out).Length -lt 5000) { throw "Native DPI capture failed: $scaleText $resolution" }
+              python -c "from PIL import Image; import sys; a=Image.open(sys.argv[1]).size; b=tuple(round(int(x)*float(sys.argv[3])) for x in sys.argv[2].split('x')); assert all(abs(x-y)<=2 for x,y in zip(a,b)),(a,b)" "$out" "$size" "$scaleText"
+              if ($LASTEXITCODE -ne 0) { throw "Native DPI capture dimensions changed" }
+            }
+          }
+          Remove-Item Env:QT_SCALE_FACTOR -ErrorAction SilentlyContinue
       - name: Verify installed Qt hotkey startup without injecting input
         shell: pwsh
         run: |
@@ -243,6 +270,17 @@ jobs:
           $before = (Get-FileHash $settings).Hash
           $new = Join-Path $PWD "release-qt\CoD2ChatTranslator_QtPreview_Setup.exe"
           if ((Start-Process $new -ArgumentList $argsList -Wait -PassThru).ExitCode -or (Get-FileHash $settings).Hash -ne $before) { throw "RC upgrade failed" }
+      - name: Download and verify immediately previous accepted RC
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $cache = Join-Path $env:RUNNER_TEMP "accepted-9924-qt-setup"
+          gh release download qt-preview-9924b7e304a0 --dir $cache --pattern "CoD2ChatTranslator_QtPreview_Setup.exe" --pattern "SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw "Previous accepted RC unavailable" }
+          $previous = Join-Path $cache "CoD2ChatTranslator_QtPreview_Setup.exe"
+          $expected = ((Get-Content (Join-Path $cache "SHA256SUMS.txt") -First 1) -split '\s+')[0]
+          if ((Get-FileHash $previous).Hash -ne $expected) { throw "Previous accepted RC checksum mismatch" }
       - name: Native installed UI migration (legacy explicit save, new autosave)
         shell: pwsh
         env:
@@ -252,7 +290,7 @@ jobs:
         run: |
           $old = Join-Path $env:RUNNER_TEMP "previous-qt-setup/CoD2ChatTranslator_QtPreview_Setup.exe"
           $new = Join-Path $PWD "release-qt/CoD2ChatTranslator_QtPreview_Setup.exe"
-          python tools/qt_upgrade_ui_evidence.py "$old" "$new" "$env:RUNNER_TEMP/cod2-qt-install" "$env:RUNNER_TEMP/cod2-ui-acceptance" qt-evidence
+          python tools/qt_upgrade_ui_evidence.py "$old" "$new" "$env:RUNNER_TEMP/cod2-qt-install" "$env:RUNNER_TEMP/cod2-ui-acceptance" qt-evidence "$env:RUNNER_TEMP/accepted-9924-qt-setup/CoD2ChatTranslator_QtPreview_Setup.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:

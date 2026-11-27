@@ -94,6 +94,9 @@ class PrototypeState(QObject):
     @Property(bool, notify=changed)
     def gamePrivilegeMismatch(self): return False
 
+    @Property(bool, notify=changed)
+    def startupElevationDenied(self): return False
+
     @Property(bool, constant=True)
     def demo(self): return self._demo
 

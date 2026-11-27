@@ -13,7 +13,8 @@ def save(name, im):
     im.save(OUT / name, **({"quality": 94, "method": 6} if name.endswith("webp") else {"optimize": True}))
 
 
-# This single static illustration includes the original wordmark and its cast shadow.
+# Preserve the complete approved panorama as one lossless asset; the legacy slices remain available.
+ref.crop((1, 34, 1535, 232)).save(OUT / "panorama.webp", lossless=True, method=6)
 for part, x1, x2 in (("left", 1, 520), ("wordmark", 520, 1103), ("right", 1103, 1535)):
     save(part + ".webp", ref.crop((x1, 34, x2, 232)))
 for key, y in (("f8", 311), ("f9", 502)):

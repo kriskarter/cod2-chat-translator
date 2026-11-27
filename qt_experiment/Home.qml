@@ -75,7 +75,7 @@ ApplicationWindow {
         anchors.centerIn:parent
         title:window.tr("Перезапустить от имени администратора?")
         standardButtons:Dialog.Yes | Dialog.No
-        Text { width:340; wrapMode:Text.WordWrap; color:window.ink; text:window.tr("Настройки сохранятся. Windows запросит подтверждение UAC. Следующий запуск будет запрашивать права администратора.") }
+        Text { width:340; wrapMode:Text.WordWrap; color:window.ink; text:window.tr("Настройки сохранятся. Windows запросит подтверждение UAC.") }
         onAccepted:prototype.restartElevated()
     }
     function confirmElevation() { rightsDialog.open() }
@@ -154,18 +154,16 @@ ApplicationWindow {
         Item {
             Layout.fillWidth: true
             objectName:"command_banner"
-            Layout.preferredHeight: Math.min(window.width * 198 / 1534, window.laptop ? 109 + (window.height-620)*.37 : window.height * (window.shortWindow ? .17 : .239))
+            Layout.preferredHeight: Math.min(window.width * 198 / 1534, window.height * .30)
             Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             clip: true
-            // Keep the original wordmark proportional. The side illustrations
-            // fill the remaining width using vertical crop, never horizontal stretch.
-            Row {
-                anchors.fill:parent
-                readonly property real logoWidth: Math.min(parent.width*583/1534, parent.height*583/198)
-                readonly property real sideWidth: parent.width-logoWidth
-                Image { objectName:"command_art_left"; width:parent.sideWidth*519/951; height:parent.height; source:"reference_art/left.webp"; fillMode:Image.PreserveAspectCrop; clip:true }
-                Image { objectName:"command_logo"; width:parent.logoWidth; height:parent.height; source:"reference_art/wordmark.webp"; fillMode:Image.PreserveAspectFit }
-                Image { objectName:"command_art_right"; width:parent.sideWidth*432/951; height:parent.height; source:"reference_art/right.webp"; fillMode:Image.PreserveAspectCrop; clip:true }
+            Image {
+                objectName: "command_panorama"
+                anchors.fill: parent
+                source: "reference_art/panorama.webp"
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+                clip: true
             }
         }
         MetalPanel {
@@ -205,7 +203,7 @@ ApplicationWindow {
         RowLayout {
             visible: window.activePage === "home"
             Layout.fillWidth: true; Layout.fillHeight: true
-            Layout.leftMargin: window.shortWindow ? 10 : 17; Layout.rightMargin: window.shortWindow ? 10 : 15; Layout.topMargin: window.compact ? 5 : window.laptop ? 8 : 14; Layout.bottomMargin: window.compact ? 5 : window.laptop ? 8 : 14
+            Layout.leftMargin: window.shortWindow ? 10 : 17; Layout.rightMargin: window.shortWindow ? 10 : 15; Layout.topMargin: window.compact ? 5 : window.laptop ? 4 : 14; Layout.bottomMargin: window.compact ? 5 : window.laptop ? 4 : 14
             spacing: window.shortWindow ? 8 : 13
             ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true
@@ -235,9 +233,9 @@ ApplicationWindow {
                 Layout.preferredWidth: (window.width - 45) * .564
                 Layout.minimumWidth: window.compact ? 400 : 420
                 ColumnLayout {
-                    anchors.fill: parent; anchors.leftMargin: window.shortWindow ? 8 : 13; anchors.rightMargin: anchors.leftMargin; anchors.topMargin: window.shortWindow ? 6 : 10; anchors.bottomMargin: anchors.topMargin; spacing: window.shortWindow ? 3 : 5
+                    anchors.fill: parent; anchors.leftMargin: window.shortWindow ? 8 : 13; anchors.rightMargin: anchors.leftMargin; anchors.topMargin: window.shortWindow ? 6 : window.laptop ? 7 : 10; anchors.bottomMargin: anchors.topMargin; spacing: window.shortWindow || window.laptop ? 3 : 5
                     RowLayout {
-                        Image { source:"reference_art/antenna.png";fillMode:Image.PreserveAspectFit; Layout.preferredWidth:window.compact?27:50; Layout.preferredHeight:window.compact?28:44 }
+                        Image { source:"reference_art/antenna.png";fillMode:Image.PreserveAspectFit; Layout.preferredWidth:window.compact?27:window.laptop?42:50; Layout.preferredHeight:window.compact?28:window.laptop?38:44 }
                         ColumnLayout {
                             Layout.fillWidth: true; spacing: 0
                             Text { text: window.tr("Мониторинг серверов"); color: window.ink; font.pixelSize: window.compact ? 17 : 24; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
@@ -289,7 +287,13 @@ ApplicationWindow {
                 Rectangle { width: 1; height: 34; color: "#776345" }
                 SmartEngineControl { Layout.fillWidth: true; active: prototype.smart; controlsEnabled: prototype.demo || prototype.translationAvailable; onToggled: prototype.toggle("smart") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
-                SystemStatusPanel { Layout.fillWidth: true; statusText: prototype.translationAvailable ? prototype.translationStatus : prototype.status; ready: !prototype.demo && prototype.translationAvailable && prototype.engineReady; onConfigure: window.activePage = "settings" }
+                SystemStatusPanel {
+                    Layout.fillWidth: true
+                    attentionText: prototype.gamePrivilegeMismatch ? window.tr("Несовпадение прав") : prototype.startupElevationDenied ? window.tr("Запрос прав отклонён") : ""
+                    statusText: prototype.translationAvailable ? prototype.translationStatus : prototype.status
+                    ready: !prototype.demo && prototype.translationAvailable && prototype.engineReady && !attentionText
+                    onConfigure: { if (attentionText) window.confirmElevation(); else window.activePage = "settings" }
+                }
             }
         }
     }

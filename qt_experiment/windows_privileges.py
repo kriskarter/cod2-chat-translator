@@ -41,7 +41,8 @@ def request_startup_elevation(prefer_admin, restarted=False):
     from .shortcut_diagnostics import elevated
     if elevated(os.getpid()) != "False":
         return False, False
-    if not prefer_admin and not game_privilege_status()[1]:
+    # Explicit opt-out means no automatic request, even if CoD2 is already elevated.
+    if not prefer_admin:
         return False, False
     launched, _ = restart_elevated()
     return True, launched

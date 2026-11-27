@@ -68,6 +68,7 @@ def test_thirty_physical_edges_update_engine_and_hud(state):
 
 
 def test_late_uac_never_restarts_without_explicit_consent(state,monkeypatch):
+    state.setAlwaysAdmin(False)
     mismatch=[False]
     monkeypatch.setattr(windows_privileges,"game_privilege_status",lambda:(mismatch[0],mismatch[0]))
     request=Mock(return_value=(False,"5"))
@@ -130,6 +131,13 @@ def test_home_hud_buttons_and_warning(state):
     state.translationChanged.emit()
     QTest.qWait(100)
     assert state.f8Status==state.f9Status=="Несовпадение прав"
+    for key in ("f8","f9"):
+        card=window.findChild(QObject,key+"Card")
+        switch=window.findChild(QObject,key+"Switch")
+        assert card.property("elevationAction") and card.property("needsAction")
+        assert switch.property("checked") and switch.property("warning")
+        assert switch.property("indicatorColor").name()=="#e7be77"
+        assert card.property("statusColor").name()=="#f0c076"
     if folder:
         assert window.grabWindow().save(str(Path(folder)/"privileges_fixture.png"))
         for mode,height in (("compact",80),("expanded",160)):
@@ -141,7 +149,9 @@ def test_home_hud_buttons_and_warning(state):
     del engine
 
 
-def test_f9_card_tracks_input_preview_send_cancel_and_focus(state):
+def test_f9_card_tracks_input_preview_send_cancel_and_focus(state,monkeypatch):
+    if os.name != "nt":
+        monkeypatch.setattr(state,"position_outgoing_hud",lambda *_:None)
     focused = [True]
     game = GameControls(state,{}, "ru","en",foreground=lambda:focused[0],keyboard_factory=Keyboard,
         hud_factory=lambda cfg, original: NativeHud(cfg,original,factory=Mock))
@@ -240,3 +250,19 @@ def test_server_selection_editor_uses_current_record_not_previous_binding(state)
     finally:
         window.close()
         del engine
+
+
+def test_default_admin_denial_and_explicit_opt_out(state,monkeypatch):
+    assert state.alwaysAdmin
+    state.markStartupElevationDenied()
+    assert state.startupElevationDenied
+    assert state.f8Status==state.f9Status=="Запрос прав отклонён"
+    state.setAlwaysAdmin(False)
+    assert state._store.load({})["qt_admin_policy_version"]==1
+    assert state._store.load({})["qt_always_admin"] is False
+    request=Mock(return_value=(False,"5"))
+    monkeypatch.setattr(windows_privileges,"restart_elevated",request)
+    state.restartElevated()
+    request.assert_called_once()
+    assert state.alwaysAdmin is False
+    assert state.startupElevationDenied

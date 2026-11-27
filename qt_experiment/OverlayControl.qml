@@ -14,5 +14,5 @@ RowLayout {
         Text { text: (prototype.uiLanguage, prototype.trText("Отображение перевода в игре")); color: "#b7ad9b"; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
     }
     MetalButton { visible:prototype.translationAvailable; glyph:"icons/settings.svg";text:"";sizeClass:"icon"; implicitWidth:30; Accessible.name:(prototype.uiLanguage,prototype.trText("Настройки оверлея"));onClicked:root.configure();hintText:(prototype.uiLanguage,prototype.trText("Настройки оверлея")) }
-    TacticalSwitch { objectName: "overlaySwitch"; checked: root.active; enabled: root.controlsEnabled; Accessible.name: (prototype.uiLanguage, prototype.trText("Оверлей")); onClicked: root.toggled() }
+    TacticalSwitch { objectName: "overlaySwitch"; checked: root.active; attention:prototype.gamePrivilegeMismatch || prototype.startupElevationDenied; enabled: root.controlsEnabled; Accessible.name: (prototype.uiLanguage, prototype.trText("Оверлей")); onClicked: root.toggled() }
 }

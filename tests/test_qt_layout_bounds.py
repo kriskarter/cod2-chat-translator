@@ -64,25 +64,24 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
                             caption=item.findChild(QObject,"button_caption")
                             assert caption is not None and not caption.property("truncated"),(lang,width,height)
                 banner=find_visible(content,"command_banner")
-                parts=[find_visible(content,name) for name in ("command_art_left","command_logo","command_art_right")]
-                assert all(parts)
-                left,logo,right=map(bounds,parts)
-                full=bounds(banner)
-                assert abs(left[0]-full[0])<=1 and abs(right[2]-full[2])<=1
-                assert abs(left[2]-logo[0])<=1 and abs(logo[2]-right[0])<=1
-                for item in parts:
-                    assert abs(item.height()-banner.height())<=1
-                    source=item.property("sourceSize")
-                    painted_w,painted_h=item.property("paintedWidth"),item.property("paintedHeight")
-                    assert source.width()>0 and source.height()>0 and painted_w>0 and painted_h>0
-                    assert abs(painted_w/painted_h-source.width()/source.height())<.03
+                panorama=find_visible(content,"command_panorama")
+                assert panorama is not None
+                assert bounds(panorama)==bounds(banner)
+                source=panorama.property("sourceSize")
+                painted_w,painted_h=panorama.property("paintedWidth"),panorama.property("paintedHeight")
+                assert (source.width(),source.height())==(1534,198)
+                assert painted_w>=banner.width()-1 and painted_h>=banner.height()-1
+                assert abs(painted_w/painted_h-source.width()/source.height())<.03
+                if (width,height) in ((1366,768),(1536,864),(1920,1080)):
+                    assert abs(banner.height()-width*198/1534)<=1
+                    assert abs(painted_h-banner.height())<=1
                 for name in ("add_server_button","connect_button","home_roster","overlaySwitch"):
                     item=find_visible(content,name)
                     assert item is not None,name
                     inside(item,content)
-                header=[bounds(find_visible(content,n)) for n in ("command_banner","command_logo","command_navigation")]
+                header=[bounds(find_visible(content,n)) for n in ("command_banner","command_panorama","command_navigation")]
                 window.setProperty("activePage","settings");QTest.qWait(60)
-                assert header==[bounds(find_visible(content,n)) for n in ("command_banner","command_logo","command_navigation")]
+                assert header==[bounds(find_visible(content,n)) for n in ("command_banner","command_panorama","command_navigation")]
                 scroll=find_visible(content,"settings_scroll")
                 scroll.setProperty("contentY",max(0,scroll.property("contentHeight")-scroll.height()))
                 QTest.qWait(60)
@@ -96,9 +95,17 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
                     button=find_visible(content,name)
                     inside(button,find_visible(content,"server_workspace"))
                     assert bounds(button)[3] <= bounds(find_visible(content,"server_save"))[1]+1
-                assert header==[bounds(find_visible(content,n)) for n in ("command_banner","command_logo","command_navigation")]
+                assert header==[bounds(find_visible(content,n)) for n in ("command_banner","command_panorama","command_navigation")]
                 window.setProperty("activePage","outgoing");QTest.qWait(60)
                 inside(find_visible(content,"save_settings"),find_visible(content,"translation_workspace"))
         assert not errors,errors
     finally:
         window.close();state.stop();del engine;knowledge_v2.configure(previous)
+
+def test_panorama_is_exact_original_artwork():
+    from PIL import Image, ImageChops
+    approved=Image.open(ROOT/"docs/images/server_monitor_rc/reference.png").convert("RGB")
+    panorama=Image.open(ROOT/"qt_experiment/reference_art/panorama.webp").convert("RGB")
+    assert approved.size==(1536,864)
+    assert panorama.size==(1534,198)
+    assert ImageChops.difference(approved.crop((1,34,1535,232)),panorama).getbbox() is None

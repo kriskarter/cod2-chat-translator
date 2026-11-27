@@ -15,7 +15,8 @@ MetalPanel {
  property string liveStatus:""
  signal configure()
  signal requestElevation()
- property bool needsAction: ["Несовпадение прав","Журнал не выбран","HUD скрыт"].indexOf(liveStatus)>=0
+ readonly property bool elevationAction: ["Несовпадение прав","Запрос прав отклонён"].indexOf(liveStatus)>=0
+ property bool needsAction: elevationAction || ["Журнал не выбран","HUD скрыт","Ручной режим"].indexOf(liveStatus)>=0
  property color statusColor: !active ? "#bcb09a" : liveStatus==="Ошибка" ? "#ee957d" : needsAction ? "#f0c076" : "#b0db84"
  signal toggled()
  clip:true
@@ -41,7 +42,7 @@ MetalPanel {
     text:root.heading;color:"#fff0d1";font.pixelSize:root.compact?14:Math.min(28,root.width*.043);font.bold:true;font.letterSpacing:-.35;fontSizeMode:Text.Fit;minimumPixelSize:root.compact?12:18;elide:Text.ElideRight
     Layout.fillWidth:true;Layout.minimumWidth:0
    }
-   TacticalSwitch { objectName:root.keyName.toLowerCase()+"Switch"; cardStyle:true; attention:root.needsAction || root.liveStatus==="Ошибка";Layout.preferredWidth:root.compact?67:Math.min(124,root.width*.19);Layout.minimumWidth:Layout.preferredWidth;Layout.maximumWidth:Layout.preferredWidth;Layout.preferredHeight:root.compact?25:34;checked:root.active;enabled:root.controlsEnabled;Accessible.name:root.heading;onClicked:root.toggled() }
+   TacticalSwitch { objectName:root.keyName.toLowerCase()+"Switch"; cardStyle:true; attention:root.needsAction; error:root.liveStatus==="Ошибка";Layout.preferredWidth:root.compact?67:Math.min(124,root.width*.19);Layout.minimumWidth:Layout.preferredWidth;Layout.maximumWidth:Layout.preferredWidth;Layout.preferredHeight:root.compact?25:34;checked:root.active;enabled:root.controlsEnabled;Accessible.name:root.heading;onClicked:root.toggled() }
   }
   Text {visible:!root.compact && root.height>=116;text: {
     let locale = prototype.uiLanguage
@@ -81,7 +82,13 @@ MetalPanel {
    Text {
     text: (prototype.uiLanguage,prototype.trText(root.liveStatus)); color:root.statusColor
     font.pixelSize:root.compact?11:12; elide:Text.ElideRight; Layout.minimumWidth:0; Layout.fillWidth:true
-    TapHandler { enabled:root.liveStatus==="Несовпадение прав"; onTapped:root.requestElevation() }
+    objectName:root.keyName.toLowerCase()+"StatusLabel"
+    Accessible.role: root.elevationAction ? Accessible.Button : Accessible.StaticText
+    Accessible.name: text
+    Accessible.onPressAction: if (root.elevationAction) root.requestElevation()
+    font.underline: root.elevationAction
+    TapHandler { enabled:root.elevationAction; onTapped:root.requestElevation() }
+    HoverHandler { enabled:root.elevationAction; cursorShape:Qt.PointingHandCursor }
    }
    MetalButton {
     objectName:root.keyName.toLowerCase()+"HudButton"; glyph:"icons/settings.svg"
