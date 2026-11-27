@@ -305,10 +305,11 @@ class Monitor:
 
     def replace_servers(self, servers):
         """Replace the worker input under the same lock used for snapshots."""
+        servers = list(servers)
         with self._lock:
             previous = {s.address for s in self.settings["servers"]}
             current = {s.address for s in servers}
-            self.settings["servers"] = list(servers)
+            self.settings["servers"] = servers
             if current != previous:
                 self._revision += 1
                 self.snapshots = {a:s for a,s in self.snapshots.items() if a in current}

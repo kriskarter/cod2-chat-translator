@@ -6,6 +6,11 @@ import subprocess
 import ctypes
 
 
+def privilege_mismatch(own, game):
+    """Unknown token states must not produce a false privilege warning."""
+    return own == "False" and game == "True"
+
+
 def game_privilege_status():
     if os.name != "nt":
         return False, False
@@ -25,7 +30,7 @@ def game_privilege_status():
         if not ctypes.windll.kernel32.ProcessIdToSessionId(proc.pid, ctypes.byref(other_session)) or other_session.value != session.value:
             continue
         running = True
-        mismatch = mismatch or (own == "False" and elevated(proc.pid) == "True")
+        mismatch = mismatch or privilege_mismatch(own, elevated(proc.pid))
     return running, mismatch
 
 

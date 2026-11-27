@@ -98,6 +98,12 @@ MetalPanel {
                             }
                         }
                     }
+                    Image {
+                        objectName: "outgoingHudReadablePreview"
+                        source: outgoingSettings.previewSource
+                        Layout.fillWidth: true; Layout.preferredHeight: 100
+                        fillMode: Image.PreserveAspectFit
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         Text { text: "X"; color: "#f5e7c9" }

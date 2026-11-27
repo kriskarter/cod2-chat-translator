@@ -57,6 +57,7 @@ class TranslationState(LiveMonitorState):
         self._config = config
         self._store = settings_store
         self._outgoing_hud_config = outgoing_config(config.get("outgoing_hud"))
+        self._last_outgoing_rect = None
         self._privilege_mismatch = False
         self._game_running = False
         self._privilege_timer = QTimer(self)
@@ -797,6 +798,8 @@ class TranslationState(LiveMonitorState):
 
     @Slot(result="QVariantMap")
     def outgoingScreenSize(self):
+        if self._last_outgoing_rect:
+            return {"width":self._last_outgoing_rect[2], "height":self._last_outgoing_rect[3]}
         from PySide6.QtGui import QGuiApplication
         screen = QGuiApplication.primaryScreen()
         if not screen:
@@ -829,6 +832,7 @@ class TranslationState(LiveMonitorState):
             return
         rect = _monitor_rect_for_window(hwnd)
         if rect[2] > 0 and rect[3] > 0:
+            self._last_outgoing_rect = rect
             config.update(positioned(self._outgoing_hud_config, rect))
 
     @Property(bool, notify=translationChanged)

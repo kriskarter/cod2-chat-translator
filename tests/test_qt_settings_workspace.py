@@ -43,6 +43,12 @@ def test_server_workspace_and_explicit_save(tmp_path):
         assert state.addServer("127.0.0.1:28960", "Second")
         assert not state.editServerAddress("127.0.0.1:12345", "127.0.0.1:28960", "Duplicate", True)
         assert state.removeServer("127.0.0.1:28960")
+        from unittest.mock import patch
+        state._can_connect = True
+        state._game_exe = tmp_path/"CoD2MP_s.exe"
+        with patch("qt_experiment.live_monitor.launch_connect_command") as launch:
+            assert state.connectServer(state.selected)
+            launch.assert_called_once_with(state._game_exe, "127.0.0.1:12345")
         assert state.addFriend("^2Medic")
         assert not state.addFriend("medic")
         window.setProperty("activePage", "servers")

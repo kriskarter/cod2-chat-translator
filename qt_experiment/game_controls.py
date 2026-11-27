@@ -119,6 +119,7 @@ class GameControls:
         if not self.state.f9 or not self._focused() or self.sending:
             return
         self.state.position_outgoing_hud(self.hud.config)
+        self.hud.last_error = ""
         if not self.hud.enable(True):
             if self.diagnostics:
                 self.diagnostics.write("hud_create_failed key=F9 error=%s", self.hud.last_error)

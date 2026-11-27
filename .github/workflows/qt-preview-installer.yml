@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: qt-preview-installer-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
@@ -116,7 +119,7 @@ jobs:
             if ($p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Compact page failed: $page" }
           }
           Remove-Item Env:QT_SCALE_FACTOR -ErrorAction SilentlyContinue
-          foreach ($entry in @("home:add_server_dialog","servers:server_remove_dialog","history:history_clear_dialog","knowledge:knowledge_clear_dialog","profiles:game_logging_dialog","home:friends_panel","servers:friends_panel","about:update_install_dialog")) {
+          foreach ($entry in @("home:add_server_dialog","outgoing:outgoing_hud_dialog","servers:server_remove_dialog","history:history_clear_dialog","knowledge:knowledge_clear_dialog","profiles:game_logging_dialog","home:friends_panel","servers:friends_panel","about:update_install_dialog")) {
             $parts = $entry.Split(":")
             $out = Join-Path $root "dialog_$($parts[0])_$($parts[1]).png"
             $args = @("--config","`"$config`"","--settings-file","`"$settings`"","--size","1366x768","--page",$parts[0],"--dialog",$parts[1],"--screenshot","`"$out`"")
@@ -207,7 +210,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
+      - name: Require successful exact-head Windows smoke and current branch
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/experiment/qt-premium-game-ui" --jq .object.sha)
+            if [ "$head" != "$GITHUB_SHA" ]; then
+              echo "Superseded SHA; do not publish a release."
+              exit 1
+            fi
+            runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow qt-quick-smoke.yml --commit "$GITHUB_SHA" --json status,conclusion,headSha --limit 5)
+            if jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .headSha == $sha and .status == "completed" and .conclusion == "success")' <<<"$runs" >/dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Exact-head Windows smoke not successful; release blocked."
+          exit 1
       - uses: actions/download-artifact@v4
         with:
           name: qt-preview-windows-installer
@@ -216,5 +241,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/experiment/qt-premium-game-ui" --jq .object.sha)
+          test "$head" = "$GITHUB_SHA" || { echo "Superseded SHA"; exit 1; }
           tag="qt-preview-${GITHUB_SHA:0:12}"
-          gh release create "$tag" release-qt/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "CoD2 Chat Translator Qt Preview $tag" --notes "Final premium RC: consistent panorama and navigation, compact friends panel, fixed server actions, textured controls, improved history and verified preview updater. Native gameplay/DPI acceptance pending. Does not replace stable."
+          gh release create "$tag" release-qt/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "CoD2 Chat Translator Qt Preview $tag" --notes "Qt RC functional polish: independent F9 editor and settings, explicit elevation diagnostics, editable server endpoints and nonstandard UDP ports. Native gameplay acceptance pending unless separately recorded. Does not replace stable."

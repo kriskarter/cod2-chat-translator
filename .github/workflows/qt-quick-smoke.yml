@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: qt-quick-smoke-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   qt-smoke:
     if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
