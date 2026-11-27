@@ -36,6 +36,13 @@ def test_server_workspace_and_explicit_save(tmp_path):
         assert state.editServer("127.0.0.1:28960", "Renamed", True)
         assert state.rows[0]["favorite"]
         assert state.serverRecords[0]["label"] == "Renamed"
+        assert state.editServerAddress("127.0.0.1:28960", "127.0.0.1:12345", "Renamed", True)
+        assert state.selected == "127.0.0.1:12345"
+        assert state.rows[0]["address"] == "127.0.0.1:12345"
+        assert not state.editServerAddress("127.0.0.1:12345", "12345", "Bad", True)
+        assert state.addServer("127.0.0.1:28960", "Second")
+        assert not state.editServerAddress("127.0.0.1:12345", "127.0.0.1:28960", "Duplicate", True)
+        assert state.removeServer("127.0.0.1:28960")
         assert state.addFriend("^2Medic")
         assert not state.addFriend("medic")
         window.setProperty("activePage", "servers")
@@ -55,10 +62,11 @@ def test_server_workspace_and_explicit_save(tmp_path):
         saved = json.loads(target.read_text(encoding="utf-8"))
         assert saved["target_language"] == "uk"
         assert saved["server_monitor"]["servers"][0]["favorite"]
+        assert saved["server_monitor"]["servers"][0]["address"] == "127.0.0.1:12345"
         assert saved["server_monitor"]["friends"] == ["^2Medic"]
         assert saved["custom_key"] == "preserve"
         assert original.read_bytes() == source_bytes
-        assert state.removeServer("127.0.0.1:28960")
+        assert state.removeServer("127.0.0.1:12345")
         state.removeFriend("medic")
         state.saveSettings()
         saved = json.loads(target.read_text(encoding="utf-8"))
