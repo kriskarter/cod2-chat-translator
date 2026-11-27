@@ -17,7 +17,8 @@ ApplicationWindow {
     property string activePage: "home"
     property string evidenceDialog: ""
     onEvidenceDialogChanged: {
-        if (evidenceDialog === "friends_panel") friendsPanel.open()
+        if (evidenceDialog === "incoming_hud_dialog" || evidenceDialog === "outgoing_hud_dialog") hudEditor.edit(evidenceDialog === "incoming_hud_dialog")
+        else if (evidenceDialog === "friends_panel") friendsPanel.open()
         else if (evidenceDialog === "add_server_dialog") addDialog.open()
         else if (workspaceLoader.item && workspaceLoader.item.showEvidenceDialog) workspaceLoader.item.showEvidenceDialog(evidenceDialog)
     }
@@ -50,7 +51,24 @@ ApplicationWindow {
             }
         }
     }
+    function showFirstRunHint() { shortcutHintTimer.restart() }
+    MetalPanel {
+        visible:shortcutHintTimer.running && window.activePage==="home";z:99
+        anchors.horizontalCenter:parent.horizontalCenter;anchors.bottom:parent.bottom;anchors.bottomMargin:14
+        width:Math.min(parent.width-24,firstRunRow.implicitWidth+24);height:firstRunRow.implicitHeight+12
+        RowLayout {id:firstRunRow;anchors.centerIn:parent
+            Text {text:window.tr("F8 — входящий перевод · F9 — ваше сообщение · F10 — снимок экрана");color:window.ink}
+            MetalButton {text:"×";sizeClass:"compact";onClicked:{shortcutHintTimer.stop();prototype.dismissShortcutHint()}}
+        }
+        Timer {id:shortcutHintTimer;interval:6500;onTriggered:prototype.dismissShortcutHint()}
+    }
     function openFriendsFromTray() { noticeTimer.stop(); friendsPanel.open() }
+    Loader {
+        id: editorLoader
+        active: prototype.translationAvailable
+        sourceComponent: Component { HudSettingsDialog { parent: window.contentItem } }
+    }
+    readonly property var hudEditor: editorLoader.item
     FriendPanel {id:friendsPanel}
     MetalPanel {
         id:notice;objectName:"friend_notice";parent:window.contentItem;z:100
@@ -114,7 +132,7 @@ ApplicationWindow {
     Image {
         objectName: "field_kit"
         anchors.left: parent.left; anchors.bottom: parent.bottom
-        width: Math.min(window.width * .20, window.height * .374, window.activePage === "home" && !window.laptop ? 400 : (systemBar.height + systemBar.Layout.bottomMargin + (window.activePage === "home" ? 42 : 0))*310/191)
+        width: Math.min(window.width * .20, window.height * .412, window.activePage === "home" && !window.laptop ? 400 : (systemBar.height + systemBar.Layout.bottomMargin + (window.activePage === "home" ? 72 : 0))*310/191)
         height: width * 191 / 310
         visible: !window.compact
         enabled: false
@@ -127,14 +145,18 @@ ApplicationWindow {
         Item {
             Layout.fillWidth: true
             objectName:"command_banner"
-            Layout.preferredHeight: Math.min(window.width * 198 / 1534, window.laptop ? 95 + (window.height-620)*.37 : window.height * (window.shortWindow ? .17 : .239))
+            Layout.preferredHeight: Math.min(window.width * 198 / 1534, window.laptop ? 109 + (window.height-620)*.37 : window.height * (window.shortWindow ? .17 : .239))
             Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             clip: true
+            // Preserve the entire illustrated strip, including all three original joins.
+            Image { anchors.fill:parent; source:"reference_art/sheet.webp"; fillMode:Image.PreserveAspectCrop;clip:true }
             Row {
-                anchors.fill: parent
-                Image { width: (parent.width - wordmark.width)*519/951; height: parent.height; source: "reference_art/left.webp" }
-                Image { id: wordmark; objectName: "command_logo"; width: Math.min(parent.width, parent.height*583/198); height: parent.height; source: "reference_art/wordmark.webp" }
-                Image { width: parent.width - wordmark.width - (parent.width-wordmark.width)*519/951; height: parent.height; source: "reference_art/right.webp" }
+                anchors.centerIn:parent
+                readonly property real artScale: Math.min(parent.width/1534, parent.height/198)
+                height:198*artScale
+                Image { width:519*parent.artScale; height:parent.height; source:"reference_art/left.webp" }
+                Image { objectName:"command_logo"; width:583*parent.artScale; height:parent.height; source:"reference_art/wordmark.webp" }
+                Image { width:432*parent.artScale; height:parent.height; source:"reference_art/right.webp" }
             }
         }
         MetalPanel {
@@ -185,14 +207,14 @@ ApplicationWindow {
                 spacing: window.compact ? 8 : Math.min(22,window.height*.027)
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F8"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f8?"Выключен":prototype.logReady?"Ожидание сообщений":"Журнал не выбран") : ""; heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
+                    keyName: "F8"; live: prototype.translationAvailable; liveStatus: live ? prototype.f8Status : ""; onConfigure: hudEditor.edit(true); heading: (prototype.uiLanguage, prototype.trText("Входящий перевод")); description: prototype.translationAvailable ? (prototype.uiLanguage, prototype.trText("Чат → ")) + prototype.targetLanguage : (prototype.uiLanguage, prototype.trText("Чат → русский"))
                     active: prototype.f8; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "reference_art/f8_plate.webp"
                     onToggled: prototype.toggle("f8")
                 }
                 TranslationCard {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? window.tr(!prototype.f9?"Выключен":prototype.gamePrivilegeMismatch?"Несовпадение прав":prototype.gameHotkeysReady?"Ожидание игровой клавиши":"Ручной режим") : ""; onManual: window.activePage = "outgoing"; heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
+                    keyName: "F9"; live: prototype.translationAvailable; liveStatus: live ? prototype.f9Status : ""; onConfigure: hudEditor.edit(false); heading: (prototype.uiLanguage, prototype.trText("Исходящий перевод")); description: prototype.translationAvailable ? prototype.outgoingSource.toUpperCase() + " → " + prototype.outgoingTarget.toUpperCase() : (prototype.uiLanguage, prototype.trText("Русский → English"))
                     active: prototype.f9; compact: window.compact; controlsEnabled: prototype.demo || prototype.translationAvailable
                     artwork: "reference_art/f9_plate.webp"
                     onToggled: prototype.toggle("f9")
@@ -243,7 +265,7 @@ ApplicationWindow {
             Layout.margins: window.shortWindow ? 7 : 12
             sourceComponent: window.activePage === "servers" ? serverPage : ["profiles","knowledge","notifications","about","stats","overlay"].indexOf(window.activePage) >= 0 ? operationsPage : translationPage
             Component { id: serverPage; ServerWorkspace { onAddRequested: addDialog.open();onOpenFriends:friendsPanel.open() } }
-            Component { id: translationPage; TranslationWorkspace { page: window.activePage; onNavigate: page => window.activePage = page } }
+            Component { id: translationPage; TranslationWorkspace { onConfigureHud: hudEditor.edit(false); page: window.activePage; onNavigate: page => window.activePage = page } }
             Component { id: operationsPage; OperationsWorkspace { page: window.activePage; onBack:window.activePage="settings" } }
         }
         MetalPanel {
@@ -251,7 +273,7 @@ ApplicationWindow {
 
             visible:window.activePage==="home" || !window.shortWindow
             Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 48 : window.laptop ? 59 : Math.min(94,window.height*.113); Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
-            Layout.leftMargin: window.compact ? 12 : window.width*.187; Layout.rightMargin: 15; Layout.bottomMargin: window.compact || window.laptop ? 6 : Math.min(24,window.height*.029)
+            Layout.leftMargin: window.compact ? 12 : window.width*.187; Layout.rightMargin: 15; Layout.bottomMargin: window.compact || window.laptop ? 9 : Math.min(24,window.height*.029)
             RowLayout {
                 anchors.fill: parent; anchors.margins: window.shortWindow || window.laptop ? 6 : 16; anchors.leftMargin: window.compact ? 8 : 38; anchors.rightMargin: window.compact ? 8 : 24; spacing: window.compact ? 6 : 12
                 OverlayControl { Layout.fillWidth: true; onConfigure: window.activePage = "overlay"; active: prototype.overlay; controlsEnabled: prototype.demo || prototype.overlayAvailable; onToggled: prototype.toggle("overlay") }

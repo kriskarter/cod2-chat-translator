@@ -13,7 +13,9 @@ MetalPanel {
  property url artwork
  property bool live:false
  property string liveStatus:""
- signal manual()
+ signal configure()
+ property bool needsAction: ["Несовпадение прав","Журнал не выбран","HUD скрыт"].indexOf(liveStatus)>=0
+ property color statusColor: !active ? "#bcb09a" : liveStatus==="Ошибка" ? "#ee957d" : needsAction ? "#f0c076" : "#b0db84"
  signal toggled()
  clip:true
  artBorder:false
@@ -38,7 +40,7 @@ MetalPanel {
     text:root.heading;color:"#fff0d1";font.pixelSize:root.compact?14:Math.min(28,root.width*.043);font.bold:true;font.letterSpacing:-.35;fontSizeMode:Text.Fit;minimumPixelSize:root.compact?12:18;elide:Text.ElideRight
     Layout.fillWidth:true;Layout.minimumWidth:0
    }
-   TacticalSwitch { objectName:root.keyName.toLowerCase()+"Switch"; cardStyle:true;Layout.preferredWidth:root.compact?67:Math.min(124,root.width*.19);Layout.minimumWidth:Layout.preferredWidth;Layout.maximumWidth:Layout.preferredWidth;Layout.preferredHeight:root.compact?25:34;checked:root.active;enabled:root.controlsEnabled;Accessible.name:root.heading;onClicked:root.toggled() }
+   TacticalSwitch { objectName:root.keyName.toLowerCase()+"Switch"; cardStyle:true; attention:root.needsAction || root.liveStatus==="Ошибка";Layout.preferredWidth:root.compact?67:Math.min(124,root.width*.19);Layout.minimumWidth:Layout.preferredWidth;Layout.maximumWidth:Layout.preferredWidth;Layout.preferredHeight:root.compact?25:34;checked:root.active;enabled:root.controlsEnabled;Accessible.name:root.heading;onClicked:root.toggled() }
   }
   Text {visible:!root.compact && root.height>=116;text: {
     let locale = prototype.uiLanguage
@@ -74,9 +76,18 @@ MetalPanel {
   RowLayout {
    visible:root.live
    Layout.fillWidth:true;spacing:5
-   Rectangle {width:7;height:7;radius:4;color:root.active?"#b0db84":"#847c6d"}
-   Text {text:root.liveStatus.length>0?root.liveStatus:!root.controlsEnabled?(prototype.uiLanguage,prototype.trText("Не перенесён")):root.active?(prototype.uiLanguage,prototype.trText("Активен")):(prototype.uiLanguage,prototype.trText("Выключен"));color:root.active?"#b0db84":"#bcb09a";font.pixelSize:root.compact?11:12;elide:Text.ElideRight;Layout.minimumWidth:0;Layout.fillWidth:true}
-   MetalButton {objectName:root.keyName==="F9"?"manual_outgoing":"unused_manual";visible:root.live&&root.keyName==="F9";text:(prototype.uiLanguage,prototype.trText("Ручной перевод"));font.pixelSize:11;sizeClass:"compact";Layout.minimumWidth:0;Layout.preferredWidth:Math.min(implicitWidth,body.width*.65);onClicked:root.manual()}
+   Rectangle {width:7;height:7;radius:4;color:root.statusColor}
+   Text {
+    text: (prototype.uiLanguage,prototype.trText(root.liveStatus)); color:root.statusColor
+    font.pixelSize:root.compact?11:12; elide:Text.ElideRight; Layout.minimumWidth:0; Layout.fillWidth:true
+    TapHandler { enabled:root.liveStatus==="Несовпадение прав"; onTapped:prototype.restartElevated() }
+   }
+   MetalButton {
+    objectName:root.keyName.toLowerCase()+"HudButton"; glyph:"icons/settings.svg"
+    text:(prototype.uiLanguage,prototype.trText("Окно"))+" "+root.keyName
+    font.pixelSize:11;sizeClass:"compact";Layout.preferredWidth:Math.min(106,body.width*.58)
+    onClicked:root.configure()
+   }
   }
  }
 }

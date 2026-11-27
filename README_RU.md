@@ -1,5 +1,7 @@
 # COD 2 Chat Translator
 
+[Установка и игровые клавиши в Qt 1.22 RC](docs/QT_PLAYER_GUIDE.md)
+
 <p align="center">
   <img src="docs/images/logo.webp" width="220" alt="COD 2 Chat Translator">
 </p>

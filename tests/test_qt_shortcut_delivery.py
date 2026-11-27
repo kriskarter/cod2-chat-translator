@@ -18,7 +18,7 @@ def test_registered_callback_delivers_scoped_shortcuts_and_no_plain_keys():
         _fields_ = [(n,wintypes.DWORD) for n in ("vk","scan","flags","stamp")]+[("extra",ctypes.c_size_t)]
 
     focused = [False]
-    state = SimpleNamespace(f9=True, game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock(),
+    state = SimpleNamespace(record_sent=Mock(), show_f8_notice=Mock(), translationChanged=Mock(), f9=True, game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock(),
                             position_outgoing_hud=Mock())
     game = GameControls(state, {}, "ru","en",foreground=lambda:focused[0],
                         hud_factory=lambda cfg,orig:NativeHud(cfg,orig,factory=Mock))
@@ -38,7 +38,7 @@ def test_registered_callback_delivers_scoped_shortcuts_and_no_plain_keys():
         focused[0]=True
         for vk in (0x77,0x79,0x78): press(vk)
         game.tick()
-        state.toggle.assert_called_once_with("overlay")
+        state.toggle.assert_called_once_with("f8")
         state.capture_game_screenshot.assert_called_once()
         assert game.active and game.last_shortcut=="F9"
         recorded=[kb.shortcut_trace.get_nowait()[1:4] for _ in range(4)]

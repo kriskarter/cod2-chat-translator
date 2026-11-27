@@ -34,7 +34,7 @@ def wait(game, predicate):
 
 def test_game_actions_and_cancel_stale_result():
     focused = [False]
-    state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
+    state = SimpleNamespace(record_sent=Mock(), show_f8_notice=Mock(), translationChanged=Mock(), f9=True, _f8_settings=("ru", True, True, "live", True, True),
                             position_outgoing_hud=Mock(), game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
     surface = Mock()
     sender = Mock(return_value=(True, ""))
@@ -52,7 +52,7 @@ def test_game_actions_and_cancel_stale_result():
         game.events.put(("toggle_popup", None))
         game.events.put(("text", "прикрой меня"))
         game.tick()
-        state.toggle.assert_called_once_with("overlay")
+        state.toggle.assert_called_once_with("f8")
         state.capture_game_screenshot.assert_called_once()
         assert game.active and game.keyboard.active
         game.events.put(("submit", None))
@@ -93,7 +93,7 @@ def test_native_keyboard_hook_starts_and_stops():
 
 
 def test_live_preview_never_sends_until_enter():
-    state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
+    state = SimpleNamespace(record_sent=Mock(), show_f8_notice=Mock(), translationChanged=Mock(), f9=True, _f8_settings=("ru", True, True, "live", True, True),
                             position_outgoing_hud=Mock(), game_status=Mock(), toggle=Mock(), capture_game_screenshot=Mock())
     surface = Mock()
     sender = Mock(return_value=(True, ""))
@@ -142,7 +142,7 @@ def test_screenshot_discards_capture_when_window_changes(monkeypatch,tmp_path):
 
 
 def test_failed_send_restores_draft_and_requires_new_submit():
-    state = SimpleNamespace(f9=True, _f8_settings=("ru", True, True, "live", True, True),
+    state = SimpleNamespace(record_sent=Mock(), show_f8_notice=Mock(), translationChanged=Mock(), f9=True, _f8_settings=("ru", True, True, "live", True, True),
                             position_outgoing_hud=Mock(), game_status=Mock())
     sender = Mock(side_effect=[(False,"send failed"),(True,"")])
     game = GameControls(state, {}, "ru", "en", foreground=lambda: True,

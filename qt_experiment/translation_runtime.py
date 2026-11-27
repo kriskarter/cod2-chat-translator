@@ -59,6 +59,10 @@ class TranslationState(LiveMonitorState):
         self._outgoing_hud_config = outgoing_config(config.get("outgoing_hud"))
         self._last_outgoing_rect = None
         self._privilege_mismatch = False
+        self._auto_prompted = False
+        self._always_admin = config.get("qt_always_admin") is True
+        self._history_enabled = config.get("qt_history_enabled", True)
+        self._hint_dismissed = bool(config.get("qt_hint_dismissed", False))
         self._game_running = False
         self._privilege_timer = QTimer(self)
         self._privilege_timer.setInterval(2500)
@@ -117,6 +121,7 @@ class TranslationState(LiveMonitorState):
         self.duplicate_filter = RecentDuplicateFilter(float(config.get("duplicate_window_seconds", 4)))
         self._arrival_context = deque(maxlen=24)
         self._chat_epoch = 0
+        self._shortcut_notice = NativeHud(dict(config.get("overlay", {}), message_ttl_seconds=2, max_messages=1, background_only_with_messages=True))
         self._hud = NativeHud(config.get("overlay", {}), config.get("show_original", False))
         self._overlay_on_start = bool(config.get("qt_overlay_enabled", True))
         self._notifier = None
@@ -190,6 +195,12 @@ class TranslationState(LiveMonitorState):
         finally:
             self._screenshot_in_progress = False
 
+    def show_f8_notice(self):
+        notice = self._shortcut_notice
+        notice.config.update(x=self._hud.config.get("x",8), y=self._hud.config.get("y",360))
+        if notice.enable(True):
+            notice.add("F8", "", self.trText("Входящий перевод включён" if self._f8 else "Входящий перевод выключен"))
+
     def game_status(self, text):
         self._translation_status = self.trText(text)
         self.translationChanged.emit()
@@ -219,7 +230,8 @@ class TranslationState(LiveMonitorState):
             return
         config = dict(self._config)
         config.update(target_language=self._target, smart_engine_enabled=self._smart,
-                      qt_f8_enabled=self._f8, qt_overlay_enabled=self._overlay, outgoing_enabled=self._f9,
+                      qt_f8_enabled=self._f8, qt_overlay_enabled=self._overlay_on_start,
+                      qt_always_admin=self._always_admin, qt_history_enabled=self._history_enabled, qt_hint_dismissed=self._hint_dismissed, outgoing_enabled=self._f9,
                       outgoing_source_language=self._out_source, outgoing_target_language=self._out_target,
                       log_path=str(self._log_path or ""), active_profile_path=str(self._log_path or ""),
                       server_monitor=dump_qt_monitor_settings(self._settings), ui_language=self.ui_language,
@@ -559,7 +571,7 @@ class TranslationState(LiveMonitorState):
             if self._notifier:
                 self._notifier.close()
             self._notifier = WindowTray(window, self.trText)
-            if self._overlay_on_start:
+            if self._overlay_on_start and self._f8:
                 self._overlay = self._hud.enable(True)
                 self.changed.emit()
                 self.translationChanged.emit()
@@ -660,6 +672,11 @@ class TranslationState(LiveMonitorState):
         from .preview_updates import installed_build
         return installed_build().get("tag","source")
 
+    @Property(str, constant=True)
+    def buildSha(self):
+        from .preview_updates import installed_build
+        return installed_build().get("sha","")
+
     @Slot()
     def openUpdate(self):
         if self._update_url:
@@ -756,6 +773,33 @@ class TranslationState(LiveMonitorState):
         self._outgoing_result = ""
         self.translationChanged.emit()
 
+    @Slot(str, result=str)
+    def shortcutStatus(self, key):
+        incoming = key == "F8"
+        if not (self._f8 if incoming else self._f9):
+            return "Выключен"
+        if self._privilege_mismatch:
+            return "Несовпадение прав"
+        game = self._game
+        if game and game.hook_error or (incoming and self._hud.last_error) or (not incoming and game and game.hud.last_error):
+            return "Ошибка"
+        if incoming:
+            if not self.logReady: return "Журнал не выбран"
+            if not self._overlay: return "HUD скрыт"
+            return "Ожидание сообщений"
+        if game:
+            if game.sending: return "Отправка"
+            if game.pending or game.preview_inflight: return "Перевод…"
+            if game.active: return "Окно открыто"
+            if game.ready: return "Ожидание игровой клавиши"
+        return "Ручной режим"
+
+    @Property(str, notify=translationChanged)
+    def f8Status(self): return self.shortcutStatus("F8")
+
+    @Property(str, notify=translationChanged)
+    def f9Status(self): return self.shortcutStatus("F9")
+
     @Property(bool, notify=translationChanged)
     def gameHotkeysReady(self): return bool(self._game and self._game.ready)
 
@@ -808,10 +852,38 @@ class TranslationState(LiveMonitorState):
         ratio = screen.devicePixelRatio()
         return {"width":round(rect.width()*ratio), "height":round(rect.height()*ratio)}
 
+    @Slot(result="QVariantMap")
+    def incomingDesktop(self):
+        return dict(zip(("x","y","width","height"), self._hud_screen_rect()))
+
+    @Slot(bool, result="QVariantMap")
+    def incomingHudSettings(self, defaults):
+        cfg = DEFAULT_CONFIG["overlay"] if defaults else self._hud.config
+        return {key:cfg.get(key, value) for key,value in dict(x=8,y=360,width=500,height=150,
+                font_size=10,background_opacity=.15,auto_height=True).items()}
+
+    @Slot("QVariantMap", result=bool)
+    def applyIncomingHud(self, values):
+        old = self._hud.config.copy()
+        self._hud.config.update({key:values[key] for key in self.incomingHudSettings(False) if key in values})
+        if self._store and not self.saveSettings():
+            self._hud.config = old
+            return False
+        self._hud._render()
+        self.translationChanged.emit()
+        return True
+
+    @Slot("QVariantMap", result=str)
+    def incomingHudPreview(self, values):
+        from app import OverlayItem
+        from incoming_hud_image import build_image
+        cfg = dict(self._hud.config, **values)
+        item = OverlayItem("Medic", "Cover me", self.trText("Прикрой меня"), 0)
+        image, _, _, _ = build_image([item], cfg, self._hud.show_original)
+        return self._preview_url(image)
+
     @Slot("QVariantMap", result=str)
     def outgoingHudPreview(self, values):
-        import base64
-        from io import BytesIO
         screen = self.outgoingScreenSize()
         cfg = positioned(dict(values), (0,0,screen["width"],screen["height"]))
         cfg.update(route=self._out_source.upper()+" → "+self._out_target.upper(),
@@ -819,6 +891,12 @@ class TranslationState(LiveMonitorState):
                                   "input":self.trText("Ввод"), "translation":self.trText("Перевод")})
         image = render_editor(self.trText("Привет, давно не виделись!"), "Hey, long time no see!",
                               self.trText("Enter — отправить · Esc — отменить"), cfg)
+        return self._preview_url(image)
+
+    @staticmethod
+    def _preview_url(image):
+        import base64
+        from io import BytesIO
         data = BytesIO()
         image.save(data, format="PNG")
         return "data:image/png;base64," + base64.b64encode(data.getvalue()).decode("ascii")
@@ -850,9 +928,41 @@ class TranslationState(LiveMonitorState):
             self._game_running, self._privilege_mismatch = running, mismatch
             self.translationChanged.emit()
 
+        if not mismatch and not self._always_admin:
+            self._auto_prompted = False
+        elif not self._auto_prompted and self._store:
+            self._auto_prompted = True
+            if mismatch or self._needs_preferred_elevation():
+                # Run after QApplication.exec begins, including at first startup.
+                QTimer.singleShot(0, self.restartElevated)
+
+    def _needs_preferred_elevation(self):
+        from .shortcut_diagnostics import elevated
+        return os.name == "nt" and elevated(os.getpid()) == "False"
+
+    @Property(bool, notify=translationChanged)
+    def alwaysAdmin(self): return self._always_admin
+
+    @Slot(bool)
+    def setAlwaysAdmin(self, value):
+        previous = self._always_admin
+        self._always_admin = value
+        if self._store and not self.saveSettings():
+            self._always_admin = previous
+        self.translationChanged.emit()
+
+    @Property(bool, notify=translationChanged)
+    def showShortcutHint(self): return self._store is not None and not self._hint_dismissed
+
+    @Slot()
+    def dismissShortcutHint(self):
+        self._hint_dismissed = True
+        self.saveSettings()
+        self.translationChanged.emit()
+
     @Slot()
     def restartElevated(self):
-        if not self._privilege_mismatch or self._store is None or not self.saveSettings():
+        if not (self._privilege_mismatch or self._always_admin) or self._store is None or not self.saveSettings():
             return
         from .windows_privileges import restart_elevated
         ok, error = restart_elevated()
@@ -861,7 +971,7 @@ class TranslationState(LiveMonitorState):
             QCoreApplication.quit()
         else:
             self.game_status("Повышение прав отменено или не удалось")
-            self.feedback.emit("outgoing", self.translationStatus, True)
+            self.feedback.emit("", self.translationStatus, True)
 
     @Property(bool, constant=True)
     def gameHotkeysEnabled(self): return self._game is not None
@@ -893,14 +1003,39 @@ class TranslationState(LiveMonitorState):
     @Property('QVariantList', notify=translationChanged)
     def history(self): return list(self._history)
 
+    @Property(bool, notify=translationChanged)
+    def historyEnabled(self): return self._history_enabled
+
+    @Slot(bool)
+    def setHistoryEnabled(self, enabled):
+        self._history_enabled = enabled
+        if self._store: self.saveSettings()
+        self.translationChanged.emit()
+
+    @Slot(str)
+    def copyMessage(self, text):
+        from PySide6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().setText(text)
+
+    def record_sent(self, original, translated):
+        if self._history_enabled:
+            self._history.appendleft(dict(nickname=self.trText("Вы"), original=original, translated=translated,
+                                          direction="out", received=time.strftime("%H:%M:%S"), outcome="sent"))
+            self.translationChanged.emit()
+
     @Slot(str, result=bool)
     def exportHistory(self, filename):
         # No automatic recording or upload. Explicit new-file export only.
         try:
             path = Path(filename).expanduser()
-            if path.suffix.casefold() != ".json": path = path.with_suffix(".json")
+            if path.suffix.casefold() not in (".txt", ".json"): path = path.with_suffix(".txt")
             with path.open("x",encoding="utf-8") as stream:
-                json.dump({"version":1,"received_time_basis":"local","messages":list(self._history)},stream,ensure_ascii=False,indent=2)
+                if path.suffix.lower() == ".txt":
+                    for row in reversed(self._history):
+                        arrow = "↑" if row.get("direction") == "out" else "↓"
+                        stream.write(f"{row['received']} {arrow} {row['nickname']}\n{row['original']}\n{row['translated']}\n\n")
+                else:
+                    json.dump({"version":1,"received_time_basis":"local","messages":list(self._history)},stream,ensure_ascii=False,indent=2)
             self.game_status(self.trText("Экспорт сохранён") + ": " + str(path))
             self.feedback.emit("history", self.translationStatus, False)
             return True
@@ -946,6 +1081,7 @@ class TranslationState(LiveMonitorState):
         self.stop_event.set()
         self._dispatcher.close()
         if self._game: self._game.close()
+        self._shortcut_notice.close()
         self._hud.close()
         if self._notifier: self._notifier.close()
         if self._experience:
@@ -979,6 +1115,8 @@ class TranslationState(LiveMonitorState):
     def toggle(self, key):
         if key == "f8":
             self._f8 = self.enabled = not self._f8
+            self._overlay_on_start = self._f8
+            self._overlay = self._hud.enable(self._f8)
             self._on_log_control("map_change", "f8_toggle")
             self._translation_status = self.trText("Входящий перевод включён" if self._f8 else "Входящий перевод выключен")
         elif key == "f9":
@@ -996,7 +1134,11 @@ class TranslationState(LiveMonitorState):
             self._outgoing_busy = False
             self._outgoing_result = ""
         elif key == "overlay":
-            self._overlay = self._hud.enable(not self._overlay)
+            self._overlay_on_start = not self._overlay
+            if self._overlay_on_start and not self._f8:
+                self.toggle("f8")
+                return
+            self._overlay = self._hud.enable(self._overlay_on_start)
             if self._hud.last_error:
                 self._translation_status = "HUD: " + self._hud.last_error
         else:
@@ -1035,6 +1177,7 @@ class TranslationState(LiveMonitorState):
         if self.stop_event.is_set():
             return
         changed = False
+        self._shortcut_notice.tick()
         self._hud.tick()
         if self._game: self._game.tick()
         for _ in range(100):
@@ -1129,7 +1272,8 @@ class TranslationState(LiveMonitorState):
             translated = event[2] if kind == "translation" else ""
             if kind == "translation":
                 self._hud.add(msg.nickname, msg.text, translated)
-            self._history.appendleft(dict(nickname=msg.nickname, original=msg.text, received=time.strftime("%H:%M:%S"),
+            if self._history_enabled:
+                self._history.appendleft(dict(direction="in", nickname=msg.nickname, original=msg.text, received=time.strftime("%H:%M:%S"),
                                           translated=translated, outcome=kind,
                                           elapsed=event[3] if kind == "translation" else 0))
             self._translation_status = self.t("translation_done").format(elapsed_ms=event[3]) if kind == "translation" else self.t("translation_service_busy") if kind == "translation_service_busy" else self.t("translation_unavailable").format(error=event[2])

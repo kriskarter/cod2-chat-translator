@@ -89,6 +89,8 @@ def test_translation_full_log_to_qml_and_manual_outgoing(tmp_path):
                 assert window.grabWindow().save(str(Path(capture) / "translation_settings.png"))
             click(window, "nav_home")
             assert wait(app, lambda: window.property("activePage") == "home")
+            click(window, "nav_settings")
+            assert wait(app, lambda: window.property("activePage") == "settings")
             click(window, "manual_outgoing")
             assert wait(app, lambda: window.property("activePage") == "outgoing")
             state.submitOutgoing("ща зайду сзади", "ru", "en")

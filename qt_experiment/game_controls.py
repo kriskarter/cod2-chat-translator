@@ -50,6 +50,7 @@ class GameControls:
         self.ready = False
         self.hook_error = ""
         self.last_shortcut = ""
+        self._last_f8_edge = None
         self.buffer = ""
         self.failed_draft = ""
         self.send_draft = ""
@@ -177,6 +178,7 @@ class GameControls:
         if not self.active or not self._focused() or not self.state.f9:
             self.cancel("F9: фокус CoD2 потерян")
             return
+        self.send_translation = result
         self.send_draft = self.buffer
         self.cancel()
         self.sending = True
@@ -197,6 +199,7 @@ class GameControls:
     def tick(self):
         if self.closed.is_set():
             return
+        previous = (self.active, self.sending, self.pending, self.preview_inflight)
         self.keyboard.set_enabled(self.state.f9)
         if self.active and (not self._focused() or not self.state.f9 or not self.keyboard.active):
             self.cancel("F9: ввод отменён")
@@ -236,7 +239,7 @@ class GameControls:
                     self.rearming = True
                     diag.write("F9 hook_rearm")
                     continue
-                event, value = key, "poll"
+                event, value = key, ("poll", sampled_at) if key == "f8" else "poll"
             if diag:
                 if event == "shortcut_hook":
                     vk, injected, accepted, enabled = value
@@ -260,8 +263,16 @@ class GameControls:
                 self.hook_error = str(value)
                 self.cancel(self.hook_error)
             elif event == "f8" and self._focused():
+                source, stamp = value if isinstance(value, tuple) else ("hook", value or time.monotonic())
+                previous_edge = self._last_f8_edge
+                if previous_edge and previous_edge[0] != source and abs(stamp-previous_edge[1]) < .12:
+                    # Poll may see the down edge before the hook callback reaches Qt.
+                    self._last_f8_edge = None
+                    continue
+                self._last_f8_edge = source, stamp
                 self.last_shortcut = "F8"
-                self.state.toggle("overlay")
+                self.state.toggle("f8")
+                self.state.show_f8_notice()
                 if diag: diag.write("F8 overlay_enabled=%s", self.state.overlay)
             elif event == "screenshot" and self._focused():
                 self.last_shortcut = "F10"
@@ -305,6 +316,8 @@ class GameControls:
                         self.open()
                         if self.active:
                             self._display("Ошибка отправки · повторите Enter")
+                if ok:
+                    self.state.record_sent(self.send_draft, self.send_translation)
                 self.send_draft = ""
                 self.state.game_status("F9: отправлено" if ok else "F9: " + error)
             elif self.active and not self.pending:
@@ -319,3 +332,5 @@ class GameControls:
                 self._edit()
         if self.active and not self.pending and self.preview_due is not None and time.monotonic() >= self.preview_due:
             self._request_preview()
+        if previous != (self.active, self.sending, self.pending, self.preview_inflight):
+            self.state.translationChanged.emit()

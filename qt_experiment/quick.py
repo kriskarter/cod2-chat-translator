@@ -94,6 +94,8 @@ def main():
         return 1
     if not state.demo and state.translationAvailable and "--screenshot" not in sys.argv:
         state.attach_window(engine.rootObjects()[0])
+        if state.showShortcutHint and "--verify-game-hotkeys" not in sys.argv:
+            engine.rootObjects()[0].showFirstRunHint()
         if instance:
             instance.bind(engine.rootObjects()[0])
         if sys.platform == "win32":
@@ -149,7 +151,7 @@ def main():
             from PySide6.QtTest import QTest
             QTest.qWait(60)
             name = sys.argv[sys.argv.index("--dialog")+1]
-            if name not in ("add_server_dialog","server_remove_dialog","history_clear_dialog","knowledge_clear_dialog","game_logging_dialog","friends_panel","update_install_dialog","outgoing_hud_dialog"):
+            if name not in ("add_server_dialog","server_remove_dialog","history_clear_dialog","knowledge_clear_dialog","game_logging_dialog","friends_panel","update_install_dialog","outgoing_hud_dialog","incoming_hud_dialog"):
                 if not state.demo: state.stop()
                 del engine
                 return 3

@@ -3,12 +3,13 @@ import QtQuick.Controls
 
 Switch {
     id: root
+    property bool attention:false
     property bool cardStyle: false
     implicitWidth: cardStyle ? 124 : 76; implicitHeight: cardStyle ? 38 : 31
     padding: 0; hoverEnabled: true
     focusPolicy: Qt.StrongFocus
     readonly property string stateText: (prototype.uiLanguage, prototype.trText(
-        cardStyle ? (checked ? "Активен" : "Выключен") : (checked ? "Вкл" : "Выкл")))
+        cardStyle ? (checked ? "Вкл" : "Выключен") : (checked ? "Вкл" : "Выкл")))
     indicator: Item {
         anchors.centerIn: parent
         width: parent.width; height: Math.min(parent.height,root.cardStyle ? 38 : 29)
@@ -27,13 +28,13 @@ Switch {
         Row {
             anchors.centerIn: parent; spacing: root.cardStyle ? 6 : 4
             Image {
-                visible: root.cardStyle && root.checked
+                visible: root.cardStyle && root.checked && !root.attention
                 source: "reference_art/check.png"
                 width: root.height*.66; height: width
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
-                text: root.stateText; color: root.checked ? "#d7e7a8" : "#d0c9b6"
+                text: root.stateText; color: root.attention ? "#e7be77" : root.checked ? "#d7e7a8" : "#d0c9b6"
                 font.pixelSize: root.cardStyle ? Math.max(10,Math.min(16,root.width*.132)) : 12
                 font.bold: true; anchors.verticalCenter: parent.verticalCenter
             }

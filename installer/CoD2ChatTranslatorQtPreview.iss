@@ -20,6 +20,10 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+DisableWelcomePage=no
+DisableDirPage=no
+WizardImageFile=qt-wizard\welcome1.bmp,qt-wizard\welcome2.bmp
+WizardSmallImageFile=qt-wizard\icon1.bmp,qt-wizard\icon2.bmp
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 [Languages]
@@ -35,10 +39,54 @@ Source: "..\docs\qt_licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "..\qt_dependency_inventory.txt"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Check: WantsDesktop
+[UninstallDelete]
+Type: files; Name: "{autodesktop}\{#MyAppName}.lnk"
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [Code]
+var DesktopChoice: TNewCheckBox;
+
+function WantsDesktop: Boolean;
+var Saved: Cardinal;
+begin
+  Result := True;
+  if RegQueryDWordValue(HKCU, 'Software\kriskarter\CoD2ChatTranslatorQtPreview', 'DesktopShortcut', Saved) then
+    Result := Saved <> 0;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = wpFinished then
+  begin
+    DesktopChoice := TNewCheckBox.Create(WizardForm);
+    DesktopChoice.Parent := WizardForm.FinishedPage;
+    DesktopChoice.Caption := ExpandConstant('{cm:CreateDesktopIcon}');
+    DesktopChoice.Left := WizardForm.RunList.Left;
+    DesktopChoice.Top := WizardForm.RunList.Top;
+    DesktopChoice.Width := WizardForm.RunList.Width;
+    DesktopChoice.Height := ScaleY(22);
+    DesktopChoice.Checked := WantsDesktop;
+    WizardForm.RunList.Height := WizardForm.RunList.Height - DesktopChoice.Height;
+    WizardForm.RunList.Top := DesktopChoice.Top + DesktopChoice.Height;
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var Link: String;
+begin
+  Result := True;
+  if (CurPageID = wpFinished) and Assigned(DesktopChoice) then
+  begin
+    Link := ExpandConstant('{autodesktop}\{#MyAppName}.lnk');
+    if DesktopChoice.Checked then
+      CreateShellLink(Link, '{#MyAppName}', ExpandConstant('{app}\{#MyAppExeName}'), '', ExpandConstant('{app}'), '', 0, SW_SHOWNORMAL)
+    else if FileExists(Link) then DeleteFile(Link);
+    RegWriteDWordValue(HKCU, 'Software\kriskarter\CoD2ChatTranslatorQtPreview', 'DesktopShortcut', Ord(DesktopChoice.Checked));
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   SettingsDir, LangFile, LangCode: String;

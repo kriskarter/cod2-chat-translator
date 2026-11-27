@@ -11,10 +11,10 @@ import re
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-DEFAULTS = dict(x=24, y=440, width=720, height=200, font_size=14,
-                background_opacity=.82, auto_height=True)
-LIMITS = dict(x=(0, 10000), y=(0, 10000), width=(300, 1600),
-              height=(145, 1200), font_size=(9, 28),
+DEFAULTS = dict(x=24, y=440, width=400, height=80, font_size=14,
+                background_opacity=.82, auto_height=True, mode="compact")
+LIMITS = dict(x=(0, 10000), y=(0, 10000), width=(200, 1600),
+              height=(60, 1200), font_size=(9, 28),
               background_opacity=(.35, .95))
 
 
@@ -31,6 +31,11 @@ def outgoing_config(raw=None):
         except (ValueError, TypeError, OverflowError):
             pass
     cfg["auto_height"] = raw.get("auto_height", True) is not False
+    # A saved editor without a mode uses the original expanded layout.
+    mode = raw.get("mode", "expanded" if "height" in raw and "width" in raw else "compact")
+    cfg["mode"] = "expanded" if mode == "expanded" else "compact"
+    minimum = 145 if cfg["mode"] == "expanded" else max(60, 3*(cfg["font_size"]+3)+8)
+    cfg["height"] = max(minimum, cfg["height"])
     return cfg
 
 
@@ -108,6 +113,33 @@ def render_editor(original, translated, status, cfg):
     usable = max(1, w-2*margin)
     draw = ImageDraw.Draw(Image.new("RGBA", (1,1)))
     labels = cfg.get("editor_labels", {})
+    if cfg.get("mode") == "compact":
+        size = int(cfg["font_size"])
+        face, small = font(size), font(max(9, size-2), True)
+        margin, line_h = 4, size + 3
+        width = w - 2*margin
+        original_lines = wrap(draw, original or "…", face, width)
+        translated_lines = wrap(draw, translated or "…", face, width)
+        desired = 2*margin + line_h*(1+len(original_lines)+len(translated_lines))
+        height = min(max_h, max(h, desired))
+        slots = max(2, (height-2*margin)//line_h - 1)
+        input_count = min(len(original_lines), max(slots-len(translated_lines), (slots+1)//2))
+        output_count = max(1, slots-input_count)
+        image = Image.new("RGBA", (w,height), (17,22,25,round(cfg["background_opacity"]*255)))
+        d = ImageDraw.Draw(image)
+        d.rectangle((0,0,w-1,height-1), outline="#9b7441")
+        header = "F9 · " + cfg.get("route","")
+        d.text((margin,margin), header, font=small, fill="#e5bd79")
+        hint = "Enter / Esc" if not status or status.startswith("Enter") else status
+        available = width - d.textlength(header,font=small) - margin
+        hint = wrap(d,hint,small,max(1,available))[0]
+        d.text((w-margin,margin),hint,font=small,fill="#d4bf9f",anchor="rt")
+        y = margin + line_h
+        for lines, count, color in ((original_lines,input_count,"#f7ebd5"), (translated_lines,output_count,"#d3e7b5")):
+            for line in lines[-count:]:
+                d.text((margin,y),line,font=face,fill=color)
+                y += line_h
+        return image
     title = labels.get("title", "F9 · Исходящий перевод") + "   " + cfg.get("route", "")
     input_label = labels.get("input", "Ввод")
     output_label = labels.get("translation", "Перевод")

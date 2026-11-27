@@ -12,7 +12,7 @@ def test_geometry_independent_and_monitor_relative():
     assert actual["font_size"] == 20
     assert actual["background_opacity"] == .6
     assert cfg["x"] == 9000
-    assert outgoing_config({"width": "nan", "height": -1})["width"] == 720
+    assert outgoing_config({"width": "nan", "height": -1})["width"] == 400
 
 
 def test_real_shared_renderer_and_auto_height():

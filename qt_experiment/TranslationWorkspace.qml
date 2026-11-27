@@ -7,15 +7,16 @@ MetalPanel {
     id: root
     function showEvidenceDialog(name) {
         if (name==="history_clear_dialog") historyClear.open()
-        else if (name==="outgoing_hud_dialog") outgoingSettings.open()
+        else if (name==="outgoing_hud_dialog") root.configureHud()
     }
     objectName:"translation_workspace"; clip:true
     property string page: "history"
     signal navigate(string page)
+    signal configureHud()
     property string uiLocale: prototype.uiLanguage
     function tr(s) { let l = uiLocale; return prototype.trText(s) }
     FileDialog {
-        id:historyExport;fileMode:FileDialog.SaveFile;nameFilters:["JSON (*.json)"];defaultSuffix:"json"
+        id:historyExport;fileMode:FileDialog.SaveFile;nameFilters:["TXT (*.txt)", "JSON (*.json)"];defaultSuffix:selectedNameFilter.index === 1 ? "json" : "txt"
         onAccepted:{let path=decodeURIComponent(selectedFile.toString().replace(/^file:\/\//,""));if(Qt.platform.os==="windows"&&path.startsWith("/"))path=path.substring(1);prototype.exportHistory(path)}
     }
     MetalDialog {
@@ -29,132 +30,19 @@ MetalPanel {
         Text { width: 340; wrapMode: Text.WordWrap; color: "#f5e7c9"; text: root.tr("Настройки сохранятся. Windows запросит подтверждение UAC.") }
         onAccepted: prototype.restartElevated()
     }
-    MetalDialog {
-        id: outgoingSettings; objectName: "outgoing_hud_dialog"
-        title: root.tr("Настройки игрового окна F9")
-        anchors.centerIn: parent; standardButtons: Dialog.NoButton
-        width: Math.min(620, root.width - 24)
-        height: Math.min(560, root.height + 145)
-        property var draft: ({})
-        property var screen: ({width:1366,height:768})
-        property string previewSource: ""
-        function updateValue(key, value) {
-            let next = Object.assign({}, draft)
-            next[key] = value
-            draft = next
-            previewTimer.restart()
-        }
-        function updatePosition(x, y) {
-            let next = Object.assign({}, draft)
-            next.x = Math.max(0, Math.min(screen.width - Math.min(screen.width, next.width), Math.round(x)))
-            next.y = Math.max(0, Math.min(screen.height - Math.min(screen.height, next.height), Math.round(y)))
-            draft = next
-        }
-        onOpened: {
-            screen = prototype.outgoingScreenSize()
-            draft = prototype.outgoingHudSettings
-            previewSource = prototype.outgoingHudPreview(draft)
-        }
-        onClosed: { previewTimer.stop(); previewSource = "" }
-        Timer { id: previewTimer; interval: 50; onTriggered: outgoingSettings.previewSource = prototype.outgoingHudPreview(outgoingSettings.draft) }
-        ColumnLayout {
-            anchors.fill: parent; spacing: 5
-            Flickable {
-                id: optionsScroll; Layout.fillWidth: true; Layout.fillHeight: true
-                clip: true; contentWidth: width; contentHeight: optionsBody.implicitHeight
-                ScrollBar.vertical: MetalScrollBar {}
-                ColumnLayout {
-                    id: optionsBody; width: optionsScroll.width - 12
-                    spacing: 4
-                    Text { text: root.tr("Перетащите тестовый HUD"); color: "#c6ae88"; Layout.fillWidth: true }
-                    Rectangle {
-                        id: previewScreen; Layout.fillWidth: true; Layout.preferredHeight: 155
-                        color: "#151a19"; border.color: "#645b49"; clip: true
-                        property real scaleFactor: Math.min(width / Math.max(1, outgoingSettings.screen.width), height / Math.max(1, outgoingSettings.screen.height))
-                        Item {
-                            id: screenArea
-                            anchors.centerIn: parent
-                            width: outgoingSettings.screen.width * previewScreen.scaleFactor
-                            height: outgoingSettings.screen.height * previewScreen.scaleFactor
-                            Rectangle { anchors.fill: parent; color: "#292d29"; border.color: "#867255" }
-                            Image {
-                                id: hudPreview; objectName: "outgoingHudPreview"
-                                source: outgoingSettings.previewSource
-                                x: Math.min(Math.max(0, Number(outgoingSettings.draft.x || 0) * previewScreen.scaleFactor), Math.max(0, parent.width-width))
-                                y: Math.min(Math.max(0, Number(outgoingSettings.draft.y || 0) * previewScreen.scaleFactor), Math.max(0, parent.height-height))
-                                width: Math.min(parent.width, Number(outgoingSettings.draft.width || 720) * previewScreen.scaleFactor)
-                                height: Math.min(parent.height, sourceSize.width > 0 ? width * sourceSize.height / sourceSize.width : Number(outgoingSettings.draft.height || 200) * previewScreen.scaleFactor)
-                                fillMode: Image.PreserveAspectFit
-                                MouseArea {
-                                    anchors.fill: parent; cursorShape: Qt.SizeAllCursor
-                                    property real offsetX: 0; property real offsetY: 0
-                                    onPressed: mouse => { offsetX = mouse.x; offsetY = mouse.y }
-                                    onPositionChanged: mouse => {
-                                        if (!pressed) return
-                                        let point = mapToItem(screenArea, mouse.x, mouse.y)
-                                        outgoingSettings.updatePosition((point.x-offsetX)/previewScreen.scaleFactor,(point.y-offsetY)/previewScreen.scaleFactor)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Image {
-                        objectName: "outgoingHudReadablePreview"
-                        source: outgoingSettings.previewSource
-                        Layout.fillWidth: true; Layout.preferredHeight: 100
-                        fillMode: Image.PreserveAspectFit
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "X"; color: "#f5e7c9" }
-                        MetalTextField { id: f9x; text: String(outgoingSettings.draft.x || 0); Layout.fillWidth: true; onEditingFinished: outgoingSettings.updatePosition(Number(text)||0, outgoingSettings.draft.y) }
-                        Text { text: "Y"; color: "#f5e7c9" }
-                        MetalTextField { id: f9y; text: String(outgoingSettings.draft.y || 0); Layout.fillWidth: true; onEditingFinished: outgoingSettings.updatePosition(outgoingSettings.draft.x, Number(text)||0) }
-                    }
-                    Repeater {
-                        model: [{key:"width",label:"Ширина",lo:300,hi:1600,step:10},
-                                {key:"height",label:"Высота",lo:145,hi:1200,step:5},
-                                {key:"font_size",label:"Размер текста",lo:9,hi:28,step:1},
-                                {key:"background_opacity",label:"Непрозрачность фона",lo:.35,hi:.95,step:.05}]
-                        delegate: RowLayout {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            Text { text: root.tr(modelData.label); color: "#f5e7c9"; Layout.preferredWidth: 145; elide: Text.ElideRight }
-                            MetalSlider {
-                                from: modelData.lo; to: modelData.hi; stepSize: modelData.step
-                                value: Number(outgoingSettings.draft[modelData.key] === undefined ? modelData.lo : outgoingSettings.draft[modelData.key])
-                                Layout.fillWidth: true
-                                onMoved: outgoingSettings.updateValue(modelData.key, value)
-                            }
-                            Text { text: modelData.key === "background_opacity" ? Math.round(100*Number(outgoingSettings.draft[modelData.key] || 0))+"%" : String(Math.round(Number(outgoingSettings.draft[modelData.key] || 0))); color: "#e4c291"; Layout.preferredWidth: 45 }
-                        }
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: root.tr("Автоматическая высота"); color: "#f5e7c9"; Layout.fillWidth: true }
-                        TacticalSwitch { checked: outgoingSettings.draft.auto_height !== false; onClicked: outgoingSettings.updateValue("auto_height",checked) }
-                    }
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                MetalButton { text: root.tr("Сбросить"); onClicked: { outgoingSettings.draft = prototype.defaultOutgoingHud(); previewTimer.restart() } }
-                Item { Layout.fillWidth: true }
-                MetalButton { text: root.tr("Отмена"); onClicked: outgoingSettings.close() }
-                AmberButton { text: root.tr("Применить"); onClicked: if (prototype.applyOutgoingHud(outgoingSettings.draft)) outgoingSettings.close() }
-            }
-        }
-    }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: root.height < 350 ? 10 : 16; spacing: 8
         Text {
-            text: root.page === "settings" ? (prototype.uiLanguage, prototype.trText("Настройки перевода")) : root.page === "outgoing" ? (prototype.uiLanguage, prototype.trText("Исходящий перевод · ручной режим")) : (prototype.uiLanguage, prototype.trText("История входящего перевода"))
+            text: root.page === "settings" ? (prototype.uiLanguage, prototype.trText("Настройки перевода")) : root.page === "outgoing" ? (prototype.uiLanguage, prototype.trText("Исходящий перевод · ручной режим")) : (prototype.uiLanguage, prototype.trText("История игрового чата"))
             color: "#fff0d1"; font.bold: true; font.pixelSize: 22
         }
         RowLayout {
             visible:root.page==="history";Layout.fillWidth:true
             Text {text:root.tr("История текущей сессии · экспорт содержит никнеймы и текст");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true}
-            MetalButton {text:root.tr("Экспорт JSON");enabled:prototype.history.length>0;onClicked:historyExport.open()}
+            MetalTextField { id: search; placeholderText:root.tr("Ник или текст"); Layout.preferredWidth:165; Layout.minimumWidth:80; Layout.fillWidth:true }
+            LanguageSelector { id:direction; textRole:"label"; valueRole:"code"; model:[{label:root.tr("Все"),code:""},{label:root.tr("Входящие"),code:"in"},{label:root.tr("Исходящие"),code:"out"}];currentIndex:0 }
+            TacticalSwitch { checked:prototype.historyEnabled; Accessible.name:root.tr("Запись истории"); onClicked:prototype.setHistoryEnabled(checked) }
+            MetalButton {text:root.tr("Экспорт");enabled:prototype.history.length>0;onClicked:historyExport.open()}
             MetalButton {text:root.tr("Очистить");enabled:prototype.history.length>0;onClicked:historyClear.open()}
         }
         
@@ -178,11 +66,21 @@ MetalPanel {
                     id: settingsContent
                     width: settingsScroll.width - 15; height:implicitHeight
                     spacing: 10
+                    RowLayout {
+                        visible:prototype.showShortcutHint
+                        Text { text:root.tr("F8 — входящий перевод · F9 — ваше сообщение · F10 — снимок экрана"); color:"#e6d5b8"; Layout.fillWidth:true; wrapMode:Text.Wrap }
+                        MetalButton { text:"×"; sizeClass:"compact"; onClicked:prototype.dismissShortcutHint() }
+                    }
+                    RowLayout {
+                        Text { text:root.tr("Запрашивать права администратора при запуске"); color:"#e6d5b8" }
+                        TacticalSwitch { checked:prototype.alwaysAdmin; onClicked:prototype.setAlwaysAdmin(checked) }
+                    }
                     GridLayout {
                         Layout.fillWidth: true
                         Layout.maximumWidth: 780
                         columns: settingsScroll.width < 800 ? 3 : 5
                         columnSpacing: 6; rowSpacing: 6
+                        MetalButton { objectName:"manual_outgoing"; text:root.tr("Ручной перевод"); Layout.fillWidth:true; onClicked:root.navigate("outgoing") }
                         MetalButton { glyph:"icons/servers.svg";text: root.tr("Профили"); Layout.fillWidth: true; onClicked: root.navigate("profiles") }
                         MetalButton { glyph:"icons/chip.svg";text: root.tr("База знаний"); Layout.fillWidth: true; onClicked: root.navigate("knowledge") }
                         MetalButton { glyph:"icons/friends.svg";text: root.tr("Уведомления"); Layout.fillWidth: true; onClicked: root.navigate("notifications") }
@@ -308,7 +206,7 @@ MetalPanel {
                     color: "#d4a75e"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                 }
 
-                MetalButton { objectName: "outgoingHudSettingsButton"; text: root.tr("Настройки игрового окна F9"); onClicked: outgoingSettings.open() }
+                MetalButton { objectName: "outgoingHudSettingsButton"; text: root.tr("Настройки игрового окна F9"); onClicked: root.configureHud() }
                 Text { visible: prototype.gamePrivilegeMismatch; color: "#f1ac93"; wrapMode: Text.WordWrap; Layout.fillWidth: true
                     text: root.tr("CoD2 запущена от администратора, а переводчик — нет. Игровые клавиши и отправка могут не работать. По возможности запустите обе программы без повышения прав.") }
                 MetalButton { visible: prototype.gamePrivilegeMismatch && prototype.settingsWritable; text: root.tr("Перезапустить переводчик от имени администратора"); onClicked: elevationConfirm.open() }
@@ -320,7 +218,11 @@ MetalPanel {
             }
             ListView {
                 id: history
-                clip: true; model: prototype.history; spacing: 4
+                clip: true; model: prototype.history.filter(row => {
+                    let query=search.text.trim().toLocaleLowerCase()
+                    return (!direction.currentValue || row.direction === direction.currentValue) &&
+                        [row.nickname,row.original,row.translated].some(v => String(v || "").toLocaleLowerCase().includes(query))
+                }); spacing: 4
                 ScrollBar.vertical: MetalScrollBar {}
                 delegate: Rectangle {
                     required property var modelData
@@ -329,12 +231,16 @@ MetalPanel {
                     ColumnLayout {
                         id: entry
                         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 9
-                        Text { text: (modelData.received || "—") + " · " + modelData.nickname + " · " + modelData.elapsed + " " + root.tr("мс"); textFormat: Text.PlainText; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
+                        RowLayout {
+                            Layout.fillWidth:true
+                            Text { text:(modelData.received || "—")+" · "+root.tr(modelData.direction==="out"?"Исходящие":"Входящие")+" · "+modelData.nickname; textFormat:Text.PlainText; color:"#d4a75e";Layout.fillWidth:true;elide:Text.ElideRight }
+                            MetalButton { text:root.tr("Копировать");sizeClass:"compact";onClicked:prototype.copyMessage(modelData.nickname+" · "+modelData.original+"\n"+modelData.translated) }
+                        }
                         Text { text: modelData.original; textFormat: Text.PlainText; color: "#bcb09a"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                         Text { text: modelData.translated || root.tr(modelData.outcome); textFormat: Text.PlainText; color: "#f5e7c9"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     }
                 }
-                ColumnLayout {anchors.centerIn:parent;width:Math.min(parent.width-24,490);visible:history.count===0;spacing:8
+                ColumnLayout {anchors.centerIn:parent;width:Math.min(parent.width-24,490);visible:history.count===0 && !search.text && !direction.currentValue;spacing:8
                     Image {source:"icons/history.svg";Layout.alignment:Qt.AlignHCenter;Layout.preferredWidth:36;Layout.preferredHeight:36}
                     Text {text:root.tr(prototype.logReady?"Журнал подключён":"Журнал не выбран");color:"#e4c291";font.bold:true;font.pixelSize:16;Layout.alignment:Qt.AlignHCenter}
                     Text {text:root.tr(!prototype.logReady?"Выберите игровой журнал в настройках.":!prototype.f8?"Входящий перевод выключен.":"Ожидание новых сообщений в игре.");color:"#bcb09a";wrapMode:Text.WordWrap;Layout.fillWidth:true;horizontalAlignment:Text.AlignHCenter}

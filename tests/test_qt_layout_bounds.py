@@ -51,7 +51,7 @@ def test_primary_controls_inside_cards_and_window(tmp_path):
             state.setUiLanguage(lang)
             for width,height in ((1366,768),(1342,672),(1536,864),(1920,1080),(900,500)):
                 window.resize(width,height);window.setProperty("activePage","home");QTest.qWait(60)
-                for card, names in [("f8Card",("f8Key","f8Switch","f8Language")),("f9Card",("f9Key","f9Switch","f9Language","f9Target","manual_outgoing"))]:
+                for card, names in [("f8Card",("f8Key","f8Switch","f8Language","f8HudButton")),("f9Card",("f9Key","f9Switch","f9Language","f9Target","f9HudButton"))]:
                     parent=find_visible(content,card)
                     assert parent is not None
                     inside(parent,content)

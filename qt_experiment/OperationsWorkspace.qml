@@ -181,9 +181,8 @@ MetalPanel {
                         }
                     }
                 }
-                Text { text: root.tr("Изолированная тестовая версия. Стабильная установка не изменяется."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                Rectangle {height:1;color:"#786342";Layout.fillWidth:true}
-                Text {text:root.tr("Канал обновлений")+": Qt Preview / RC · "+(prototype.buildNumber==="source"?root.tr("Из исходного кода"):prototype.buildNumber);color:"#d7b77d";wrapMode:Text.WordWrap;Layout.fillWidth:true}
+                MetalButton { id: details; text:root.tr("Сведения о сборке"); checkable:true; sizeClass:"compact" }
+                Text { visible:details.checked; text:"Qt Preview / RC · "+prototype.buildNumber+"\n"+prototype.buildSha; color:"#d7b77d";wrapMode:Text.WrapAnywhere;Layout.fillWidth:true }
                 Text { text: root.tr("Обновления"); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
                 RowLayout {Layout.fillWidth:true
                     MetalButton {glyph:"icons/refresh.svg";text:root.tr("Проверить обновления");enabled:!prototype.maintenanceBusy;onClicked:prototype.checkUpdates()}
@@ -194,7 +193,6 @@ MetalPanel {
                 }
                 Text {visible:prototype.updateNotes.length>0;text:prototype.updateNotes;textFormat:Text.PlainText;wrapMode:Text.Wrap;Layout.fillWidth:true;color:"#e2d0af"}
                 Text { text: prototype.updateMessage; color: "#e6d5b8"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                Text { text: root.tr("Стабильный пакет не устанавливается поверх Qt Preview."); color: "#b7ad9b"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
 
             }
             }

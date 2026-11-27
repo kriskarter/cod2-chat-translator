@@ -38,6 +38,7 @@ class NativeHud:
                     from win32_layered_overlay import Win32LayeredOverlay
                     factory = Win32LayeredOverlay
                 self.surface = factory()
+            self.last_error = ""
             self.enabled = True
             self._render()
             return self.enabled

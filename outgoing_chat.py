@@ -919,7 +919,7 @@ class KeyboardCapture:
                         return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
                 if vk == 0x77:
                     if key_down and not self.f8_down:
-                        self.events.put(("f8", None))
+                        self.events.put(("f8", self.shortcut_at.get(vk, time.monotonic())))
                     self.f8_down = bool(key_down)
                     return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
 
