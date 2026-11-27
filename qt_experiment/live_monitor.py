@@ -100,7 +100,7 @@ class LiveMonitorState(PrototypeState):
         if self._closing.is_set() or {s.address for s in snapshots}!=set(self._rows):
             return
         labels={s.address:s.label for s in self._settings["servers"]}
-        snapshots=tuple(replace(s,name=s.name or labels.get(s.address,"")) for s in snapshots)
+        snapshots=tuple(replace(s,name=labels.get(s.address,"") or s.name) for s in snapshots)
         self._presence.configure(self._settings["friends"],self._rows)
         before=self._presence.rows()
         events=self._presence.observe(snapshots)
@@ -112,10 +112,29 @@ class LiveMonitorState(PrototypeState):
 
     @Slot(str, str, bool, result=bool)
     def editServer(self, address, label, favorite):
-        if address not in self._rows:
+        return self.editServerAddress(address, address, label, favorite)
+
+    @Slot(str, str, str, bool, result=bool)
+    def editServerAddress(self, address, new_address, label, favorite):
+        try:
+            new_address = canonical_address(new_address)
+        except ValueError:
             return False
-        self._monitor.replace_servers([replace(s, label=label.strip()[:80], favorite=favorite)
+        if address not in self._rows or (new_address != address and new_address in self._rows):
+            return False
+        label = label.strip()[:80]
+        self._monitor.replace_servers([replace(s, address=new_address, label=label, favorite=favorite)
                                        if s.address == address else s for s in self._settings["servers"]])
+        if new_address != address:
+            self._rows.pop(address)
+            self._rows[new_address] = row_from_snapshot(Snapshot(address=new_address, name=label))
+            if self._selected == address:
+                self._selected = new_address
+            self._presence.configure(self._settings["friends"], self._rows)
+            self._count_friends()
+            self.friendsChanged.emit()
+        elif label:
+            self._rows[address] = replace(self._rows[address], name=label)
         self._settings_changed()
         self.recordsChanged.emit()
         self.rowsChanged.emit()
@@ -203,7 +222,7 @@ class LiveMonitorState(PrototypeState):
         if server is None:
             return
         previous_status = self.status
-        self.update_snapshot(replace(snapshot, name=snapshot.name or server.label))
+        self.update_snapshot(replace(snapshot, name=server.label or snapshot.name))
         self._status = "udp_count"
         if previous_status != self.status:
             self.changed.emit()
