@@ -16,7 +16,7 @@ ColumnLayout {
   Item { Layout.preferredWidth:root.width<520?18:38;Layout.preferredHeight:22
    Image {anchors.centerIn:parent;width:21;height:21;fillMode:Image.PreserveAspectFit;source:favorite?"reference_art/star.png":"icons/star_gray.svg";visible:!header}
   }
-  Text {text:values[0];Layout.fillWidth:true;Layout.minimumWidth:35;color:header?"#bcb09a":"#f5e7c9";elide:Text.ElideRight;font.pixelSize:root.width<520?12:header?15:17;font.bold:!header}
+  Text {text:values[0];Accessible.name: text;Layout.fillWidth:true;Layout.minimumWidth:35;color:header?"#bcb09a":"#f5e7c9";elide:Text.ElideRight;font.pixelSize:root.width<520?12:header?15:17;font.bold:!header}
   Text {text:values[1];Layout.preferredWidth:Math.min(142,root.width*.16);color:"#d4ccba";elide:Text.ElideRight;font.pixelSize:root.width<520?11:15}
   Text {text:values[2];Layout.preferredWidth:Math.max(42,root.width*.115);color:"#d4ccba";font.pixelSize:root.width<520?11:15;horizontalAlignment:Text.AlignHCenter}
   Text {text:values[3];Layout.preferredWidth:Math.max(42,root.width*.105);color:header?"#bcb09a":parseInt(values[3])>0&&parseInt(values[3])<70?"#add880":parseInt(values[3])>=160?"#de8b73":"#d5c5a9";font.pixelSize:root.width<520?11:15;horizontalAlignment:Text.AlignHCenter}
@@ -29,6 +29,9 @@ ColumnLayout {
   ScrollBar.vertical:MetalScrollBar {}
   delegate:Rectangle {
    id:line;required property var modelData;required property int index
+   Accessible.role: Accessible.ListItem
+   Accessible.name: line.modelData.name + " · " + line.modelData.address
+   Accessible.onPressAction: root.chosen(line.modelData.address)
    width:Math.max(0,table.width-9);height:root.width<520?26:32;radius:4
    color:root.selected===modelData.address?"#56452a":index%2?"#161615":"#1c1b19"
    border.color:root.selected===modelData.address?"#c49a58":"transparent"
