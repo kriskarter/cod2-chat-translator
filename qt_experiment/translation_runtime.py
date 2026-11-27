@@ -28,6 +28,7 @@ from .live_monitor import LiveMonitorState
 from .friend_presence import qt_monitor_settings, dump_qt_monitor_settings, display_name
 from .common import ROOT
 from .native_hud import NativeHud
+from .outgoing_hud import outgoing_config, positioned, render_editor
 from server_monitor import load_settings, dump_settings
 
 
@@ -55,6 +56,12 @@ class TranslationState(LiveMonitorState):
         super().__init__(qt_monitor_settings(config.get("server_monitor")), game_exe)
         self._config = config
         self._store = settings_store
+        self._outgoing_hud_config = outgoing_config(config.get("outgoing_hud"))
+        self._privilege_mismatch = False
+        self._game_running = False
+        self._privilege_timer = QTimer(self)
+        self._privilege_timer.setInterval(2500)
+        self._privilege_timer.timeout.connect(self._check_game_privileges)
         self._profiles = merge_server_profiles(config.get("server_profiles"), [])
         self._auto_profile = bool(config.get("auto_detect_profile", True))
         self._profile_activity = {}
@@ -154,7 +161,7 @@ class TranslationState(LiveMonitorState):
         if game_hotkeys and os.name == "nt":
             from .game_controls import GameControls
             self.shortcutWake.connect(self._drain, Qt.QueuedConnection)
-            self._game = GameControls(self, config.get("overlay", {}),
+            self._game = GameControls(self, self._outgoing_hud_config,
                                       self._out_source, self._out_target)
 
     _screenshot_directory = ControlApp._screenshot_directory
@@ -220,6 +227,7 @@ class TranslationState(LiveMonitorState):
                       hide_same_language=self._hide, gaming_slang=self._slang,
                       deduplicate_messages=self._dedupe, slang_style=self._style,
                       show_original=self._hud.show_original, overlay=dict(self._hud.config),
+                      outgoing_hud=dict(self._outgoing_hud_config),
                       experience_collect=bool(self._experience and self._experience.collect),
                       experience_cache=bool(self._experience and self._experience.cache))
         try:
@@ -767,24 +775,89 @@ class TranslationState(LiveMonitorState):
             from PySide6.QtCore import QUrl
             QDesktopServices.openUrl(QUrl.fromLocalFile(self._game.diagnostics.path))
 
+    @Property("QVariantMap", notify=translationChanged)
+    def outgoingHudSettings(self):
+        return dict(self._outgoing_hud_config)
+
+    @Slot(result="QVariantMap")
+    def defaultOutgoingHud(self):
+        return outgoing_config()
+
+    @Slot("QVariantMap", result=bool)
+    def applyOutgoingHud(self, values):
+        old = self._outgoing_hud_config
+        self._outgoing_hud_config = outgoing_config(dict(values))
+        if self._store and not self.saveSettings():
+            self._outgoing_hud_config = old
+            return False
+        if self._game:
+            self._game.cancel()
+        self.translationChanged.emit()
+        return True
+
+    @Slot(result="QVariantMap")
+    def outgoingScreenSize(self):
+        from PySide6.QtGui import QGuiApplication
+        screen = QGuiApplication.primaryScreen()
+        if not screen:
+            return {"width":1366, "height":768}
+        rect = screen.geometry()
+        ratio = screen.devicePixelRatio()
+        return {"width":round(rect.width()*ratio), "height":round(rect.height()*ratio)}
+
+    @Slot("QVariantMap", result=str)
+    def outgoingHudPreview(self, values):
+        import base64
+        from io import BytesIO
+        screen = self.outgoingScreenSize()
+        cfg = positioned(dict(values), (0,0,screen["width"],screen["height"]))
+        cfg.update(route=self._out_source.upper()+" → "+self._out_target.upper(),
+                   editor_labels={"title":self.trText("F9 · Исходящий перевод"),
+                                  "input":self.trText("Ввод"), "translation":self.trText("Перевод")})
+        image = render_editor(self.trText("Привет, давно не виделись!"), "Hey, long time no see!",
+                              self.trText("Enter — отправить · Esc — отменить"), cfg)
+        data = BytesIO()
+        image.save(data, format="PNG")
+        return "data:image/png;base64," + base64.b64encode(data.getvalue()).decode("ascii")
+
     def position_outgoing_hud(self, config):
         from app import _monitor_rect_for_window
-        import ctypes
-        from ctypes import wintypes
-        user32 = ctypes.WinDLL("user32", use_last_error=True)
-        user32.GetForegroundWindow.restype = wintypes.HWND
+        from outgoing_send import _foreground_api
+        user32, _ = _foreground_api()
         hwnd = user32.GetForegroundWindow()
         if not hwnd:
             return
-        left, top, width, height = _monitor_rect_for_window(hwnd)
-        if width <= 0 or height <= 0:
+        rect = _monitor_rect_for_window(hwnd)
+        if rect[2] > 0 and rect[3] > 0:
+            config.update(positioned(self._outgoing_hud_config, rect))
+
+    @Property(bool, notify=translationChanged)
+    def gamePrivilegeMismatch(self):
+        return self._privilege_mismatch
+
+    @Property(bool, notify=translationChanged)
+    def gameRunning(self):
+        return self._game_running
+
+    def _check_game_privileges(self):
+        from .windows_privileges import game_privilege_status
+        running, mismatch = game_privilege_status()
+        if (running, mismatch) != (self._game_running, self._privilege_mismatch):
+            self._game_running, self._privilege_mismatch = running, mismatch
+            self.translationChanged.emit()
+
+    @Slot()
+    def restartElevated(self):
+        if not self._privilege_mismatch or self._store is None or not self.saveSettings():
             return
-        incoming = self._hud.config
-        w = min(width, int(incoming.get("width", 500)))
-        h = min(height, max(140, int(incoming.get("height", 150))))
-        config.update(width=w, height=h,
-                      x=max(left, min(int(incoming.get("x", 8)), left + width - w)),
-                      y=max(top, min(int(incoming.get("y", 360)) + 165, top + height - h)))
+        from .windows_privileges import restart_elevated
+        ok, error = restart_elevated()
+        if ok:
+            from PySide6.QtCore import QCoreApplication
+            QCoreApplication.quit()
+        else:
+            self.game_status("Повышение прав отменено или не удалось")
+            self.feedback.emit("outgoing", self.translationStatus, True)
 
     @Property(bool, constant=True)
     def gameHotkeysEnabled(self): return self._game is not None
@@ -853,7 +926,10 @@ class TranslationState(LiveMonitorState):
         self._tailer.start()
         self._timer.start()
         self._profile_timer.start()
-        if self._game: self._game.start()
+        if self._game:
+            self._game.start()
+            self._check_game_privileges()
+            self._privilege_timer.start()
 
     def stop(self):
         if self.stop_event.is_set():
@@ -862,6 +938,7 @@ class TranslationState(LiveMonitorState):
         self.enabled = False
         self._timer.stop()
         self._profile_timer.stop()
+        self._privilege_timer.stop()
         self.stop_event.set()
         self._dispatcher.close()
         if self._game: self._game.close()
