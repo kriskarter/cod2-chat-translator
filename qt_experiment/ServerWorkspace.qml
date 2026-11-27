@@ -14,6 +14,10 @@ MetalPanel {
     property var selectedRow: prototype.rows.find(r=>r.address===selectedAddress)
     function loadEditor() {
         editingAddress = selectedAddress
+        let fields = prototype.serverAddressFields(selectedAddress)
+        hostInput.text = fields.host || ""
+        portInput.text = fields.port || "28960"
+        editorError.text = ""
         labelInput.text = record ? record.label : ""
         favoriteInput.checked = record ? record.favorite : false
     }
@@ -64,13 +68,28 @@ MetalPanel {
                     Text {text:root.selectedRow?root.selectedRow.map+" · "+root.selectedRow.population+" · "+root.selectedRow.ping:"";color:"#bcb09a";elide:Text.ElideRight;Layout.fillWidth:true}
                 }
             }
+            Text { text: (prototype.uiLanguage, prototype.trText("IP-адрес или домен")); color: "#f5e7c9" }
+            MetalTextField { id: hostInput; objectName: "editServerHost"; enabled: !!root.record; Layout.fillWidth: true
+                onEditingFinished: {
+                    let fields = prototype.pastedServerFields(text, portInput.text)
+                    if (fields.host !== undefined) { text = fields.host; portInput.text = fields.port }
+                }
+            }
+            Text { text: (prototype.uiLanguage, prototype.trText("Порт")); color: "#f5e7c9" }
+            MetalTextField { id: portInput; objectName: "editServerPort"; enabled: !!root.record; Layout.fillWidth: true; inputMethodHints: Qt.ImhDigitsOnly }
+            Text { id: editorError; visible: text.length > 0; color: "#e99b83"; Layout.fillWidth: true; wrapMode: Text.WordWrap }
             MetalTextField { id: labelInput; objectName:"serverLabelInput"; enabled: !!root.record; placeholderText: (prototype.uiLanguage, prototype.trText("Название сервера")); Layout.fillWidth: true }
             RowLayout {
                 Text { text: (prototype.uiLanguage, prototype.trText("Избранный сервер")); color: "#f5e7c9"; Layout.fillWidth: true }
                 TacticalSwitch { id: favoriteInput; enabled: !!root.record }
             }
             RowLayout {
-                MetalButton { text: (prototype.uiLanguage, prototype.trText("Применить")); enabled: !!root.record; Layout.fillWidth: true; onClicked: prototype.editServer(root.editingAddress, labelInput.text, favoriteInput.checked) }
+                MetalButton { text: (prototype.uiLanguage, prototype.trText("Применить")); enabled: !!root.record; Layout.fillWidth: true; onClicked: {
+                    let address = prototype.serverAddressPreview(hostInput.text, portInput.text)
+                    if (!address || !prototype.editServerAddress(root.editingAddress, address, labelInput.text, favoriteInput.checked))
+                        editorError.text = (prototype.uiLanguage, prototype.trText("Неверный адрес, повтор или достигнут лимит"))
+                    else root.loadEditor()
+                } }
                 MetalButton { text: (prototype.uiLanguage, prototype.trText("Удалить")); enabled: !!root.record; Layout.fillWidth: true; onClicked: { removeDialog.address = root.editingAddress; removeDialog.open() } }
             }
             Rectangle { color: "#6d5837"; height: 1; Layout.fillWidth: true }
