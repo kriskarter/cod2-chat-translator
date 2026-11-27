@@ -130,6 +130,29 @@ class PrototypeState(QObject):
     @Property(bool, notify=changed)
     def canConnect(self): return self._can_connect
 
+    @Slot(str, str, result=str)
+    def serverAddressPreview(self, host, port):
+        from server_monitor import address_from_fields
+        try:
+            return address_from_fields(host, port)
+        except ValueError:
+            return ""
+
+    @Slot(str, result="QVariantMap")
+    def serverAddressFields(self, address):
+        from server_monitor import address_fields
+        try:
+            host, port = address_fields(address)
+            return {"host": host, "port": port}
+        except ValueError:
+            return {}
+
+    @Slot(str, str, result="QVariantMap")
+    def pastedServerFields(self, host, port):
+        if not (host.count(":") == 1 or host.startswith("[") and "]:" in host):
+            return {}
+        return self.serverAddressFields(host)
+
     @Slot(str, str, result=bool)
     def addServer(self, address, label):
         return False
