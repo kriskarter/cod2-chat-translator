@@ -49,3 +49,44 @@ def test_outgoing_settings_roundtrip_without_changing_incoming(tmp_path):
         assert saved["overlay"] == old
     finally:
         state.stop()
+
+
+def test_real_qml_preview_dialog(tmp_path):
+    import os
+    from pathlib import Path
+    pytest.importorskip("PySide6")
+    from PySide6.QtCore import QUrl, QObject
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtQml import QQmlApplicationEngine
+    from PySide6.QtTest import QTest
+    from qt_experiment.common import ROOT
+    from qt_experiment.translation_runtime import TranslationState, read_translation_config
+    app = QGuiApplication.instance() or QGuiApplication([])
+    state = TranslationState(read_translation_config(None))
+    engine = QQmlApplicationEngine()
+    warnings = []
+    engine.warnings.connect(lambda items: warnings.extend(i.toString() for i in items))
+    engine.rootContext().setContextProperty("prototype",state)
+    engine.load(QUrl.fromLocalFile(str(ROOT/"qt_experiment/Home.qml")))
+    assert engine.rootObjects()
+    window = engine.rootObjects()[0]
+    try:
+        window.resize(1342,672)
+        window.setProperty("activePage","outgoing")
+        QTest.qWait(100)
+        window.setProperty("evidenceDialog","outgoing_hud_dialog")
+        QTest.qWait(350)
+        preview = window.findChild(QObject,"outgoingHudPreview")
+        assert preview is not None
+        assert preview.property("sourceSize").width() > 0
+        assert not warnings, warnings
+        capture=os.environ.get("COD2_QT_TEST_SCREENSHOTS")
+        if capture:
+            assert window.grabWindow().save(str(Path(capture)/"outgoing_hud_settings.png"))
+            import base64
+            data=state.outgoingHudPreview(state.outgoingHudSettings).split(",",1)[1]
+            (Path(capture)/"outgoing_hud_renderer.png").write_bytes(base64.b64decode(data))
+    finally:
+        window.close()
+        del engine
+        state.stop()
