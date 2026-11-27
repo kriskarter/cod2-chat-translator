@@ -5,7 +5,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM","offscreen")
 os.environ.setdefault("QT_QUICK_BACKEND","software")
 pytest.importorskip("PySide6")
-from PySide6.QtCore import QPointF, QUrl
+from PySide6.QtCore import QObject, QPointF, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtTest import QTest
