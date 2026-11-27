@@ -76,6 +76,7 @@ ApplicationWindow {
         title: (prototype.uiLanguage, prototype.trText("Добавить сервер"))
         standardButtons: Dialog.NoButton
         width: 390
+        height: 365
         ColumnLayout {
             anchors.fill: parent
             Text { text: window.tr("IP-адрес или домен"); color: window.ink }
@@ -91,7 +92,7 @@ ApplicationWindow {
             MetalTextField { id: labelField; objectName: "serverNameInput"; Layout.fillWidth: true }
             Text { text: window.tr("Вставленный IP:порт имеет приоритет"); color: "#bcb09a"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             Text { id: addressPreview; text: prototype.serverAddressPreview(addressField.text, portField.text); color: "#e4c291"; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true }
-            Text { id: addError; text: ""; color: "#e99b83"; wrapMode: Text.WordWrap; Layout.fillWidth: true; visible: text.length > 0 }
+            Text { id: addError; text: addressField.text.length > 0 && !addressPreview.text ? window.tr("Неверный адрес, повтор или достигнут лимит") : ""; color: "#e99b83"; wrapMode: Text.WordWrap; Layout.fillWidth: true; visible: text.length > 0 }
             RowLayout {
                 MetalButton { text: window.tr("Отмена"); onClicked: addDialog.close() }
                 AmberButton { text: window.tr("Добавить"); enabled: addressPreview.text.length > 0; onClicked: {
