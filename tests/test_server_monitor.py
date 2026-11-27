@@ -63,6 +63,36 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(load_settings(dump_settings(settings))["servers"],settings["servers"])
         self.assertEqual(load_settings({"servers":[]})["servers"],[])
 
+    def test_nonstandard_port_fields_and_udp(self):
+        import socket
+        import threading
+        from server_monitor import address_from_fields, address_fields
+        self.assertEqual(address_from_fields("148.251.139.73:12345", "28960"), "148.251.139.73:12345")
+        self.assertEqual(address_fields("148.251.139.73:12345"), ("148.251.139.73", "12345"))
+        for raw in ("12345", "999.251.139.73", "bad.-domain"):
+            with self.assertRaises(ValueError):
+                address_from_fields(raw, "28960")
+        for port in ("", "0", "65536", "-1", "abc"):
+            with self.assertRaises(ValueError):
+                address_from_fields("localhost", port)
+        addresses = [f"148.251.139.73:{p}" for p in (28960,12345,28961)]
+        self.assertEqual(len(load_settings({"servers":[{"address":a} for a in addresses]})["servers"]), 3)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as server:
+            server.bind(("127.0.0.1", 0))
+            port = server.getsockname()[1]
+            server.settimeout(2)
+            requests = []
+            def reply():
+                data, peer = server.recvfrom(1024)
+                requests.append(data)
+                server.sendto(STATUS, peer)
+            worker = threading.Thread(target=reply, daemon=True)
+            worker.start()
+            result = query_server(address_from_fields("127.0.0.1", str(port)), timeout=.5)
+            worker.join(2)
+            self.assertEqual(result.state, "online")
+            self.assertEqual(requests, [b"\\xff\\xff\\xff\\xffgetstatus"])
+
     def test_offline_and_timeout(self):
         with patch("server_monitor.socket.getaddrinfo",side_effect=OSError("offline")):
             result=query_server("example.org:28960",timeout=.05)
