@@ -75,7 +75,7 @@ MetalPanel {
    visible:root.live
    Layout.fillWidth:true;spacing:5
    Rectangle {width:7;height:7;radius:4;color:root.active?"#b0db84":"#847c6d"}
-   Text {text:root.liveStatus.length>0?root.liveStatus:!root.controlsEnabled?(prototype.uiLanguage,prototype.trText("Не перенесён")):root.active?(prototype.uiLanguage,prototype.trText("Активен")):(prototype.uiLanguage,prototype.trText("Выключен"));color:root.active?"#b0db84":"#bcb09a";font.pixelSize:11;elide:Text.ElideRight;Layout.minimumWidth:0;Layout.fillWidth:true}
+   Text {text:root.liveStatus.length>0?root.liveStatus:!root.controlsEnabled?(prototype.uiLanguage,prototype.trText("Не перенесён")):root.active?(prototype.uiLanguage,prototype.trText("Активен")):(prototype.uiLanguage,prototype.trText("Выключен"));color:root.active?"#b0db84":"#bcb09a";font.pixelSize:root.compact?11:12;elide:Text.ElideRight;Layout.minimumWidth:0;Layout.fillWidth:true}
    MetalButton {objectName:root.keyName==="F9"?"manual_outgoing":"unused_manual";visible:root.live&&root.keyName==="F9";text:(prototype.uiLanguage,prototype.trText("Ручной перевод"));font.pixelSize:11;sizeClass:"compact";Layout.minimumWidth:0;Layout.preferredWidth:Math.min(implicitWidth,body.width*.65);onClicked:root.manual()}
   }
  }

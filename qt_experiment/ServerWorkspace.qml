@@ -41,7 +41,7 @@ MetalPanel {
                 FriendIndicator { count: prototype.friendCount;onOpenFriends:root.openFriends() }
             }
             Text { text: prototype.status; color: "#d4a75e"; Layout.fillWidth: true; elide: Text.ElideRight }
-            ServerTable { rows: prototype.rows; selected: prototype.selected; onChosen: address => prototype.select(address); Layout.fillWidth: true; Layout.fillHeight:false; Layout.minimumHeight:48; Layout.maximumHeight:Layout.preferredHeight; Layout.preferredHeight: Math.min(108, 24 + 28*Math.max(1,prototype.rows.length)) }
+            ServerTable { rows: prototype.rows; selected: prototype.selected; onChosen: address => prototype.select(address); Layout.fillWidth: true; Layout.fillHeight:false; Layout.minimumHeight:48; Layout.maximumHeight:Layout.preferredHeight; Layout.preferredHeight: Math.min(108, 26 + 34*Math.max(1,prototype.rows.length)) }
             PlayerRoster { objectName:"server_roster";Layout.minimumHeight:40;population:prototype.selectedPopulation; players: prototype.players; Layout.fillWidth: true; Layout.fillHeight: true }
             RowLayout {
                 MetalButton { objectName:"server_add";text: (prototype.uiLanguage, prototype.trText("Добавить")); glyph: "icons/add.svg"; Layout.fillWidth: true; onClicked: root.addRequested() }
@@ -55,10 +55,10 @@ MetalPanel {
             clip:true;contentWidth:width;contentHeight:editorBody.implicitHeight+8;boundsBehavior:Flickable.StopAtBounds
             ScrollBar.vertical:MetalScrollBar {}
         ColumnLayout {
-            id:editorBody;width:editorScroll.width-14;height:implicitHeight;spacing:6
+            id:editorBody;width:editorScroll.width-12;height:implicitHeight;spacing:4
             Text { text: (prototype.uiLanguage, prototype.trText("Настройки сервера")); color: "#f5e7c9"; font.pixelSize: 17; font.bold: true }
             Text { text: root.selectedAddress || (prototype.uiLanguage, prototype.trText("Выберите сервер")); color: "#bcb09a"; Layout.fillWidth: true; elide: Text.ElideRight }
-            Rectangle { visible:!!root.selectedRow;Layout.fillWidth:true;Layout.preferredHeight:66;radius:5;color:"#202621";border.color:"#675a44"
+            Rectangle { visible:!!root.selectedRow;Layout.fillWidth:true;Layout.preferredHeight:46;radius:5;color:"#202621";border.color:"#675a44"
                 ColumnLayout { anchors.fill:parent;anchors.margins:7
                     Text {text:root.selectedRow?root.selectedRow.name:"";textFormat:Text.PlainText;elide:Text.ElideRight;Layout.fillWidth:true;font.bold:true;color:"#e9d5ae"}
                     Text {text:root.selectedRow?root.selectedRow.map+" · "+root.selectedRow.population+" · "+root.selectedRow.ping:"";color:"#bcb09a";elide:Text.ElideRight;Layout.fillWidth:true}

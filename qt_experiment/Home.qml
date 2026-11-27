@@ -10,6 +10,7 @@ ApplicationWindow {
     title: "CoD2 Chat Translator" + (prototype.translationAvailable ? " — " + prototype.appVersion : prototype.demo ? " — Demo" : " — UDP Monitor")
     color: "#111313"
     property bool compact: width < 1100 || height < 620
+    readonly property bool laptop: height >= 620 && height < 750
     property bool shortWindow: height < 620
     property color ink: "#f5e7c9"
     property int navIndex: 0
@@ -88,8 +89,18 @@ ApplicationWindow {
     }
 
     Image {
-        anchors.fill: parent; source: "reference_art/body.webp"
-        fillMode: Image.Tile
+        anchors.fill: parent; source: "reference_art/sheet.webp"
+        fillMode: Image.Stretch
+    }
+    Image {
+        objectName: "field_kit"
+        anchors.left: parent.left; anchors.bottom: parent.bottom
+        width: Math.min(window.width * .20, window.height * .374, window.activePage === "home" ? 400 : (systemBar.height + systemBar.Layout.bottomMargin)*310/191)
+        height: width * 191 / 310
+        visible: !window.compact
+        enabled: false
+        source: "reference_art/field_kit.webp"; fillMode: Image.PreserveAspectFit
+        z: 2
     }
     ColumnLayout {
         anchors.fill: parent
@@ -97,7 +108,7 @@ ApplicationWindow {
         Item {
             Layout.fillWidth: true
             objectName:"command_banner"
-            Layout.preferredHeight: Math.min(window.width * 198 / 1534, window.height * (window.shortWindow ? .17 : .239))
+            Layout.preferredHeight: Math.min(window.width * 198 / 1534, window.laptop ? 95 + (window.height-620)*.37 : window.height * (window.shortWindow ? .17 : .239))
             Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             clip: true
             Row {
@@ -144,7 +155,7 @@ ApplicationWindow {
         RowLayout {
             visible: window.activePage === "home"
             Layout.fillWidth: true; Layout.fillHeight: true
-            Layout.leftMargin: window.shortWindow ? 10 : 17; Layout.rightMargin: window.shortWindow ? 10 : 15; Layout.topMargin: window.shortWindow ? 5 : 14; Layout.bottomMargin: window.shortWindow ? 5 : 14
+            Layout.leftMargin: window.shortWindow ? 10 : 17; Layout.rightMargin: window.shortWindow ? 10 : 15; Layout.topMargin: window.compact ? 5 : window.laptop ? 8 : 14; Layout.bottomMargin: window.compact ? 5 : window.laptop ? 8 : 14
             spacing: window.shortWindow ? 8 : 13
             ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true
@@ -199,9 +210,9 @@ ApplicationWindow {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        MetalButton { objectName:"add_server_button"; text: (prototype.uiLanguage, prototype.trText("Добавить сервер")); glyph: "reference_art/add.png"; font.pixelSize:window.compact?12:17;glyphSize:window.compact?16:23;implicitHeight:window.compact?32:47;Layout.fillWidth: true; onClicked: { if (prototype.demo) prototype.request("add_server"); else addDialog.open() } }
-                        MetalButton { text: (prototype.uiLanguage, prototype.trText("Обновить")); glyph: "reference_art/refresh.png"; font.pixelSize:window.compact?12:17;glyphSize:window.compact?16:23;implicitHeight:window.compact?32:47;Layout.fillWidth: true; onClicked: prototype.request("refresh") }
-                        AmberButton { objectName:"connect_button";sizeClass:window.shortWindow?"standard":"primary"; text: (prototype.uiLanguage, prototype.trText("Подключиться")); glyph: "reference_art/connect.png"; font.pixelSize:window.compact?12:18;glyphSize:window.compact?16:23;implicitHeight:window.compact?32:47;Layout.fillWidth: true; enabled: prototype.canConnect; onClicked: prototype.request("connect") }
+                        MetalButton { objectName:"add_server_button"; text: (prototype.uiLanguage, prototype.trText("Добавить сервер")); glyph: "reference_art/add.png"; font.pixelSize:window.compact?12:17;glyphSize:window.compact?16:23;implicitHeight:window.compact?32:window.laptop?34:47;Layout.fillWidth: true; onClicked: { if (prototype.demo) prototype.request("add_server"); else addDialog.open() } }
+                        MetalButton { text: (prototype.uiLanguage, prototype.trText("Обновить")); glyph: "reference_art/refresh.png"; font.pixelSize:window.compact?12:17;glyphSize:window.compact?16:23;implicitHeight:window.compact?32:window.laptop?34:47;Layout.fillWidth: true; onClicked: prototype.request("refresh") }
+                        AmberButton { objectName:"connect_button";sizeClass:window.shortWindow?"standard":"primary"; text: (prototype.uiLanguage, prototype.trText("Подключиться")); glyph: "reference_art/connect.png"; font.pixelSize:window.compact?12:18;glyphSize:window.compact?16:23;implicitHeight:window.compact?32:window.laptop?34:47;Layout.fillWidth: true; enabled: prototype.canConnect; onClicked: prototype.request("connect") }
                     }
                 }
             }
@@ -217,18 +228,18 @@ ApplicationWindow {
             Component { id: operationsPage; OperationsWorkspace { page: window.activePage; onBack:window.activePage="settings" } }
         }
         MetalPanel {
-            objectName:"system_bar"; texture:"reference_art/panel.webp"; rim:"reference_art/console_frame.png"
+            id: systemBar; objectName:"system_bar"; texture:"reference_art/sheet.webp"; rim:"reference_art/console_frame.png"
 
             visible:window.activePage==="home" || !window.shortWindow
-            Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 48 : Math.min(94,window.height*.113); Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
-            Layout.leftMargin: window.compact ? 12 : window.width*.187; Layout.rightMargin: 15; Layout.bottomMargin: window.compact ? 6 : Math.min(24,window.height*.029)
+            Layout.fillWidth: true; Layout.minimumHeight: window.shortWindow ? 48 : window.laptop ? 59 : Math.min(94,window.height*.113); Layout.preferredHeight: Layout.minimumHeight; Layout.maximumHeight: Layout.minimumHeight
+            Layout.leftMargin: window.compact ? 12 : window.width*.187; Layout.rightMargin: 15; Layout.bottomMargin: window.compact || window.laptop ? 6 : Math.min(24,window.height*.029)
             RowLayout {
-                anchors.fill: parent; anchors.margins: window.shortWindow ? 6 : 16; anchors.leftMargin: window.compact ? 8 : 38; anchors.rightMargin: window.compact ? 8 : 24; spacing: window.compact ? 6 : 12
+                anchors.fill: parent; anchors.margins: window.shortWindow || window.laptop ? 6 : 16; anchors.leftMargin: window.compact ? 8 : 38; anchors.rightMargin: window.compact ? 8 : 24; spacing: window.compact ? 6 : 12
                 OverlayControl { Layout.fillWidth: true; onConfigure: window.activePage = "overlay"; active: prototype.overlay; controlsEnabled: prototype.demo || prototype.overlayAvailable; onToggled: prototype.toggle("overlay") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
                 SmartEngineControl { Layout.fillWidth: true; active: prototype.smart; controlsEnabled: prototype.demo || prototype.translationAvailable; onToggled: prototype.toggle("smart") }
                 Rectangle { width: 1; height: 34; color: "#776345" }
-                SystemStatusPanel { Layout.fillWidth: true; statusText: prototype.translationAvailable ? prototype.translationStatus : prototype.status; ready: !prototype.demo && prototype.translationAvailable && prototype.engineReady && prototype.logReady; onConfigure: window.activePage = "settings" }
+                SystemStatusPanel { Layout.fillWidth: true; statusText: prototype.translationAvailable ? prototype.translationStatus : prototype.status; ready: !prototype.demo && prototype.translationAvailable && prototype.engineReady; onConfigure: window.activePage = "settings" }
             }
         }
     }

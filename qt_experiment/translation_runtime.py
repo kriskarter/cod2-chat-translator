@@ -14,7 +14,7 @@ import time
 from collections import deque
 from pathlib import Path
 
-from PySide6.QtCore import QTimer, Signal, Slot, Property
+from PySide6.QtCore import QTimer, Signal, Slot, Property, Qt
 from app import (ControlApp, DEFAULT_CONFIG, UI_STRINGS, TARGET_LANGUAGES,
                  SLANG_STYLES, LogTailer, TranslatorWorker,
                  TranslationWorkerSharedState, RecentDuplicateFilter,
@@ -43,6 +43,7 @@ def read_translation_config(path: Path | None):
 HUD_PRESETS = {"text": (420, 120, 9, 0.), "minimal": (420, 120, 9, .15), "readable": (500, 150, 10, .12)}
 
 class TranslationState(LiveMonitorState):
+    shortcutWake = Signal()
     feedback = Signal(str, str, bool)
     translationChanged = Signal()
     # These existing methods access only the ingress contract below, not Tk.
@@ -152,6 +153,7 @@ class TranslationState(LiveMonitorState):
         self._screenshot_in_progress = False
         if game_hotkeys and os.name == "nt":
             from .game_controls import GameControls
+            self.shortcutWake.connect(self._drain, Qt.QueuedConnection)
             self._game = GameControls(self, config.get("overlay", {}),
                                       self._out_source, self._out_target)
 
@@ -951,6 +953,8 @@ class TranslationState(LiveMonitorState):
 
     @Slot()
     def _drain(self):
+        if self.stop_event.is_set():
+            return
         changed = False
         self._hud.tick()
         if self._game: self._game.tick()

@@ -168,7 +168,7 @@ MetalPanel {
                     id: aboutScrollContent; width:Math.min(820, aboutScroll.width-12); anchors.horizontalCenter: parent.horizontalCenter; spacing: 10
                 RowLayout {
                     Layout.fillWidth:true;spacing:22
-                    Image {source:"reference_art/wordmark.webp";Layout.preferredWidth:230;Layout.preferredHeight:100;fillMode:Image.PreserveAspectFit}
+                    Image {source:"reference_art/brand.webp";Layout.preferredWidth:230;Layout.preferredHeight:100;fillMode:Image.PreserveAspectFit}
                     ColumnLayout {Layout.fillWidth:true
                         Text {text:"CoD2 Chat Translator";color:"#f5e7c9";font.pixelSize:22;font.bold:true}
                         Text {text:root.tr("Перевод игрового чата и мониторинг серверов Call of Duty 2.");wrapMode:Text.WordWrap;Layout.fillWidth:true;color:"#d6c9ae"}
@@ -247,7 +247,7 @@ MetalPanel {
                     }
                     Rectangle {
                         id:hudStage
-                        Layout.fillWidth:true;Layout.preferredHeight:Math.min(200, Math.max(132, root.height * .38));radius:6;color:"#151b19";border.color:"#686b59";clip:true
+                        Layout.fillWidth:true;Layout.preferredHeight:Math.min(200, Math.max(86, root.height * .30));radius:6;color:"#151b19";border.color:"#686b59";clip:true
                         Image {anchors.fill:parent;source:"art/hud_village.jpg";fillMode:Image.PreserveAspectCrop;opacity:.85;clip:true}
                         Text {anchors.right:parent.right;anchors.top:parent.top;anchors.margins:6;text:root.tr("Перетащите тестовый HUD");style:Text.Outline;styleColor:"#322c23";color:"#fff0d3";font.pixelSize:11}
                         Rectangle {

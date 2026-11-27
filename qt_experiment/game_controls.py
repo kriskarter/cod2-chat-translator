@@ -16,6 +16,17 @@ from .native_hud import NativeHud
 from .shortcut_diagnostics import ShortcutDiagnostics, NAMES, SHORTCUTS
 
 
+class ShortcutQueue(queue.Queue):
+    def __init__(self, wake):
+        super().__init__()
+        self.wake = wake
+
+    def put(self, item, *args, **kwargs):
+        super().put(item, *args, **kwargs)
+        if self.wake is not None and item[0] in (*NAMES, "poll_shortcut", "hook_ready", "hook_error"):
+            self.wake.emit()
+
+
 class GameControls:
     def __init__(self, state, config, source, target, *, foreground=is_cod2_foreground,
                  keyboard_factory=KeyboardCapture, hud_factory=NativeHud,
@@ -24,7 +35,7 @@ class GameControls:
         self.source, self.target = source, target
         self.foreground = foreground
         self.translator, self.sender = translator, sender
-        self.events = queue.Queue()
+        self.events = ShortcutQueue(getattr(state, "shortcutWake", None))
         self.keyboard = keyboard_factory(self.events, game_scope=self._focused)
         self.keyboard.set_enabled(state.f9)
         self.hud = hud_factory({**config, "max_messages": 1, "message_ttl_seconds": 120,
@@ -64,6 +75,8 @@ class GameControls:
             except OSError:
                 pass
         self.keyboard.start()
+        if self.diagnostics:
+            self.diagnostics.start_polling(lambda: self.keyboard, self._focused, self.events)
 
     def close(self):
         self.closed.set()
@@ -173,6 +186,8 @@ class GameControls:
         if self.active and (not self._focused() or not self.state.f9 or not self.keyboard.active):
             self.cancel("F9: ввод отменён")
         diag = self.diagnostics
+        if self.resume_f9 and not self._focused():
+            self.resume_f9 = False
         if self.rearming and not self.keyboard._thread.is_alive():
             self.keyboard = KeyboardCapture(self.events, game_scope=self._focused)
             self.keyboard.set_enabled(self.state.f9)
@@ -181,23 +196,6 @@ class GameControls:
             self.rearming = False
         if diag:
             now = time.monotonic()
-            for missed in diag.missed(self.keyboard, now):
-                focused = self._focused()
-                diag.write("async_edge key=%s game_focus=%s %s", NAMES[missed], focused, diag.focus())
-                if not focused:
-                    continue
-                if missed == "toggle_popup" and self.state.f9 and not self.rearming:
-                    if self.active:
-                        self.cancel()
-                    else:
-                        self.resume_f9 = True
-                    # Reinstall before opening text input after a missed hook edge.
-                    self.keyboard.stop()
-                    self.ready = False
-                    self.rearming = True
-                    diag.write("F9 hook_rearm")
-                elif missed != "toggle_popup":
-                    self.events.put((missed, "poll"))
             if now - diag.heartbeat >= 30:
                 diag.heartbeat = now
                 diag.write("qt_tick hook_thread_alive=%s queue=%d", self.keyboard._thread.is_alive(), self.events.qsize())
@@ -206,6 +204,23 @@ class GameControls:
                 event, value = self.events.get_nowait()
             except queue.Empty:
                 break
+            if event == "poll_shortcut":
+                key, sampled_at = value
+                if time.monotonic()-sampled_at > .75 or not self._focused():
+                    if diag: diag.write("action_rejected key=%s reason=stale_or_unfocused", NAMES[key])
+                    continue
+                if key == "toggle_popup":
+                    if not self.state.f9 or self.rearming:
+                        continue
+                    self.resume_f9 = not self.active
+                    if self.active:
+                        self.cancel()
+                    self.keyboard.stop()
+                    self.ready = False
+                    self.rearming = True
+                    diag.write("F9 hook_rearm")
+                    continue
+                event, value = key, "poll"
             if diag:
                 if event == "shortcut_hook":
                     vk, injected, accepted, enabled = value

@@ -60,6 +60,8 @@ class ShortcutDiagnostics:
         self.user.GetAsyncKeyState.restype = ctypes.c_short
         self.down = set()
         self.heartbeat = time.monotonic()
+        self.poll_stop = threading.Event()
+        self.poll_thread = None
         self.edges = queue.SimpleQueue()
         self.worker = threading.Thread(target=self._record_edges, daemon=True, name="ShortcutTrace")
         self.worker.start()
@@ -78,12 +80,15 @@ class ShortcutDiagnostics:
         self.logger.info(msg, *args)
 
     def focus(self):
-        from outgoing_send import foreground_process_name, _foreground_api
+        from outgoing_send import foreground_process_name, _foreground_api, COD2_EXE_NAMES
         user, _ = _foreground_api()
         hwnd = user.GetForegroundWindow()
         pid = wintypes.DWORD()
         if hwnd: user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        return "exe=%s pid=%d elevated=%s" % (foreground_process_name() or "unknown", pid.value,
+        name = foreground_process_name()
+        if name not in COD2_EXE_NAMES or user.GetForegroundWindow() != hwnd:
+            return "game_focus=False"
+        return "exe=%s pid=%d elevated=%s" % (name, pid.value,
                                               elevated(pid.value) if pid.value else "unknown")
 
     def missed(self, keyboard, now):
@@ -98,7 +103,35 @@ class ShortcutDiagnostics:
             else:
                 self.down.discard(vk)
 
+    def start_polling(self, keyboard, focused, events):
+        # Hardware state belongs to the interactive desktop; never wait for a Qt
+        # repaint to sample it. All HUD and translation state remains Qt-owned.
+        def poll():
+            self.write("polling_started requested_interval_ms=12")
+            last = time.monotonic()
+            samples = 0
+            while not self.poll_stop.wait(.012):
+                now = time.monotonic()
+                samples += 1
+                for event in self.missed(keyboard(), now):
+                    accepted = focused()
+                    self.write("hotkey_detected key=%s source=polling accepted=%s %s",
+                               NAMES[event], accepted, self.focus() if accepted else "")
+                    if accepted:
+                        events.put(("poll_shortcut", (event, now)))
+                if now - last >= 30:
+                    self.write("polling_heartbeat samples=%d elapsed_s=%.2f %s",
+                               samples, now-last, self.focus())
+                    last, samples = now, 0
+            self.write("polling_stopped")
+
+        self.poll_thread = threading.Thread(target=poll,name="QtShortcutPolling",daemon=True)
+        self.poll_thread.start()
+
     def close(self):
+        self.poll_stop.set()
+        if self.poll_thread:
+            self.poll_thread.join()
         self.edges.put(None)
         self.worker.join(1)
         self.write("stop")
