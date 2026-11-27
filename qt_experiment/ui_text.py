@@ -344,3 +344,9 @@ LABELS.update({
     "Запрашивать права администратора при запуске": ("Request administrator access at startup", "Запитувати права адміністратора під час запуску"),
     "F8 — входящий перевод · F9 — ваше сообщение · F10 — снимок экрана": ("F8 — incoming chat · F9 — your message · F10 — screenshot", "F8 — вхідний переклад · F9 — ваше повідомлення · F10 — знімок екрана"),
 })
+
+LABELS.update({
+    "Настроить": ("Configure", "Налаштувати"),
+    "Сообщение отправлено": ("Message sent", "Повідомлення надіслано"),
+    "Настройки сохранятся. Windows запросит подтверждение UAC. Следующий запуск будет запрашивать права администратора.": ("Settings will be saved. Windows will request UAC confirmation. Future launches will request administrator access.", "Налаштування збережуться. Windows запросить підтвердження UAC. Наступний запуск запитуватиме права адміністратора."),
+})

@@ -40,6 +40,7 @@ class LiveMonitorState(PrototypeState):
         self._f8 = self._f9 = self._overlay = self._smart = False
         self._settings = settings
         self._friend_error = ""
+        self._server_error = ""
         self._presence = PresenceTracker()
         self._presence.configure(settings["friends"],self._rows)
         self._game_exe = game_exe
@@ -68,8 +69,21 @@ class LiveMonitorState(PrototypeState):
     def friends(self):
         return list(self._settings["friends"])
 
-    def _settings_changed(self):
-        pass
+    @Property(str, notify=recordsChanged)
+    def serverSaveError(self): return self._server_error
+
+    def _persist_servers(self, servers):
+        # Development monitor has no writable settings file.
+        return True
+
+    def _replace_servers(self, servers):
+        self._server_error = ""
+        if not self._persist_servers(servers):
+            self.recordsChanged.emit()
+            self.changed.emit()
+            return False
+        self._monitor.replace_servers(servers)
+        return True
 
     @Property("QVariantList", notify=PrototypeState.friendsChanged)
     def friendRows(self): return self._presence.rows()
@@ -116,6 +130,7 @@ class LiveMonitorState(PrototypeState):
 
     @Slot(str, str, str, bool, result=bool)
     def editServerAddress(self, address, new_address, label, favorite):
+        self._server_error = ""
         try:
             new_address = canonical_address(new_address)
         except ValueError:
@@ -123,8 +138,9 @@ class LiveMonitorState(PrototypeState):
         if address not in self._rows or (new_address != address and new_address in self._rows):
             return False
         label = label.strip()[:80]
-        self._monitor.replace_servers([replace(s, address=new_address, label=label, favorite=favorite)
-                                       if s.address == address else s for s in self._settings["servers"]])
+        if not self._replace_servers([replace(s, address=new_address, label=label, favorite=favorite)
+                                      if s.address == address else s for s in self._settings["servers"]]):
+            return False
         if new_address != address:
             self._rows.pop(address)
             self._rows[new_address] = row_from_snapshot(Snapshot(address=new_address, name=label))
@@ -135,7 +151,7 @@ class LiveMonitorState(PrototypeState):
             self.friendsChanged.emit()
         elif label:
             self._rows[address] = replace(self._rows[address], name=label)
-        self._settings_changed()
+
         self.recordsChanged.emit()
         self.rowsChanged.emit()
         self.changed.emit()
@@ -145,14 +161,15 @@ class LiveMonitorState(PrototypeState):
     def removeServer(self, address):
         if address not in self._rows:
             return False
-        self._monitor.replace_servers([s for s in self._settings["servers"] if s.address != address])
+        if not self._replace_servers([s for s in self._settings["servers"] if s.address != address]):
+            return False
         self._rows.pop(address)
         self._presence.configure(self._settings["friends"],self._rows)
         self.friendsChanged.emit()
         if self._selected == address:
             self._selected = next(iter(self._rows), "")
         self._count_friends()
-        self._settings_changed()
+
         self.recordsChanged.emit()
         self.rowsChanged.emit()
         self.changed.emit()
@@ -242,17 +259,19 @@ class LiveMonitorState(PrototypeState):
 
     @Slot(str, str, result=bool)
     def addServer(self, address, label):
+        self._server_error = ""
         try:
             address = canonical_address(address)
             if address in self._rows or len(self._rows) >= MAX_SERVERS:
                 raise ValueError("duplicate or limit")
             server = Server(address, label.strip()[:80], False)
-            self._monitor.replace_servers([*self._settings["servers"], server])
+            if not self._replace_servers([*self._settings["servers"], server]):
+                return False
             self.update_snapshot(Snapshot(address=address, name=server.label))
             self._presence.configure(self._settings["friends"],self._rows)
             self.friendsChanged.emit()
             self._status = "Сервер добавлен"
-            self._settings_changed()
+
             self.recordsChanged.emit()
             self.changed.emit()
             return True

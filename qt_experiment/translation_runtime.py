@@ -254,9 +254,25 @@ class TranslationState(LiveMonitorState):
             self.feedback.emit("", self.translationStatus, True)
             return False
 
-    def _settings_changed(self):
-        # Save only on explicit user request, never from a network callback.
-        pass
+    def _persist_servers(self, servers):
+        if self._store is None:
+            return True
+        # Commit only the explicit server mutation, before changing the UI or
+        # monitor. Keep unrelated preferences and unknown configuration keys.
+        try:
+            config = deepcopy(self._store.load(self._config))
+            monitor = config.get("server_monitor")
+            monitor = dict(monitor) if isinstance(monitor, dict) else {}
+            monitor["servers"] = [vars(server).copy() for server in servers]
+            config["server_monitor"] = monitor
+            self._store.save(config)
+            self._config = config
+            return True
+        except (OSError, RuntimeError, ValueError) as error:
+            self._server_error = self.trText("Ошибка сохранения") + ": " + str(error)
+            self.game_status(self._server_error)
+            self.feedback.emit("", self._server_error, True)
+            return False
 
     def _save_friend_settings(self):
         if self._store is None: return True
@@ -789,8 +805,10 @@ class TranslationState(LiveMonitorState):
             return "Ожидание сообщений"
         if game:
             if game.sending: return "Отправка"
-            if game.pending or game.preview_inflight: return "Перевод…"
+            if game.status_error: return "Ошибка"
+            if game.pending or game.preview_inflight or game.preview_due is not None: return "Перевод…"
             if game.active: return "Окно открыто"
+            if time.monotonic() < game.sent_until: return "Сообщение отправлено"
             if game.ready: return "Ожидание игровой клавиши"
         return "Ручной режим"
 
@@ -928,13 +946,8 @@ class TranslationState(LiveMonitorState):
             self._game_running, self._privilege_mismatch = running, mismatch
             self.translationChanged.emit()
 
-        if not mismatch and not self._always_admin:
-            self._auto_prompted = False
-        elif not self._auto_prompted and self._store:
-            self._auto_prompted = True
-            if mismatch or self._needs_preferred_elevation():
-                # Run after QApplication.exec begins, including at first startup.
-                QTimer.singleShot(0, self.restartElevated)
+        # A running application never elevates itself from a polling callback.
+        # The mismatch is visible in the UI; only explicit confirmation restarts it.
 
     def _needs_preferred_elevation(self):
         from .shortcut_diagnostics import elevated
@@ -962,7 +975,12 @@ class TranslationState(LiveMonitorState):
 
     @Slot()
     def restartElevated(self):
-        if not (self._privilege_mismatch or self._always_admin) or self._store is None or not self.saveSettings():
+        if not (self._privilege_mismatch or self._always_admin) or self._store is None:
+            return
+        previous = self._always_admin
+        self._always_admin = True
+        if not self.saveSettings():
+            self._always_admin = previous
             return
         from .windows_privileges import restart_elevated
         ok, error = restart_elevated()
@@ -970,6 +988,8 @@ class TranslationState(LiveMonitorState):
             from PySide6.QtCore import QCoreApplication
             QCoreApplication.quit()
         else:
+            self._always_admin = previous
+            self.saveSettings()
             self.game_status("Повышение прав отменено или не удалось")
             self.feedback.emit("", self.translationStatus, True)
 
@@ -1134,13 +1154,20 @@ class TranslationState(LiveMonitorState):
             self._outgoing_busy = False
             self._outgoing_result = ""
         elif key == "overlay":
-            self._overlay_on_start = not self._overlay
-            if self._overlay_on_start and not self._f8:
+            # Both entry points control the same incoming feature.
+            if self._f8 == self._overlay:
                 self.toggle("f8")
                 return
-            self._overlay = self._hud.enable(self._overlay_on_start)
-            if self._hud.last_error:
-                self._translation_status = "HUD: " + self._hud.last_error
+            # An unavailable HUD may leave the engine enabled. Retry enabling
+            # rather than advertising a successful HUD toggle.
+            if self._f8:
+                self._overlay_on_start = True
+                self._overlay = self._hud.enable(True)
+                if self._hud.last_error:
+                    self._translation_status = "HUD: " + self._hud.last_error
+            else:
+                self.toggle("f8")
+                return
         else:
             return
         self.changed.emit()

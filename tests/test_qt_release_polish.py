@@ -63,17 +63,21 @@ def test_thirty_physical_edges_update_engine_and_hud(state):
     assert len(state.history)==15
 
 
-def test_rejected_uac_once_per_game_session(state,monkeypatch):
+def test_late_uac_never_restarts_without_explicit_consent(state,monkeypatch):
     mismatch=[False]
     monkeypatch.setattr(windows_privileges,"game_privilege_status",lambda:(mismatch[0],mismatch[0]))
     request=Mock(return_value=(False,"5"))
     monkeypatch.setattr(windows_privileges,"restart_elevated",request)
-    for value, count in [(False,0),(True,1),(True,1),(False,1),(True,2)]:
+    for value in (False,True,True,False,True):
         mismatch[0]=value
         state._check_game_privileges()
         QGuiApplication.processEvents()
-        assert request.call_count == count
+        request.assert_not_called()
         assert state.gamePrivilegeMismatch == value
+    state.restartElevated()
+    request.assert_called_once()
+    assert not state.alwaysAdmin
+    assert state.gamePrivilegeMismatch
 
 
 def test_saved_layout_and_smallest_compact_editor():
@@ -109,6 +113,7 @@ def test_home_hud_buttons_and_warning(state):
     for key,name in (("f8","incoming"),("f9","outgoing")):
         button=window.findChild(QObject,key+"HudButton")
         QTest.qWait(60)
+        assert button.property("text")=="Настроить"
         point=button.mapToScene(QPointF(button.width()/2,button.height()/2))
         QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(point.x()),round(point.y())))
         QTest.qWait(150)

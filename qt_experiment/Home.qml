@@ -70,6 +70,15 @@ ApplicationWindow {
     }
     readonly property var hudEditor: editorLoader.item
     FriendPanel {id:friendsPanel}
+    MetalDialog {
+        id: rightsDialog
+        anchors.centerIn:parent
+        title:window.tr("Перезапустить от имени администратора?")
+        standardButtons:Dialog.Yes | Dialog.No
+        Text { width:340; wrapMode:Text.WordWrap; color:window.ink; text:window.tr("Настройки сохранятся. Windows запросит подтверждение UAC. Следующий запуск будет запрашивать права администратора.") }
+        onAccepted:prototype.restartElevated()
+    }
+    function confirmElevation() { rightsDialog.open() }
     MetalPanel {
         id:notice;objectName:"friend_notice";parent:window.contentItem;z:100
         anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:18
@@ -119,7 +128,7 @@ ApplicationWindow {
                 AmberButton { text: window.tr("Добавить"); enabled: addressPreview.text.length > 0; onClicked: {
                     if (prototype.addServer(addressPreview.text, labelField.text)) {
                         addressField.clear(); portField.text = "28960"; labelField.clear(); addDialog.submissionError = ""; addDialog.close()
-                    } else addDialog.submissionError = window.tr("Неверный адрес, повтор или достигнут лимит")
+                    } else addDialog.submissionError = prototype.serverSaveError || window.tr("Неверный адрес, повтор или достигнут лимит")
                 } }
             }
         }
@@ -148,15 +157,15 @@ ApplicationWindow {
             Layout.preferredHeight: Math.min(window.width * 198 / 1534, window.laptop ? 109 + (window.height-620)*.37 : window.height * (window.shortWindow ? .17 : .239))
             Layout.minimumHeight: Layout.preferredHeight; Layout.maximumHeight: Layout.preferredHeight
             clip: true
-            // Preserve the entire illustrated strip, including all three original joins.
-            Image { anchors.fill:parent; source:"reference_art/sheet.webp"; fillMode:Image.PreserveAspectCrop;clip:true }
+            // Keep the original wordmark proportional. The side illustrations
+            // fill the remaining width using vertical crop, never horizontal stretch.
             Row {
-                anchors.centerIn:parent
-                readonly property real artScale: Math.min(parent.width/1534, parent.height/198)
-                height:198*artScale
-                Image { width:519*parent.artScale; height:parent.height; source:"reference_art/left.webp" }
-                Image { objectName:"command_logo"; width:583*parent.artScale; height:parent.height; source:"reference_art/wordmark.webp" }
-                Image { width:432*parent.artScale; height:parent.height; source:"reference_art/right.webp" }
+                anchors.fill:parent
+                readonly property real logoWidth: Math.min(parent.width*583/1534, parent.height*583/198)
+                readonly property real sideWidth: parent.width-logoWidth
+                Image { objectName:"command_art_left"; width:parent.sideWidth*519/951; height:parent.height; source:"reference_art/left.webp"; fillMode:Image.PreserveAspectCrop; clip:true }
+                Image { objectName:"command_logo"; width:parent.logoWidth; height:parent.height; source:"reference_art/wordmark.webp"; fillMode:Image.PreserveAspectFit }
+                Image { objectName:"command_art_right"; width:parent.sideWidth*432/951; height:parent.height; source:"reference_art/right.webp"; fillMode:Image.PreserveAspectCrop; clip:true }
             }
         }
         MetalPanel {

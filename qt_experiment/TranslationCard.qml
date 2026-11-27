@@ -80,12 +80,12 @@ MetalPanel {
    Text {
     text: (prototype.uiLanguage,prototype.trText(root.liveStatus)); color:root.statusColor
     font.pixelSize:root.compact?11:12; elide:Text.ElideRight; Layout.minimumWidth:0; Layout.fillWidth:true
-    TapHandler { enabled:root.liveStatus==="Несовпадение прав"; onTapped:prototype.restartElevated() }
+    TapHandler { enabled:root.liveStatus==="Несовпадение прав"; onTapped: { if (root.Window.window && root.Window.window.confirmElevation) root.Window.window.confirmElevation() } }
    }
    MetalButton {
     objectName:root.keyName.toLowerCase()+"HudButton"; glyph:"icons/settings.svg"
-    text:(prototype.uiLanguage,prototype.trText("Окно"))+" "+root.keyName
-    font.pixelSize:11;sizeClass:"compact";Layout.preferredWidth:Math.min(106,body.width*.58)
+    text:(prototype.uiLanguage,prototype.trText("Настроить"))
+    font.pixelSize:11;sizeClass:"compact";Layout.preferredWidth:Math.min(132,body.width*.58)
     onClicked:root.configure()
    }
   }

@@ -32,7 +32,7 @@ MetalPanel {
         property string address
         standardButtons: Dialog.Yes | Dialog.No
         Text { text: (prototype.uiLanguage, prototype.trText("Удалить выбранный сервер из списка?")); color: "#f5e7c9" }
-        onAccepted: prototype.removeServer(address)
+        onAccepted: { if (!prototype.removeServer(address)) editorError.text = prototype.serverSaveError }
     }
     ColumnLayout {
         anchors.fill:parent;anchors.margins:14;spacing:5
@@ -87,7 +87,7 @@ MetalPanel {
                 MetalButton { text: (prototype.uiLanguage, prototype.trText("Применить")); enabled: !!root.record; Layout.fillWidth: true; onClicked: {
                     let address = prototype.serverAddressPreview(hostInput.text, portInput.text)
                     if (!address || !prototype.editServerAddress(root.editingAddress, address, labelInput.text, favoriteInput.checked))
-                        editorError.text = (prototype.uiLanguage, prototype.trText("Неверный адрес, повтор или достигнут лимит"))
+                        editorError.text = prototype.serverSaveError || (prototype.uiLanguage, prototype.trText("Неверный адрес, повтор или достигнут лимит"))
                     else root.loadEditor()
                 } }
                 MetalButton { text: (prototype.uiLanguage, prototype.trText("Удалить")); enabled: !!root.record; Layout.fillWidth: true; onClicked: { removeDialog.address = root.editingAddress; removeDialog.open() } }

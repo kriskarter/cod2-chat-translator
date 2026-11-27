@@ -50,6 +50,8 @@ class GameControls:
         self.ready = False
         self.hook_error = ""
         self.last_shortcut = ""
+        self.status_error = False
+        self.sent_until = 0.0
         self._last_f8_edge = None
         self.buffer = ""
         self.failed_draft = ""
@@ -94,6 +96,8 @@ class GameControls:
 
     def cancel(self, message=""):
         self.generation += 1
+        self.status_error = False
+        self.sent_until = 0.0
         self.active = self.pending = False
         self.preview_due = None
         self.preview_inflight = False
@@ -119,6 +123,8 @@ class GameControls:
     def open(self):
         if not self.state.f9 or not self._focused() or self.sending:
             return
+        self.status_error = False
+        self.sent_until = 0.0
         self.state.position_outgoing_hud(self.hud.config)
         self.hud.last_error = ""
         if not self.hud.enable(True):
@@ -135,6 +141,7 @@ class GameControls:
             self._display("Enter — отправить · Esc — отменить")
 
     def _edit(self):
+        self.status_error = False
         # Every edit invalidates a previous translation before another job is queued.
         self.generation += 1
         self.preview_inflight = False
@@ -158,6 +165,7 @@ class GameControls:
         if self.preview_result:
             self._begin_send(self.preview_result)
             return
+        self.status_error = False
         self.pending = True
         self._display("Перевод… Esc — отменить")
         if self.active and not self.preview_inflight:
@@ -199,7 +207,9 @@ class GameControls:
     def tick(self):
         if self.closed.is_set():
             return
-        previous = (self.active, self.sending, self.pending, self.preview_inflight)
+        previous = (self.active, self.sending, self.pending, self.preview_inflight, self.preview_due, self.status_error, self.sent_until)
+        if self.sent_until and time.monotonic() >= self.sent_until:
+            self.sent_until = 0.0
         self.keyboard.set_enabled(self.state.f9)
         if self.active and (not self._focused() or not self.state.f9 or not self.keyboard.active):
             self.cancel("F9: ввод отменён")
@@ -301,6 +311,7 @@ class GameControls:
                     self.pending = False
                     self.preview_result = ""
                     self._display("Ошибка перевода · повторите Enter")
+                    self.status_error = True
                     self.state.game_status(result)
                 elif self.pending:
                     self._begin_send(result)
@@ -318,6 +329,9 @@ class GameControls:
                             self._display("Ошибка отправки · повторите Enter")
                 if ok:
                     self.state.record_sent(self.send_draft, self.send_translation)
+                    self.sent_until = time.monotonic() + 2.0
+                else:
+                    self.status_error = True
                 self.send_draft = ""
                 self.state.game_status("F9: отправлено" if ok else "F9: " + error)
             elif self.active and not self.pending:
@@ -332,5 +346,5 @@ class GameControls:
                 self._edit()
         if self.active and not self.pending and self.preview_due is not None and time.monotonic() >= self.preview_due:
             self._request_preview()
-        if previous != (self.active, self.sending, self.pending, self.preview_inflight):
+        if previous != (self.active, self.sending, self.pending, self.preview_inflight, self.preview_due, self.status_error, self.sent_until):
             self.state.translationChanged.emit()

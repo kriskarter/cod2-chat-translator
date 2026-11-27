@@ -12,7 +12,8 @@ from .common import PrototypeState, preview_state
 
 def main():
     from PySide6.QtWidgets import QApplication
-    if "--restart-parent" in sys.argv:
+    restarted = "--restart-parent" in sys.argv
+    if restarted:
         from .windows_privileges import wait_for_parent
         index = sys.argv.index("--restart-parent")
         try:
@@ -69,6 +70,17 @@ def main():
                 if not target.exists() and hint in ("ru", "uk", "en"): values["ui_language"] = hint
             except OSError: pass
             values = store.load(values)
+        if (instance and store and not restarted and "--screenshot" not in sys.argv
+                and "--verify-game-hotkeys" not in sys.argv):
+            from .windows_privileges import game_privilege_status, restart_elevated
+            from .shortcut_diagnostics import elevated
+            import os
+            if elevated(os.getpid()) == "False":
+                _, mismatch = game_privilege_status()
+                if values.get("qt_always_admin") is True or mismatch:
+                    ok, _ = restart_elevated()
+                    if ok:
+                        return 0
         state = TranslationState(values, exe, log, knowledge, game_hotkeys="--game-hotkeys" in sys.argv, settings_store=store)
         app.aboutToQuit.connect(state.stop)
         if "--screenshot" not in sys.argv and not state.logPath:

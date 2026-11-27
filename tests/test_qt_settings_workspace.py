@@ -62,7 +62,7 @@ def test_server_workspace_and_explicit_save(tmp_path):
         assert target.exists()
         auto_saved=json.loads(target.read_text(encoding="utf-8"))
         assert auto_saved["server_monitor"]["friends"] == ["^2Medic"]
-        assert auto_saved["server_monitor"]["servers"] == []
+        assert auto_saved["server_monitor"]["servers"] == [{"address":"127.0.0.1:12345","label":"Renamed","favorite":True}]
         state.setTargetLanguage("uk")
         state.saveSettings()
         saved = json.loads(target.read_text(encoding="utf-8"))
@@ -79,6 +79,9 @@ def test_server_workspace_and_explicit_save(tmp_path):
         assert saved["server_monitor"]["servers"] == []
         assert saved["server_monitor"]["friends"] == []
         target.write_text('{"external":true}')
+        assert not state.addServer("127.0.0.1:12345","Must not appear")
+        assert not state.serverRecords
+        assert "Ошибка сохранения" in state.serverSaveError
         state.saveSettings()
         assert json.loads(target.read_text()) == {"external": True}
         assert "Ошибка сохранения" in state.translationStatus

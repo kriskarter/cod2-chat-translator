@@ -238,7 +238,9 @@ jobs:
           if-no-files-found: error
   publish:
     needs: build
-    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
+    # Keep candidate artifacts available for native visual and migration acceptance.
+    # Publish only after explicit dispatch and the existing exact-SHA smoke gate.
+    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
