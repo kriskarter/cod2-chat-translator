@@ -90,3 +90,45 @@ def test_real_qml_preview_dialog(tmp_path):
         window.close()
         del engine
         state.stop()
+
+
+def test_renderer_wraps_long_tokens_and_retains_words():
+    from PIL import Image, ImageDraw
+    from qt_experiment.outgoing_hud import wrap, font
+    face = font(14)
+    draw = ImageDraw.Draw(Image.new("RGBA",(1,1)))
+    text = "Слово " + "a"*150 + " конец"
+    lines = wrap(draw,text,face,100)
+    assert all(draw.textlength(line,font=face)<=100 for line in lines)
+    assert "".join(lines).replace(" ","") == text.replace(" ","")
+
+
+def test_native_renderer_comparison_evidence():
+    import os
+    if os.name != "nt":
+        pytest.skip("Windows renderer comparison")
+    import json
+    import time
+    import statistics
+    from pathlib import Path
+    from app import OverlayItem
+    from win32_layered_overlay import build_image
+    cfg = positioned({"width":720,"height":200,"x":0,"y":0}, (0,0,1366,768))
+    text = "Привет, прикрой меня у моста!"
+    translation = "Hey, cover me at the bridge!"
+    item = OverlayItem("Enter — отправить · Esc — отменить",text,translation,time.monotonic())
+    results = {}
+    for name, render in (("legacy_generic",lambda:build_image([item],cfg,True)),
+                         ("outgoing_editor",lambda:render_editor(text,translation,item.nickname,cfg))):
+        render()
+        samples=[]
+        for i in range(20):
+            start=time.perf_counter()
+            render()
+            samples.append((time.perf_counter()-start)*1000)
+        results[name]={"median_ms":round(statistics.median(samples),3),"p95_ms":round(sorted(samples)[18],3)}
+    capture = os.environ.get("COD2_QT_TEST_SCREENSHOTS")
+    if capture:
+        (Path(capture)/"f9_renderer_benchmark.json").write_text(json.dumps({
+            "scenario":"Windows image rendering only, not Win32 presentation, gameplay or network latency",
+            **results},indent=2),encoding="utf-8")

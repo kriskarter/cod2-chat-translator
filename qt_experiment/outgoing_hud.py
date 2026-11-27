@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -47,7 +48,6 @@ def positioned(raw, rect):
 
 
 def font(size, bold=False):
-    from functools import lru_cache
     return _font(int(size), bool(bold))
 
 
@@ -67,21 +67,35 @@ def _font(size, bold):
 
 
 def wrap(draw, text, face, width):
+    """Measure words first; split unusually long tokens by binary search.
+
+    Avoid measuring every prefix of every word on the GUI thread.
+    """
+    def measure(value):
+        return draw.textlength(value, font=face)
     lines = []
     for paragraph in str(text).split("\n"):
         current = ""
-        for char in paragraph:
-            if current and draw.textlength(current+char, font=face) > width:
-                cut = current.rfind(" ")
-                if cut > 0:
-                    lines.append(current[:cut])
-                    current = current[cut+1:] + char
-                else:
-                    lines.append(current)
-                    current = char
-            else:
-                current += char
-        lines.append(current)
+        for token in re.findall(r"\s+|\S+", paragraph):
+            if measure(current+token) <= width:
+                current += token
+                continue
+            if current.strip():
+                lines.append(current.rstrip())
+            current = ""
+            token = token.lstrip()
+            while token and measure(token) > width:
+                low, high = 1, len(token)
+                while low < high:
+                    mid = (low+high+1)//2
+                    if measure(token[:mid]) <= width:
+                        low = mid
+                    else:
+                        high = mid-1
+                lines.append(token[:low])
+                token = token[low:]
+            current = token
+        lines.append(current.rstrip())
     return lines or [""]
 
 
@@ -111,9 +125,17 @@ def render_editor(original, translated, status, cfg):
             result.append((lines,face,color,line_h))
         return result, 2*margin+sum(len(lines)*lh+3 for lines,_,_,lh in result)
     groups, needed = layout(size)
-    while needed > max_h and size > 9:
-        size -= 1
-        groups, needed = layout(size)
+    if needed > max_h and size > 9:
+        lo, hi = 9, size-1
+        groups, needed = layout(lo)
+        while lo <= hi:
+            mid = (lo+hi)//2
+            candidate, required = layout(mid)
+            if required <= max_h:
+                groups, needed = candidate, required
+                lo = mid+1
+            else:
+                hi = mid-1
     height = min(max_h, max(h, needed))
     # Fixed-size windows cannot show arbitrary 500-character input at every
     # font size. Preserve the input buffer and make the visible tail explicit.

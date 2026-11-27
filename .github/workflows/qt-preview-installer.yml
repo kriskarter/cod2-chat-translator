@@ -202,7 +202,7 @@ jobs:
           name: qt-preview-frozen-ui-evidence
           path: |
             qt-evidence/*.png
-            qt-evidence/native_poll.json
+            qt-evidence/*.json
           if-no-files-found: error
   publish:
     needs: build
