@@ -91,7 +91,7 @@ class ProtocolTests(unittest.TestCase):
             result = query_server(address_from_fields("127.0.0.1", str(port)), timeout=.5)
             worker.join(2)
             self.assertEqual(result.state, "online")
-            self.assertEqual(requests, [b"\\xff\\xff\\xff\\xffgetstatus"])
+            self.assertEqual(requests, [bytes([255])*4 + b"getstatus"])
 
     def test_offline_and_timeout(self):
         with patch("server_monitor.socket.getaddrinfo",side_effect=OSError("offline")):
