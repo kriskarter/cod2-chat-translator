@@ -18,6 +18,10 @@ MAX_SIZE=350*1024*1024
 def installed_build():
     try:
         data=json.loads((ROOT/"qt_build.json").read_text(encoding="utf-8"))
+        if (isinstance(data,dict) and data.get("channel") in ("candidate","stable")
+                and re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", str(data.get("tag","")))
+                and re.fullmatch(r"[a-f0-9]{40}",str(data.get("sha","")))):
+            return data
         if isinstance(data,dict) and TAG.fullmatch(str(data.get("tag",""))) and isinstance(data.get("sha"),str) and re.fullmatch(r"[0-9a-f]{40}",data["sha"]) and data["sha"].startswith(data["tag"][11:]):
             return data
     except (OSError,ValueError,TypeError): pass
@@ -46,6 +50,26 @@ def check_preview_release(getter=None, installed=None):
         from update_client import _get_json
         getter=_get_json
     if installed is None:installed=installed_build()
+    if installed.get("channel") in ("candidate", "stable"):
+        from update_client import is_newer, verify_update_manifest_signature
+        release = getter(f"https://api.github.com/repos/{REPO}/releases/latest")
+        tag = release.get("tag_name", "")
+        if (release.get("draft") is not False or release.get("prerelease") is not False
+                or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+",tag)
+                or not is_newer(tag, installed["tag"])):
+            return None
+        name = "CoD2ChatTranslator_Setup.exe"
+        assets = {a["name"]: a for a in release.get("assets", [])}
+        for asset in (name, "installer-update.json", SUMS):
+            if assets.get(asset, {}).get("browser_download_url") != _asset_url(tag,asset):
+                return None
+        manifest = getter(_asset_url(tag,"installer-update.json"))
+        if (not verify_update_manifest_signature(manifest) or manifest.get("asset") != name
+                or manifest.get("version") != tag[1:]
+                or not re.fullmatch(r"[a-f0-9]{64}",str(manifest.get("sha256","")))):
+            raise ValueError("Invalid signed installer manifest")
+        return dict(tag=tag, channel="stable", url=f"https://github.com/{REPO}/releases/tag/{tag}",
+                    notes=release.get("body",""),size=assets[name].get("size"),digest="sha256:"+manifest["sha256"])
     releases=getter(f"https://api.github.com/repos/{REPO}/releases?per_page=100")
     if not isinstance(releases,list):raise ValueError("Invalid release response")
     candidates=[c for r in releases if (c:=_candidate(r))]
@@ -82,13 +106,19 @@ def download_preview(candidate,directory,opener=None,cancelled=None):
     opener=opener or _open
     cancelled=cancelled or (lambda:False)
     tag=candidate["tag"]
-    if not TAG.fullmatch(tag):raise ValueError("Invalid preview tag")
+    stable = candidate.get("channel") == "stable"
+    if stable:
+        if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+",tag) or not candidate.get("digest"):
+            raise ValueError("Invalid stable installer")
+    elif not TAG.fullmatch(tag):
+        raise ValueError("Invalid preview tag")
+    asset = "CoD2ChatTranslator_Setup.exe" if stable else EXE
     directory=Path(directory)
     directory.mkdir(parents=True,exist_ok=True)
     with opener(_asset_url(tag,SUMS)) as response:
         raw=response.read(8193)
     if len(raw)>8192:raise ValueError("Invalid SHA256 manifest")
-    match=re.fullmatch(r"([0-9a-fA-F]{64})[ \t]+\*?"+re.escape(EXE),raw.decode("ascii").strip())
+    match=re.fullmatch(r"([0-9a-fA-F]{64})[ \t]+\*?"+re.escape(asset),raw.decode("ascii").strip())
     if not match:raise ValueError("Invalid SHA256 manifest")
     expected=match.group(1).lower()
     if candidate.get("digest") and candidate["digest"]!="sha256:"+expected:raise ValueError("SHA256 metadata mismatch")
@@ -96,7 +126,7 @@ def download_preview(candidate,directory,opener=None,cancelled=None):
     path=Path(name)
     try:
         digest=hashlib.sha256();total=0
-        with os.fdopen(fd,"wb") as output,opener(_asset_url(tag,EXE)) as response:
+        with os.fdopen(fd,"wb") as output,opener(_asset_url(tag,asset)) as response:
             while True:
                 if cancelled():raise RuntimeError("Download cancelled")
                 chunk=response.read(256*1024)

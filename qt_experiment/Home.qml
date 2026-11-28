@@ -109,7 +109,7 @@ ApplicationWindow {
         ColumnLayout {
             anchors.fill: parent
             Text { text: window.tr("IP-адрес или домен"); color: window.ink }
-            MetalTextField { id: addressField; objectName: "serverHostInput"; placeholderText: "148.251.139.73"; Layout.fillWidth: true
+            MetalTextField { id: addressField; objectName: "serverHostInput"; placeholderText: window.tr("Введите IP-адрес или домен"); Layout.fillWidth: true
                 onTextEdited: addDialog.submissionError = ""
                 onEditingFinished: {
                     let fields = prototype.pastedServerFields(text, portField.text)
@@ -119,7 +119,7 @@ ApplicationWindow {
             Text { text: window.tr("Порт"); color: window.ink }
             MetalTextField { id: portField; objectName: "serverPortInput"; text: "28960"; Layout.fillWidth: true; inputMethodHints: Qt.ImhDigitsOnly }
             Text { text: window.tr("Название (необязательно)"); color: window.ink }
-            MetalTextField { id: labelField; objectName: "serverNameInput"; Layout.fillWidth: true }
+            MetalTextField { id: labelField; objectName: "serverNameInput"; placeholderText: window.tr("Название сервера"); Layout.fillWidth: true }
             Text { text: window.tr("Вставленный IP:порт имеет приоритет"); color: "#bcb09a"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             Text { id: addressPreview; text: prototype.serverAddressPreview(addressField.text, portField.text); color: "#e4c291"; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true }
             Text { id: addError; text: addDialog.submissionError || (addressField.text.length > 0 && !addressPreview.text ? window.tr("Неверный адрес, повтор или достигнут лимит") : ""); color: "#e99b83"; wrapMode: Text.WordWrap; Layout.fillWidth: true; visible: text.length > 0 }

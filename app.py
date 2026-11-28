@@ -32,6 +32,7 @@ from server_catalog import (
 )
 
 from outgoing_chat import LANGUAGES, OutgoingChatController
+from protected_chat import translate_prose
 from smart_engine import DEFAULT_ENGINE, ContextMessage, TranslationRequest, semantic_violations
 from translation_fallback import (
     looks_like_service_error as
@@ -2691,12 +2692,10 @@ class TranslatorWorker(threading.Thread):
                     observed_provider=self._last_provider if result.provider=="online" else result.provider
                 else:
                     # Instant rollback switch: retain the previous behaviour.
-                    source_text, direct = msg.text, None
-                    if slang:
-                        source_text, direct = gaming_slang_transform(
-                            msg.text, target, style
-                        )
-                    translated = direct if direct is not None else timed_provider(source_text, target)
+                    def classic_segment(text):
+                        source, direct = gaming_slang_transform(text, target, style) if slang else (text, None)
+                        return direct if direct is not None else timed_provider(source, target)
+                    translated = translate_prose(msg.text, classic_segment)
                     uncertain = False
                     observed_provider="classic"
 

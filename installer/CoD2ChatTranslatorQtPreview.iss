@@ -1,20 +1,34 @@
+#ifdef StableCandidate
+#define MyAppName "CoD2 Chat Translator"
+#define ProfileName "CoD2ChatTranslator"
+#else
 #define MyAppName "CoD2 Chat Translator Qt Preview"
+#define ProfileName "CoD2ChatTranslatorQtPreview"
+#endif
 #define MyAppVersion "1.22.0"
 #define MyAppExeName "CoD2ChatTranslatorQt.exe"
 [Setup]
+#ifdef StableCandidate
+AppId={{4C1FBC79-15D6-4C54-9F76-62C2FEC6BC3A}
+#else
 AppId={{D6A4A2EF-73A2-4D25-9E38-2B85188A09D9}
+#endif
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher=kriskarter
-DefaultDirName={localappdata}\Programs\CoD2ChatTranslatorQtPreview
+DefaultDirName={localappdata}\Programs\{#ProfileName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 CloseApplications=no
 RestartApplications=no
 OutputDir=..\release-qt
+#ifdef StableCandidate
+OutputBaseFilename=CoD2ChatTranslator_Setup
+#else
 OutputBaseFilename=CoD2ChatTranslator_QtPreview_Setup
+#endif
 SetupIconFile=..\assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2
@@ -52,7 +66,7 @@ function WantsDesktop: Boolean;
 var Saved: Cardinal;
 begin
   Result := True;
-  if RegQueryDWordValue(HKCU, 'Software\kriskarter\CoD2ChatTranslatorQtPreview', 'DesktopShortcut', Saved) then
+  if RegQueryDWordValue(HKCU, 'Software\kriskarter\{#ProfileName}', 'DesktopShortcut', Saved) then
     Result := Saved <> 0;
 end;
 
@@ -83,7 +97,7 @@ begin
     if DesktopChoice.Checked then
       CreateShellLink(Link, '{#MyAppName}', ExpandConstant('{app}\{#MyAppExeName}'), '', ExpandConstant('{app}'), '', 0, SW_SHOWNORMAL)
     else if FileExists(Link) then DeleteFile(Link);
-    RegWriteDWordValue(HKCU, 'Software\kriskarter\CoD2ChatTranslatorQtPreview', 'DesktopShortcut', Ord(DesktopChoice.Checked));
+    RegWriteDWordValue(HKCU, 'Software\kriskarter\{#ProfileName}', 'DesktopShortcut', Ord(DesktopChoice.Checked));
   end;
 end;
 
@@ -93,7 +107,7 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    SettingsDir := ExpandConstant('{userappdata}\CoD2ChatTranslatorQtPreview');
+    SettingsDir := ExpandConstant('{userappdata}\{#ProfileName}');
     ForceDirectories(SettingsDir);
     LangFile := SettingsDir + '\ui_language.txt';
     if (not FileExists(LangFile)) and (not FileExists(SettingsDir + '\qt_settings.json')) then

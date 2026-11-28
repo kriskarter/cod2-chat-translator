@@ -16,6 +16,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 from outgoing_send import send_cod2_chat_message
+from protected_chat import translate_prose
 from smart_engine import DEFAULT_ENGINE, TranslationRequest, semantic_violations
 from translation_fallback import (
     looks_like_service_error,
@@ -559,6 +560,14 @@ def translate_outgoing_text(
     source = normalize_outgoing_text(text)
     if not source:
         raise ValueError("Пустое сообщение")
+    def segment(value):
+        return _translate_outgoing_segment(value, target, source_language, style, slang_enabled,
+                                           legacy_transform, smart_enabled, transport, diagnostics)
+    return translate_prose(source, segment)
+
+
+def _translate_outgoing_segment(source, target, source_language, style, slang_enabled,
+                                legacy_transform, smart_enabled, transport, diagnostics):
     if not smart_enabled:
         return _online_translate_outgoing(
             source, target, source_language,

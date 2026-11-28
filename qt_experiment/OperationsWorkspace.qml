@@ -41,7 +41,7 @@ MetalPanel {
     MetalDialog {
         id:updateConfirm;objectName:"update_install_dialog";title:root.tr("Установить обновление?");anchors.centerIn:parent;standardButtons:Dialog.NoButton
         ColumnLayout {
-            Text {text:root.tr("Приложение закроется. Настройки сохранятся. Запустится проверенный установщик Qt Preview.");width:360;wrapMode:Text.WordWrap;color:"#f5e7c9";Layout.preferredWidth:360}
+            Text {text:root.tr("Приложение закроется. Настройки сохранятся. Запустится проверенный установщик.");width:360;wrapMode:Text.WordWrap;color:"#f5e7c9";Layout.preferredWidth:360}
             Text {text:root.tr("SHA-256 проверяет целостность, но не является цифровой подписью.");wrapMode:Text.WordWrap;color:"#c6b79e";Layout.fillWidth:true}
             RowLayout {MetalButton {text:root.tr("Отмена");onClicked:updateConfirm.close()} AmberButton {text:root.tr("Установить");onClicked:{updateConfirm.close();prototype.installUpdate()}}}
         }
@@ -174,15 +174,17 @@ MetalPanel {
                         Text {text:root.tr("Перевод игрового чата и мониторинг серверов Call of Duty 2.");wrapMode:Text.WordWrap;Layout.fillWidth:true;color:"#d6c9ae"}
                         Text {text:prototype.appVersion+" · kriskarter";color:"#d7b77d";font.pixelSize:15}
                         Text {text:root.tr("Неофициальная утилита. Copyright © 2026 kriskarter. Все права защищены.");wrapMode:Text.WordWrap;Layout.fillWidth:true;color:"#bcb09a"}
-                        RowLayout {
-                            MetalButton {text:"GitHub";onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator")}
-                            MetalButton {text:root.tr("Поддержка проекта");onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator/issues")}
-                            MetalButton {text:root.tr("Лицензия");onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator/blob/main/COPYRIGHT.md")}
+                        Text {text:root.tr("Нравится программа? Поддержите проект звездой на GitHub!");color:"#e4c291";wrapMode:Text.WordWrap;Layout.fillWidth:true}
+                        Flow {
+                            Layout.fillWidth:true; spacing:6
+                            MetalButton {text:"★ "+root.tr("Поставить звезду на GitHub");onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator")}
+                            MetalButton {text:root.tr("Сообщить об ошибке");onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator/issues")}
+                            MetalButton {text:root.tr("Авторские права");onClicked:Qt.openUrlExternally("https://github.com/kriskarter/cod2-chat-translator/blob/main/COPYRIGHT.md")}
                         }
                     }
                 }
                 MetalButton { id: details; text:root.tr("Сведения о сборке"); checkable:true; sizeClass:"compact" }
-                Text { visible:details.checked; text:"Qt Preview / RC · "+prototype.buildNumber+"\n"+prototype.buildSha; color:"#d7b77d";wrapMode:Text.WrapAnywhere;Layout.fillWidth:true }
+                Text { visible:details.checked; text:"Qt / PySide6 · "+prototype.buildNumber+"\n"+prototype.buildSha; color:"#d7b77d";wrapMode:Text.WrapAnywhere;Layout.fillWidth:true }
                 Text { text: root.tr("Обновления"); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
                 RowLayout {Layout.fillWidth:true
                     MetalButton {glyph:"icons/refresh.svg";text:root.tr("Проверить обновления");enabled:!prototype.maintenanceBusy;onClicked:prototype.checkUpdates()}

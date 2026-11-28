@@ -305,6 +305,101 @@ jobs:
             qt-evidence/*.png
             qt-evidence/*.json
           if-no-files-found: error
+  candidate:
+    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+      QT_QPA_FONTDIR: C:\Windows\Fonts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-build.txt PySide6==6.8.3 psutil pywinauto==0.6.9
+      - name: Build candidate with the stable installation identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @{ channel = "candidate"; tag = "v1.22.0"; sha = $env:GITHUB_SHA } | ConvertTo-Json -Compress | Set-Content -Encoding utf8NoBOM qt_build.json
+          pyinstaller --noconfirm --clean --paths . --onedir --windowed --name CoD2ChatTranslatorQt --icon assets/app.ico --add-data "assets;assets" --add-data "qt_build.json;." --add-data "qt_experiment;qt_experiment" --hidden-import PySide6.QtQuick --hidden-import PySide6.QtQuickControls2 --hidden-import PySide6.QtQml --hidden-import PySide6.QtTest qt_experiment/rc_entry.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m pip freeze | Set-Content qt_dependency_inventory.txt
+          python installer/prepare_qt_wizard.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          choco install innosetup --version=6.7.1 --no-progress -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DStableCandidate installer\CoD2ChatTranslatorQtPreview.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $setup = "release-qt/CoD2ChatTranslator_Setup.exe"
+          (Get-FileHash $setup).Hash.ToLower() + "  CoD2ChatTranslator_Setup.exe" | Set-Content -Encoding ascii release-qt/SHA256SUMS.txt
+      - name: Exercise the stable installer and both existing player profiles
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Resolve-Path "release-qt/CoD2ChatTranslator_Setup.exe").Path
+          $dir = "$env:RUNNER_TEMP/candidate"
+          $exe = "$dir/CoD2ChatTranslatorQt.exe"
+          $stable = "$env:APPDATA/CoD2ChatTranslator"
+          $preview = "$env:APPDATA/CoD2ChatTranslatorQtPreview"
+          $settings = "$stable/qt_settings.json"
+          python tools/qt_installer_evidence.py $setup $dir candidate-evidence
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $shell = New-Object -ComObject WScript.Shell
+          foreach ($folder in @("DesktopDirectory", "Programs")) {
+            $link = Join-Path ([Environment]::GetFolderPath($folder)) "CoD2 Chat Translator.lnk"
+            if (!(Test-Path $link) -or $shell.CreateShortcut($link).TargetPath -ne [IO.Path]::GetFullPath($exe)) { throw "Bad shortcut in $folder" }
+          }
+          function Install($installer, $dest) {
+            $p = Start-Process $installer -ArgumentList @("/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=`"$dest`"") -Wait -PassThru
+            if ($p.ExitCode) { throw "Installer failed: $($p.ExitCode)" }
+          }
+          function Capture($name) {
+            $out = "$PWD/candidate-evidence/$name.png"
+            $p = Start-Process $exe -ArgumentList @("--screenshot","`"$out`"","--size","1366x768") -PassThru
+            if (!$p.WaitForExit(90000) -or $p.ExitCode -ne 0 -or !(Test-Path $out)) { throw "Installed app failed: $name" }
+          }
+          Capture clean
+          foreach ($tag in @("v1.17.4","qt-preview-9333bb561122")) {
+            $old = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+            $asset = $old.assets | Where-Object { $_.name -like "*.exe" }
+            gh release download $tag -D "$env:RUNNER_TEMP/$tag" -p $asset.name
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            $file = "$env:RUNNER_TEMP/$tag/$($asset.name)"
+            if ("sha256:"+ (Get-FileHash $file).Hash.ToLower() -ne $asset.digest) { throw "Old installer integrity failed" }
+            $source = "$stable/config.json"
+            $dest = $dir
+            if ($tag -like "qt-*") { $source = "$preview/qt_settings.json"; $dest = "$env:RUNNER_TEMP/old-preview" }
+            Install $file $dest
+            New-Item -Force -ItemType Directory (Split-Path $source) | Out-Null
+            if (Test-Path $settings) { Move-Item $settings "$env:RUNNER_TEMP/$tag-previous-profile.json" }
+            @{ui_language="uk";server_monitor=@{servers=@(@{address="example.com:12345";favorite=$true});friends=@($tag)}} | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8NoBOM $source
+            $before = (Get-FileHash $source).Hash
+            Install $setup $dir
+            Capture $tag
+            $saved = Get-Content -Raw $settings | ConvertFrom-Json
+            if ($saved.server_monitor.friends -notcontains $tag -or $saved.server_monitor.servers[0].address -ne "example.com:12345" -or $before -ne (Get-FileHash $source).Hash) { throw "Migration failed for $tag" }
+          }
+          $before = (Get-FileHash $settings).Hash
+          Install $setup $dir
+          Capture reinstall
+          $p = Start-Process "$dir/unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($p.ExitCode -or (Test-Path $exe) -or $before -ne (Get-FileHash $settings).Hash) { throw "Uninstall failed" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stable-candidate-installer
+          path: release-qt/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stable-candidate-evidence
+          path: candidate-evidence/
   publish:
     needs: build
     # Keep candidate artifacts available for native visual and migration acceptance.

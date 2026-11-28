@@ -9,6 +9,19 @@ def main():
     from qt_experiment.quick import main as quick_main
     stable = config_path()
     root = stable.parent.with_name("CoD2ChatTranslatorQtPreview")
+    from qt_experiment.preview_updates import installed_build
+    if installed_build().get("channel") in ("stable", "candidate"):
+        preview = root
+        root = stable.parent
+        if "--settings-file" not in sys.argv:
+            from qt_experiment.stable_profile import migrate
+            try:
+                migrate(stable, preview)
+            except (OSError, ValueError) as exc:
+                from PySide6.QtWidgets import QApplication, QMessageBox
+                app = QApplication.instance() or QApplication(sys.argv)
+                QMessageBox.critical(None, "CoD2 Chat Translator", str(exc))
+                return 7
     root.mkdir(parents=True, exist_ok=True)
     # Import stable configuration without migrating or overwriting it.
     if "--live-translation" not in sys.argv:

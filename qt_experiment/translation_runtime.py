@@ -1013,7 +1013,7 @@ class TranslationState(LiveMonitorState):
     def engineReady(self): return self._started and not self.stop_event.is_set() and any(w.is_alive() for w in self._workers)
 
     @Property(str, constant=True)
-    def appVersion(self): return APP_VERSION + " · Qt RC"
+    def appVersion(self): return APP_VERSION
 
     @Property(str, notify=translationChanged)
     def translationStatus(self): return self._translation_status

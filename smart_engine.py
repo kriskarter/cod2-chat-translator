@@ -10,7 +10,8 @@ import re
 import time
 import knowledge_v2
 import translation_memory
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from protected_chat import translate_prose
 from typing import Callable
 
 KNOWLEDGE_VERSION = "cod2-smart-v1.0"
@@ -262,6 +263,27 @@ class SmartTranslationEngine:
         return None
 
     def translate(
+        self,
+        request: TranslationRequest,
+        provider: Callable[[str, str, str], str],
+        legacy_transform: Callable[[str, str, str], tuple[str, str | None]] | None = None,
+    ) -> TranslationResult:
+        results = []
+        def translate_segment(text):
+            result = self._translate_segment(replace(request, text=text), provider, legacy_transform)
+            results.append(result)
+            return result.text
+
+        value = translate_prose(request.text, translate_segment)
+        if len(results) == 1 and value == results[0].text:
+            return results[0]
+        failed = next((result for result in results if not result.safe), None)
+        if failed:
+            return replace(failed, text=request.text)
+        return TranslationResult(value, True, min((r.confidence for r in results), default=1.0),
+                                 "protected", detect_script_languages(request.text), classify_intent(request.text))
+
+    def _translate_segment(
         self,
         request: TranslationRequest,
         provider: Callable[[str, str, str], str],
