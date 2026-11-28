@@ -306,7 +306,7 @@ jobs:
             qt-evidence/*.json
           if-no-files-found: error
   candidate:
-    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
+    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: windows-latest
     permissions:
       contents: read
@@ -326,7 +326,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          @{ channel = "candidate"; tag = "v1.22.0"; sha = $env:GITHUB_SHA } | ConvertTo-Json -Compress | Set-Content -Encoding utf8NoBOM qt_build.json
+          $channel = if ($env:GITHUB_REF -eq "refs/heads/main") { "stable" } else { "candidate" }
+          @{ channel = $channel; tag = "v1.22.0"; sha = $env:GITHUB_SHA } | ConvertTo-Json -Compress | Set-Content -Encoding utf8NoBOM qt_build.json
           pyinstaller --noconfirm --clean --paths . --onedir --windowed --name CoD2ChatTranslatorQt --icon assets/app.ico --add-data "assets;assets" --add-data "qt_build.json;." --add-data "qt_experiment;qt_experiment" --hidden-import PySide6.QtQuick --hidden-import PySide6.QtQuickControls2 --hidden-import PySide6.QtQml --hidden-import PySide6.QtTest qt_experiment/rc_entry.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -m pip freeze | Set-Content qt_dependency_inventory.txt
@@ -337,6 +338,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $setup = "release-qt/CoD2ChatTranslator_Setup.exe"
           (Get-FileHash $setup).Hash.ToLower() + "  CoD2ChatTranslator_Setup.exe" | Set-Content -Encoding ascii release-qt/SHA256SUMS.txt
+          python tools/prepare_installer_manifest.py release-qt 1.22.0
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Exercise the stable installer and both existing player profiles
         shell: pwsh
         env:
@@ -351,6 +354,10 @@ jobs:
           $settings = "$stable/qt_settings.json"
           python tools/qt_installer_evidence.py $setup $dir candidate-evidence
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          foreach ($language in @("russian","ukrainian")) {
+            python tools/qt_installer_evidence.py $setup $dir "candidate-evidence/$language" $language
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
           $shell = New-Object -ComObject WScript.Shell
           foreach ($folder in @("DesktopDirectory", "Programs")) {
             $link = Join-Path ([Environment]::GetFolderPath($folder)) "CoD2 Chat Translator.lnk"

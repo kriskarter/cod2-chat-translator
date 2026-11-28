@@ -56,7 +56,7 @@ def check_preview_release(getter=None, installed=None):
         tag = release.get("tag_name", "")
         if (release.get("draft") is not False or release.get("prerelease") is not False
                 or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+",tag)
-                or not is_newer(tag, installed["tag"])):
+                or not (is_newer(tag, installed["tag"]) or (installed["channel"] == "candidate" and tag == installed["tag"]))):
             return None
         name = "CoD2ChatTranslator_Setup.exe"
         assets = {a["name"]: a for a in release.get("assets", [])}

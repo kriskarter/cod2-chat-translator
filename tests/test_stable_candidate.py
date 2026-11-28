@@ -49,3 +49,40 @@ def test_migration_preserves_profiles_and_is_repeatable(tmp_path):
 def test_candidate_excludes_other_channels(tag,draft,pre):
     assert check_preview_release(lambda _: dict(tag_name=tag,draft=draft,prerelease=pre),
                                  installed=dict(channel="candidate",tag="v1.22.0")) is None
+
+
+def test_signed_stable_installer_round_trip(tmp_path, monkeypatch):
+    import base64
+    import hashlib
+    import io
+    import update_client
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from qt_experiment.preview_updates import REPO, SUMS, download_preview, verify_installer
+    tag = "v1.23.0"
+    exe = "CoD2ChatTranslator_Setup.exe"
+    root = f"https://github.com/{REPO}/releases/download/{tag}/"
+    payload = b"MZ signed installer test fixture"
+    digest = hashlib.sha256(payload).hexdigest()
+    key = Ed25519PrivateKey.generate()
+    encoded = key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    monkeypatch.setattr(update_client, "UPDATE_SIGNING_PUBLIC_KEYS", {"fixture":base64.b64encode(encoded).decode()})
+    manifest = dict(version=tag[1:],asset=exe,sha256=digest,signature_alg="ed25519",signature_key_id="fixture")
+    manifest["signature"] = base64.b64encode(key.sign(update_client.update_signature_payload(manifest))).decode()
+    release = dict(tag_name=tag, draft=False, prerelease=False, body="Fixes", assets=[
+        dict(name=n,browser_download_url=root+n) for n in (exe, SUMS,"installer-update.json")])
+    def getter(url):
+        return manifest if url == root+"installer-update.json" else release
+    installed = dict(channel="stable",tag="v1.22.0")
+    candidate = check_preview_release(getter,installed)
+    def opener(url):
+        return io.BytesIO((digest+"  "+exe).encode() if url.endswith(SUMS) else payload)
+    package = download_preview(candidate,tmp_path,opener)
+    assert verify_installer(package,tmp_path).read_bytes() == payload
+    with pytest.raises(RuntimeError):
+        download_preview(candidate,tmp_path,opener,cancelled=lambda:True)
+    with pytest.raises(ValueError):
+        download_preview(candidate,tmp_path,lambda url: opener(url) if url.endswith(SUMS) else io.BytesIO(b"bad"))
+    manifest["sha256"] = "0"*64
+    with pytest.raises(ValueError,match="signed"):
+        check_preview_release(getter,installed)

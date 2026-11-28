@@ -10,7 +10,8 @@ def main():
     stable = config_path()
     root = stable.parent.with_name("CoD2ChatTranslatorQtPreview")
     from qt_experiment.preview_updates import installed_build
-    if installed_build().get("channel") in ("stable", "candidate"):
+    stable_profile = installed_build().get("channel") in ("stable", "candidate")
+    if stable_profile:
         preview = root
         root = stable.parent
         if "--settings-file" not in sys.argv:
@@ -26,7 +27,7 @@ def main():
     # Import stable configuration without migrating or overwriting it.
     if "--live-translation" not in sys.argv:
         sys.argv += ["--live-translation"]
-    if "--config" not in sys.argv and stable.is_file():
+    if not stable_profile and "--config" not in sys.argv and stable.is_file():
         sys.argv += ["--config", str(stable)]
     if "--settings-file" not in sys.argv:
         sys.argv += ["--settings-file", str(root / "qt_settings.json")]

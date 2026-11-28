@@ -63,20 +63,32 @@ def stop_launched_app(install_dir):
             continue
 
 
-def main(setup, install_dir, evidence):
+def main(setup, install_dir, evidence, language="english"):
     # GUI-only imports keep the process lifecycle helpers unit-testable.
     from PIL import ImageGrab, ImageStat
     from pywinauto import Desktop
 
     desktop = Desktop(backend="win32")
     evidence.mkdir(parents=True, exist_ok=True)
-    process = subprocess.Popen([str(setup.resolve()), "/LANG=english", "/SP-",
+    process = subprocess.Popen([str(setup.resolve()), f"/LANG={language}", "/SP-",
                                 "/NORESTART", "/SUPPRESSMSGBOXES", f"/DIR={install_dir}"])
     deadline = time.monotonic() + 150
     seen, clicked = set(), {}
 
     def capture(window, name):
-        shot = ImageGrab.grab(window=window.handle)
+        # A visible TWizardForm can precede its first WM_PAINT.
+        if name in ("welcome", "finish"):
+            until = time.monotonic() + 8
+            while True:
+                shot = ImageGrab.grab(window=window.handle)
+                art = shot.crop((0, 0, shot.width // 3, shot.height * 3 // 4))
+                if max(ImageStat.Stat(art.convert("RGB")).stddev) > 18:
+                    break
+                if time.monotonic() >= until:
+                    raise RuntimeError(f"Wizard artwork did not paint: {name}")
+                time.sleep(.15)
+        else:
+            shot = ImageGrab.grab(window=window.handle)
         if min(shot.size) < 200 or max(ImageStat.Stat(shot.convert("RGB")).stddev) < 3:
             raise RuntimeError(f"Blank wizard capture: {name}")
         shot.save(evidence / f"installer_{name}.png")
@@ -99,6 +111,11 @@ def main(setup, install_dir, evidence):
                 capture(window, "installing")
             buttons = {c.window_text().replace("&", "").strip().lower(): c for c in controls
                        if "Button" in c.class_name() and c.is_enabled()}
+            local_buttons = {
+                "russian": {"завершить":"finish", "установить":"install", "далее":"next"},
+                "ukrainian": {"готово":"finish", "завершити":"finish", "встановити":"install", "установити":"install", "далі":"next"},
+            }.get(language, {})
+            buttons = {local_buttons.get(key.rstrip(" >"),key.rstrip(" >")): value for key,value in buttons.items()}
             for name in ("finish", "install", "next"):
                 if name not in buttons or time.monotonic() - clicked.get(name, 0) < .7:
                     continue
@@ -129,4 +146,4 @@ def main(setup, install_dir, evidence):
 
 
 if __name__ == "__main__":
-    main(*map(Path, sys.argv[1:]))
+    main(*map(Path, sys.argv[1:4]), *sys.argv[4:])

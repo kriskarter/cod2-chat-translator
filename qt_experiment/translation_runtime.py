@@ -689,7 +689,8 @@ class TranslationState(LiveMonitorState):
     @Property(str, constant=True)
     def buildNumber(self):
         from .preview_updates import installed_build
-        return installed_build().get("tag","source")
+        build = installed_build()
+        return " · ".join(filter(None, (build.get("channel"), build.get("tag", "source"))))
 
     @Property(str, constant=True)
     def buildSha(self):
@@ -1258,7 +1259,7 @@ class TranslationState(LiveMonitorState):
                 elif task == "updates":
                     self._update_candidate = result
                     self._update_url = result["url"] if result else ""
-                    self._update_message = (self.trText("Доступно обновление Qt") + ": " + result["tag"]) if result else self.trText("Новых версий Qt нет")
+                    self._update_message = (self.trText("Доступно обновление") + ": " + result["tag"]) if result else self.trText("Новых версий нет")
                 elif task == "update_download":
                     self._update_package=result
                     if self._update_cancel.is_set():

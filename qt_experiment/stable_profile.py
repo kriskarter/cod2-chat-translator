@@ -47,7 +47,31 @@ def migrate(stable_config, preview):
         if source in old_chat:
             result.setdefault(key, old_chat[source])
     qt = load(preview / "qt_settings.json", "preview-settings.json")
+    legacy_monitor = result.get("server_monitor", {})
+    legacy_profiles = result.get("server_profiles")
     result = deep_merge(result, qt)
+    # Both installations can contain independent favourites and friends.
+    def combine(primary, older, field):
+        def key(item):
+            value = item.get(field, "") if isinstance(item, dict) else item
+            return str(value).casefold()
+        merged = list(primary)
+        seen = {key(item) for item in primary}
+        for item in older:
+            if key(item) not in seen:
+                merged.append(item)
+                seen.add(key(item))
+        return merged
+
+    if isinstance(legacy_monitor, dict) and isinstance(qt.get("server_monitor"), dict):
+        for name, field in (("servers", "address"), ("friends", "name")):
+            newer = qt["server_monitor"].get(name)
+            older = legacy_monitor.get(name)
+            if isinstance(newer, list) and isinstance(older, list):
+                result["server_monitor"][name] = combine(newer, older, field)
+    if isinstance(qt.get("server_profiles"), list):
+        if isinstance(legacy_profiles, list):
+            result["server_profiles"] = combine(qt["server_profiles"], legacy_profiles, "path")
     if result:
         create_once(target, json.dumps(result, ensure_ascii=False, indent=2).encode())
     return target

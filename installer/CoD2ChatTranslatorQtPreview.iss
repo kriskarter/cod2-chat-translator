@@ -101,6 +101,30 @@ begin
   end;
 end;
 
+#ifdef StableCandidate
+procedure ArchivePreviewLink(Folder, BackupName: String);
+var Location, Link, BackupDir, Backup: String;
+    Shell, Shortcut: Variant;
+begin
+  if not RegQueryStringValue(HKCU,
+    'Software\Microsoft\Windows\CurrentVersion\Uninstall\{D6A4A2EF-73A2-4D25-9E38-2B85188A09D9}_is1',
+    'InstallLocation', Location) then Exit;
+  Link := Folder + '\CoD2 Chat Translator Qt Preview.lnk';
+  if not FileExists(Link) then Exit;
+  try
+    Shell := CreateOleObject('WScript.Shell');
+    Shortcut := Shell.CreateShortcut(Link);
+    if CompareText(Shortcut.TargetPath, AddBackslash(Location) + 'CoD2ChatTranslatorQt.exe') <> 0 then Exit;
+    BackupDir := ExpandConstant('{userappdata}\CoD2ChatTranslator\before-1.22');
+    Backup := AddBackslash(BackupDir) + BackupName;
+    if ForceDirectories(BackupDir) and (not FileExists(Backup)) then
+      if FileCopy(Link, Backup, True) then DeleteFile(Link);
+  except
+    Log('Could not archive the previous preview shortcut.');
+  end;
+end;
+#endif
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   SettingsDir, LangFile, LangCode: String;
@@ -109,6 +133,10 @@ begin
   begin
     SettingsDir := ExpandConstant('{userappdata}\{#ProfileName}');
     ForceDirectories(SettingsDir);
+#ifdef StableCandidate
+    ArchivePreviewLink(ExpandConstant('{autodesktop}'), 'preview-desktop.lnk');
+    ArchivePreviewLink(ExpandConstant('{autoprograms}'), 'preview-start.lnk');
+#endif
     LangFile := SettingsDir + '\ui_language.txt';
     if (not FileExists(LangFile)) and (not FileExists(SettingsDir + '\qt_settings.json')) then
     begin

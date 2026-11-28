@@ -1,5 +1,7 @@
 """Explicit QML labels; untranslated text remains visible instead of blank."""
 LABELS = {
+    "Доступно обновление": ("Update available", "Доступне оновлення"),
+    "Новых версий нет": ("Up to date", "Нових версій немає"),
     "Введите IP-адрес или домен": ("Enter an IP address or domain", "Введіть IP-адресу або домен"),
     "Название сервера": ("Server name", "Назва сервера"),
     "Сообщить об ошибке": ("Report an issue", "Повідомити про помилку"),
