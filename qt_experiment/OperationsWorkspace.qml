@@ -1,8 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
-import QtCore
 MetalPanel {
     id: root
     function showEvidenceDialog(name) { if (name==="knowledge_clear_dialog") clearDialog.open(); else if (name==="game_logging_dialog") loggingDialog.open();else if(name==="update_install_dialog") updateConfirm.open() }
@@ -11,14 +9,6 @@ MetalPanel {
     signal back()
     property string uiLocale: prototype.uiLanguage
     function tr(s) { let l = uiLocale; return prototype.trText(s) }
-    FileDialog {
-        id: exportDialog; fileMode: FileDialog.SaveFile; nameFilters: ["ZIP (*.zip)"]; defaultSuffix: "zip"
-        function choose() {
-            selectedFile = StandardPaths.writableLocation(StandardPaths.DocumentsLocation) + "/CoD2_Experience_" + Qt.formatDateTime(new Date(), "yyyy-MM-dd_HH-mm") + ".zip"
-            open()
-        }
-        onAccepted: prototype.exportExperienceUrl(selectedFile)
-    }
     MetalDialog {
         id: clearDialog; objectName:"knowledge_clear_dialog"; title: root.tr("Очистить опыт"); anchors.centerIn: parent
         standardButtons: Dialog.NoButton
@@ -137,7 +127,7 @@ MetalPanel {
                 }
                 Text { text: root.tr("Перед передачей архива проверьте его содержимое. Автоотправки нет."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 RowLayout {
-                    MetalButton { text: root.tr("Сохранить архив опыта (ZIP)"); enabled: prototype.experienceAvailable; onClicked: exportDialog.choose() }
+                    MetalButton { text: root.tr("Сохранить архив опыта (ZIP)"); enabled: prototype.experienceAvailable; onClicked: prototype.chooseExperienceFile() }
                     MetalButton { text: root.tr("Очистить опыт"); enabled: prototype.experienceAvailable; onClicked: clearDialog.open() }
                 }
                 Text { text: root.tr("Кэш перевода"); color:"#e4c291"; font.bold: true; font.pixelSize:17 }

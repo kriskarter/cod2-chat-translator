@@ -2,13 +2,15 @@
 
 [English](README.md) · [Русский](README_RU.md) · [Українська](README_UK.md)
 
-![CoD2 Chat Translator](docs/images/stable_release/uk/home.webp)
+![CoD2 Chat Translator](qt_experiment/reference_art/panorama.webp)
 
 **Кандидат версії 1.22.0 для Windows**
 
 Читайте повідомлення іноземних гравців у Call of Duty 2, відповідайте їм під час гри й дізнавайтеся, коли друзі заходять на сервер.
 
 [Завантажити опубліковану версію для Windows](https://github.com/kriskarter/cod2-chat-translator/releases/latest) · [GitHub Releases](https://github.com/kriskarter/cod2-chat-translator/releases)
+
+![CoD2 Chat Translator](docs/images/stable_release/uk/home.webp)
 
 ## Встановлення й перший запуск
 

@@ -641,9 +641,19 @@ class TranslationState(LiveMonitorState):
         return dict(app_version=APP_VERSION, build_sha=installed_build().get("sha"),
                     dictionary_version=knowledge_v2.version(), algorithm_version=KNOWLEDGE_VERSION)
 
-    @Slot("QUrl")
-    def exportExperienceUrl(self, url):
-        if url.isLocalFile(): self.exportExperience(url.toLocalFile())
+    @Slot()
+    def chooseExperienceFile(self):
+        from PySide6.QtCore import QStandardPaths
+        from PySide6.QtWidgets import QFileDialog
+        directory = Path(QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation))
+        if not directory.is_dir():
+            directory = Path.home()
+        dialog = QFileDialog(None, self.trText("Сохранить архив опыта (ZIP)"), str(directory), "ZIP (*.zip)")
+        dialog.setAcceptMode(QFileDialog.AcceptSave)
+        dialog.setDefaultSuffix("zip")
+        dialog.selectFile(time.strftime("CoD2_Experience_%Y-%m-%d_%H-%M.zip"))
+        if dialog.exec():
+            self.exportExperience(dialog.selectedFiles()[0])
 
     @Slot(str)
     def exportExperience(self, filename):

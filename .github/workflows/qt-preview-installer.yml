@@ -396,23 +396,11 @@ jobs:
             @{ui_language="uk";server_monitor=@{servers=@(@{address="example.com:12345";favorite=$true});friends=@($tag)}} | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8NoBOM $source
             $before = (Get-FileHash $source).Hash
             if ($tag -eq "v1.17.4") {
-              # Verify the genuine updater applies our archive in its original directory.
-              # A local file URI isolates this compatibility test from public release discovery.
-              $manifest = Get-Content release-qt/update.json -Raw | ConvertFrom-Json
-              $package = (Resolve-Path "release-qt/$($manifest.asset)").Path
-              if ((Get-FileHash $package).Hash.ToLower() -ne $manifest.sha256) { throw "Bridge checksum mismatch" }
               $updater = "$env:RUNNER_TEMP/original-updater.exe"
               Copy-Item "$dir/CoD2ChatTranslatorUpdater.exe" $updater
               $bridgeDir = "$env:RUNNER_TEMP/legacy-bridge-test"
               New-Item -ItemType Directory -Force $bridgeDir | Out-Null
               Copy-Item "$dir/CoD2ChatTranslator.exe" $bridgeDir
-              $uri = [Uri]::new($package).AbsoluteUri
-              $p = Start-Process $updater -ArgumentList @("--install-dir", "`"$bridgeDir`"", "--download-url", $uri, "--sha256", $manifest.sha256, "--main-exe", "CoD2ChatTranslator.exe", "--version", "1.22.0") -PassThru
-              if (!$p.WaitForExit(180000) -or $p.ExitCode) { throw "Original updater failed to apply bridge" }
-              $bridgeExe = "$bridgeDir/CoD2ChatTranslator.exe"
-              if ((Get-FileHash $bridgeExe).Hash -ne (Get-FileHash dist/CoD2ChatTranslatorQt/CoD2ChatTranslatorQt.exe).Hash) { throw "Bridge entry point mismatch" }
-              Get-Process -Name CoD2ChatTranslator -ErrorAction SilentlyContinue | Where-Object Path -eq $bridgeExe | Stop-Process
-              if (Test-Path $settings) { Move-Item $settings "$env:RUNNER_TEMP/bridge-profile.json" }
             }
             Install $setup $dir
             Capture $tag
@@ -433,6 +421,25 @@ jobs:
           $before = (Get-FileHash $settings).Hash
           $p = Start-Process "$dir/unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
           if ($p.ExitCode -or (Test-Path $exe) -or $before -ne (Get-FileHash $settings).Hash) { throw "Uninstall failed" }
+          # Verify the genuine updater applies our archive in its original directory.
+          # A local file URI isolates this compatibility test from public release discovery.
+          $manifest = Get-Content release-qt/update.json -Raw | ConvertFrom-Json
+          $package = (Resolve-Path "release-qt/$($manifest.asset)").Path
+          if ((Get-FileHash $package).Hash.ToLower() -ne $manifest.sha256) { throw "Bridge checksum mismatch" }
+          $uri = [Uri]::new($package).AbsoluteUri
+          $p = Start-Process $updater -ArgumentList @("--install-dir", "`"$bridgeDir`"", "--download-url", $uri, "--sha256", $manifest.sha256, "--main-exe", "CoD2ChatTranslator.exe", "--version", "1.22.0") -PassThru
+          if (!$p.WaitForExit(180000) -or $p.ExitCode) { throw "Original updater failed to apply bridge" }
+          $bridgeExe = [IO.Path]::GetFullPath("$bridgeDir/CoD2ChatTranslator.exe")
+          if ((Get-FileHash $bridgeExe).Hash -ne (Get-FileHash dist/CoD2ChatTranslatorQt/CoD2ChatTranslatorQt.exe).Hash) { throw "Bridge entry point mismatch" }
+          $bridgeProcess = $null
+          foreach ($attempt in 1..40) {
+            $bridgeProcess = Get-Process -Name CoD2ChatTranslator -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $bridgeExe }
+            if ($bridgeProcess) { break }
+            Start-Sleep -Milliseconds 250
+          }
+          if (!$bridgeProcess) { throw "Original updater did not launch Qt" }
+          foreach ($proc in $bridgeProcess) { Stop-Process -Id $proc.Id -Force; $proc.WaitForExit() }
+          Write-Host "Verified original updater launched the migrated Qt executable"
       - uses: actions/upload-artifact@v4
         with:
           name: stable-candidate-installer
