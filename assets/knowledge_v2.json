@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": 3,
+  "version": 4,
   "entries": [
     {
       "id": "game-001",
@@ -4683,6 +4683,127 @@
         "en": "Oh my God, nice!",
         "ru": "Офигеть, красиво!",
         "uk": "Ого, красиво!"
+      }
+    },
+    {
+      "id": "rifle-bash",
+      "forms": {
+        "en": [
+          "i bashed you xd"
+        ]
+      },
+      "translations": {
+        "en": "I bashed you XD",
+        "ru": "Я тебя ударил прикладом XD",
+        "uk": "Я тебе вдарив прикладом XD"
+      }
+    },
+    {
+      "id": "camp-again",
+      "forms": {
+        "en": [
+          "dont u camp again",
+          "don’t you camp again"
+        ]
+      },
+      "translations": {
+        "en": "Don’t camp again",
+        "ru": "Не кемпери снова",
+        "uk": "Не кемпери знову"
+      }
+    },
+    {
+      "id": "startled",
+      "forms": {
+        "en": [
+          "scared me",
+          "you scared me"
+        ]
+      },
+      "translations": {
+        "en": "You scared me",
+        "ru": "Напугал меня",
+        "uk": "Налякав мене"
+      }
+    },
+    {
+      "id": "ammo-gone",
+      "forms": {
+        "tr": [
+          "kurşun bitti :D",
+          "kursun bitti :D"
+        ]
+      },
+      "translations": {
+        "en": "Out of ammo :D",
+        "ru": "Патроны закончились :D",
+        "uk": "Набої закінчилися :D"
+      }
+    },
+    {
+      "id": "laugh-lul",
+      "forms": {
+        "en": [
+          "lul"
+        ]
+      },
+      "translations": {
+        "en": "haha",
+        "ru": "ахаха",
+        "uk": "ахаха"
+      }
+    },
+    {
+      "id": "double-no",
+      "forms": {
+        "en": [
+          "nono",
+          "no no"
+        ]
+      },
+      "translations": {
+        "en": "no, no",
+        "ru": "нет-нет",
+        "uk": "ні-ні"
+      }
+    },
+    {
+      "id": "take-cover",
+      "forms": {
+        "en": [
+          "take cover"
+        ]
+      },
+      "translations": {
+        "en": "Take cover!",
+        "ru": "В укрытие!",
+        "uk": "В укриття!"
+      }
+    },
+    {
+      "id": "affirmative",
+      "forms": {
+        "en": [
+          "yes"
+        ]
+      },
+      "translations": {
+        "en": "Yes",
+        "ru": "Да",
+        "uk": "Так"
+      }
+    },
+    {
+      "id": "negative",
+      "forms": {
+        "en": [
+          "no"
+        ]
+      },
+      "translations": {
+        "en": "No",
+        "ru": "Нет",
+        "uk": "Ні"
       }
     }
   ]

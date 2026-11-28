@@ -16,6 +16,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 from outgoing_send import send_cod2_chat_message
+from protected_chat import translate_prose
 from smart_engine import DEFAULT_ENGINE, TranslationRequest, semantic_violations
 from translation_fallback import (
     looks_like_service_error,
@@ -559,6 +560,14 @@ def translate_outgoing_text(
     source = normalize_outgoing_text(text)
     if not source:
         raise ValueError("Пустое сообщение")
+    def segment(value):
+        return _translate_outgoing_segment(value, target, source_language, style, slang_enabled,
+                                           legacy_transform, smart_enabled, transport, diagnostics)
+    return translate_prose(source, segment)
+
+
+def _translate_outgoing_segment(source, target, source_language, style, slang_enabled,
+                                legacy_transform, smart_enabled, transport, diagnostics):
     if not smart_enabled:
         return _online_translate_outgoing(
             source, target, source_language,
@@ -616,8 +625,17 @@ class KeyboardCapture:
     но CoD2 остаётся foreground-приложением.
     """
 
-    def __init__(self, events: queue.Queue) -> None:
+    def __init__(self, events: queue.Queue, *, game_scope=None) -> None:
         self.events = events
+        self.game_scope = game_scope
+        self.f8_down = False
+        self.resume_held_f9 = False
+        self.shortcut_trace = None
+        self.shortcut_held = set()
+        self.shortcut_at = {}
+        self._stop_requested = threading.Event()
+        self._thread_id = None
+        self._thread = None
         self.active = False
         self.enabled = True
 
@@ -640,11 +658,23 @@ class KeyboardCapture:
             self.f9_down = False
 
     def start(self) -> None:
-        threading.Thread(
+        if self._thread is not None:
+            return
+        self._thread = threading.Thread(
             target=self._safe_run,
             daemon=True,
             name="OutgoingKeyboardHook",
-        ).start()
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        self.set_enabled(False)
+        self._stop_requested.set()
+        if os.name == "nt" and self._thread_id:
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            user32.PostThreadMessageW.argtypes = [wintypes.DWORD, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+            user32.PostThreadMessageW.restype = wintypes.BOOL
+            user32.PostThreadMessageW(self._thread_id, 0x0012, 0, 0)
 
     def _safe_run(self) -> None:
         try:
@@ -865,11 +895,42 @@ class KeyboardCapture:
                 WM_SYSKEYUP,
             )
 
+            was_down = vk in self.down_keys
             if key_down:
                 self.down_keys.add(vk)
 
             if key_up:
                 self.down_keys.discard(vk)
+
+            # Optional Qt mode scopes all game actions to the actual game.
+            # Default Tk behaviour is unchanged.
+            if self.game_scope is not None:
+                if self._stop_requested.is_set():
+                    return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
+                is_shortcut = vk in (0x77, VK_F9, VK_F10)
+                if is_shortcut or self.active:
+                    focused = self.game_scope()
+                    if is_shortcut:
+                        if key_down and vk not in self.shortcut_held:
+                            self.shortcut_held.add(vk)
+                            self.shortcut_at[vk] = time.monotonic()
+                            edge = (vk, bool(data.flags & 0x10), focused, self.enabled)
+                            if self.shortcut_trace:
+                                self.shortcut_trace.put((self.shortcut_at[vk], *edge))
+                            self.events.put(("shortcut_hook", edge))
+                        elif key_up:
+                            self.shortcut_held.discard(vk)
+                    if not focused:
+                        if self.active:
+                            self.active = False
+                            self.events.put(("system_escape", None))
+                        self.f8_down = self.f9_down = self.f10_down = False
+                        return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
+                if vk == 0x77:
+                    if key_down and not self.f8_down:
+                        self.events.put(("f8", self.shortcut_at.get(vk, time.monotonic())))
+                    self.f8_down = bool(key_down)
+                    return user32.CallNextHookEx(self.hook, n_code, w_param, l_param)
 
             # F9 принадлежит исходящему чату только когда
             # функция включена. Иначе клавиша остаётся игре.
@@ -970,9 +1031,8 @@ class KeyboardCapture:
                 return 1
 
             if vk == VK_RETURN:
-                self.events.put(
-                    ("submit", None)
-                )
+                if self.game_scope is None or not was_down:
+                    self.events.put(("submit", None))
                 return 1
 
             if vk == VK_BACK:
@@ -1044,13 +1104,23 @@ class KeyboardCapture:
             )
             return
 
-        self.events.put(
-            ("hook_ready", None)
-        )
-
         msg = wintypes.MSG()
+        kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+        user32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]
+        user32.PeekMessageW.restype = wintypes.BOOL
+        user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 0)
+        self._thread_id = kernel32.GetCurrentThreadId()
+        if self.resume_held_f9:
+            user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
+            user32.GetAsyncKeyState.restype = ctypes.c_short
+            self.f9_down = bool(user32.GetAsyncKeyState(VK_F9) & 0x8000)
+            if self.f9_down:
+                self.shortcut_held.add(VK_F9)
+        self.events.put(("hook_ready", None))
 
         try:
+            if self._stop_requested.is_set():
+                return
             while (
                 user32.GetMessageW(
                     ctypes.byref(msg),
@@ -1072,6 +1142,7 @@ class KeyboardCapture:
                     self.hook
                 )
                 self.hook = None
+            self._thread_id = None
 
 
 class OutgoingChatController:

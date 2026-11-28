@@ -6,6 +6,7 @@ worker and hand immutable results to the caller's UI queue.
 from __future__ import annotations
 
 import re
+import ipaddress
 import socket
 import threading
 import time
@@ -99,12 +100,20 @@ def parse_address(value: str) -> tuple[str, int]:
             socket.inet_pton(socket.AF_INET6, host)
         except OSError as exc:
             raise ValueError("Invalid IPv6 address") from exc
+        host = str(ipaddress.IPv6Address(host))
         suffix = raw[end+2:]
     else:
         if raw.count(":") > 1:
             raise ValueError("Wrap IPv6 address in brackets")
         host, sep, suffix = raw.partition(":")
-        if not _HOST.fullmatch(host) or ".." in host:
+        if not _HOST.fullmatch(host) or ".." in host or host.isdigit():
+            raise ValueError("Invalid host")
+        if all(c in "0123456789." for c in host):
+            try:
+                host = str(ipaddress.IPv4Address(host))
+            except ValueError as exc:
+                raise ValueError("Invalid IPv4 address") from exc
+        elif any(not part or len(part) > 63 or part.startswith("-") or part.endswith("-") for part in host.split(".")):
             raise ValueError("Invalid host")
     if suffix and not suffix.isascii():
         raise ValueError("Invalid port")
@@ -118,6 +127,23 @@ def parse_address(value: str) -> tuple[str, int]:
 def canonical_address(value: str) -> str:
     host, port = parse_address(value)
     return f"[{host.lower()}]:{port}" if ":" in host else f"{host.lower()}:{port}"
+
+
+def address_fields(value: str) -> tuple[str, str]:
+    host, port = parse_address(value)
+    return host, str(port)
+
+
+def address_from_fields(host: str, port: str) -> str:
+    """An explicitly pasted host:port takes precedence over the port field."""
+    host = host.strip()
+    if host.startswith("[") and "]:" in host or host.count(":") == 1:
+        return canonical_address(host)
+    if not port.strip() or not port.strip().isascii() or not port.strip().isdigit():
+        raise ValueError("Invalid port")
+    if ":" in host and not host.startswith("["):
+        host = "[" + str(ipaddress.IPv6Address(host)) + "]"
+    return canonical_address(host + ":" + port.strip())
 
 
 @dataclass(frozen=True)
@@ -257,11 +283,13 @@ def dump_settings(settings: dict) -> dict:
 
 class Monitor:
     """One daemon worker; query never blocks Tk or translation workers."""
-    def __init__(self, settings: dict, callback: Callable[[Snapshot], None]):
+    def __init__(self, settings: dict, callback: Callable[[Snapshot], None], *, round_callback=None):
         self.settings = settings
         self.callback = callback
+        self.round_callback = round_callback
         self.snapshots: dict[str, Snapshot] = {}
         self._lock = threading.Lock()
+        self._revision = 0
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="CoD2ServerMonitor", daemon=True)
@@ -275,19 +303,41 @@ class Monitor:
     def refresh(self):
         self._wake.set()
 
+    def replace_servers(self, servers):
+        """Replace the worker input under the same lock used for snapshots."""
+        servers = list(servers)
+        with self._lock:
+            previous = {s.address for s in self.settings["servers"]}
+            current = {s.address for s in servers}
+            self.settings["servers"] = servers
+            if current != previous:
+                self._revision += 1
+                self.snapshots = {a:s for a,s in self.snapshots.items() if a in current}
+        self.refresh()
+
     def _run(self):
         while not self._stop.is_set():
             with self._lock:
                 servers = tuple(self.settings["servers"])
                 interval = self.settings["refresh_seconds"]
+                revision = self._revision
+            round_snapshots = []
             for server in servers:
                 if self._stop.is_set():
                     break
                 snapshot = query_server(server.address)
-                old = self.snapshots.get(server.address)
-                if snapshot.state == "offline" and old:
-                    snapshot = replace(snapshot, last_success=old.last_success)
-                self.snapshots[server.address] = snapshot
+                with self._lock:
+                    if revision != self._revision:
+                        break
+                    old = self.snapshots.get(server.address)
+                    if snapshot.state == "offline" and old:
+                        snapshot = replace(snapshot, last_success=old.last_success)
+                    self.snapshots[server.address] = snapshot
                 self.callback(snapshot)
+                round_snapshots.append(snapshot)
+            with self._lock:
+                current_round = revision == self._revision
+            if current_round and self.round_callback is not None and not self._stop.is_set():
+                self.round_callback(tuple(round_snapshots))
             self._wake.wait(interval)
             self._wake.clear()

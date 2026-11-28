@@ -6,9 +6,12 @@ import re
 import sqlite3
 import threading
 import time
+import os
+import tempfile
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
+from protected_chat import technical_fragments
 
 MAX_ROWS=10000
 MAX_CACHE=3000
@@ -18,13 +21,23 @@ PRIVATE=re.compile(r"https?://|www\.|(?:\d{1,3}\.){3}\d{1,3}|[\w.+-]+@[\w.-]+\.\
 def clean(text, nick=""):
     text=str(text or "").strip()
     if nick: text=re.sub(re.escape(nick), "[player]", text, flags=re.I) if len(nick)>=3 else text
-    if not text or len(text)>240 or PRIVATE.search(text) or any(ord(c)<32 for c in text):
+    if not text or len(text)>240 or PRIVATE.search(text) or technical_fragments(text) or any(ord(c)<32 for c in text):
         return None
     return text
 
+def initialize_schema(db):
+    db.execute("CREATE TABLE IF NOT EXISTS cache(k TEXT PRIMARY KEY,v TEXT NOT NULL,ts REAL NOT NULL)")
+    db.execute("""CREATE TABLE IF NOT EXISTS observations(
+         id INTEGER PRIMARY KEY, direction TEXT, source TEXT, target TEXT, style TEXT,
+         original TEXT, translated TEXT, outcome TEXT, provider TEXT, elapsed_ms INTEGER,
+         context TEXT, last_seen INTEGER, count INTEGER DEFAULT 1,
+         UNIQUE(direction,source,target,style,original,translated,outcome,provider))""")
+    db.execute("CREATE TABLE IF NOT EXISTS timings(id INTEGER PRIMARY KEY,direction TEXT,provider TEXT,outcome TEXT,elapsed_ms INTEGER,ts INTEGER)")
+
 class LocalExperience:
     """One disk thread, bounded queue, small in-memory exact cache."""
-    def __init__(self, path:Path, collect=False, cache=False):
+    def __init__(self, path:Path, collect=False, cache=False, exporter=None):
+        self.exporter = exporter
         self.path=path
         self.collect=bool(collect)
         self.cache=bool(cache)
@@ -94,8 +107,8 @@ class LocalExperience:
         elapsed=max(0,min(120000,int(elapsed_ms)))
         self._submit(("metric",generation,("ui","tk-main-loop","ok",elapsed,int(time.time()))))
 
-    def export(self,path,callback):
-        return self._submit(("export",Path(path),callback))
+    def export(self,path,callback, *, with_counts=False):
+        return self._submit(("export",Path(path),with_counts,callback))
     def clear(self,callback):
         with self._lock:
             if self.closed:return False
@@ -149,13 +162,7 @@ class LocalExperience:
                         db.execute("PRAGMA secure_delete=ON")
                         db.execute("PRAGMA max_page_count=8192")
                         db.execute("PRAGMA wal_autocheckpoint=256")
-                        db.execute("CREATE TABLE IF NOT EXISTS cache(k TEXT PRIMARY KEY,v TEXT NOT NULL,ts REAL NOT NULL)")
-                        db.execute("""CREATE TABLE IF NOT EXISTS observations(
-                             id INTEGER PRIMARY KEY, direction TEXT, source TEXT, target TEXT, style TEXT,
-                             original TEXT, translated TEXT, outcome TEXT, provider TEXT, elapsed_ms INTEGER,
-                             context TEXT, last_seen INTEGER, count INTEGER DEFAULT 1,
-                             UNIQUE(direction,source,target,style,original,translated,outcome,provider))""")
-                        db.execute("CREATE TABLE IF NOT EXISTS timings(id INTEGER PRIMARY KEY,direction TEXT,provider TEXT,outcome TEXT,elapsed_ms INTEGER,ts INTEGER)")
+                        initialize_schema(db)
                         self._prune(db);self._load(db)
                     if op=="load": self._load(db)
                     elif op=="save":
@@ -184,10 +191,10 @@ class LocalExperience:
                         counts=db.execute("SELECT count(*),coalesce(sum(count),0) FROM observations").fetchone()
                         job[1](True,(*counts,self._metrics(db)))
                     elif op=="export":
-                        _,destination,callback=job
+                        _,destination,with_counts,callback=job
                         self._prune(db);db.commit()
-                        self._export(db,destination)
-                        callback(True,str(destination))
+                        count = self._export(db,destination)
+                        callback(True,(str(destination),count) if with_counts else str(destination))
                     if writes>=32 or op in ("load","stats","clear","export"):
                         self._prune(db);db.commit();writes=0
                 except Exception as exc:
@@ -220,7 +227,9 @@ class LocalExperience:
         # or device IDs in the archive. Free text may still contain identifiers.
         cursor=db.execute("SELECT direction,source,target,style,original,translated,outcome,provider,elapsed_ms,context,count FROM observations ORDER BY count DESC,id DESC LIMIT ?",(MAX_ROWS,))
         keys=("direction","source_language","target_language","style","original","translation","outcome","provider","elapsed_ms","context","count")
-        temp=destination.with_suffix(destination.suffix+".tmp")
+        fd, name = tempfile.mkstemp(dir=destination.parent)
+        os.close(fd)
+        temp = Path(name)
         try:
             count=0
             with zipfile.ZipFile(temp,"w",compression=zipfile.ZIP_DEFLATED) as archive:
@@ -231,8 +240,12 @@ class LocalExperience:
                         item["context"]=[x for x in json.loads(item["context"]) if clean(x)]
                         data.write((json.dumps(item,ensure_ascii=False)+"\n").encode("utf-8"));count+=1
                 archive.writestr("metrics.json",json.dumps(self._metrics(db),ensure_ascii=False,indent=2))
-                archive.writestr("manifest.json",json.dumps({"schema":1,"examples":count,"dropped":self.dropped,"label":"unverified translation observations; review before sharing"},ensure_ascii=False,indent=2))
-            temp.replace(destination)
+                archive.writestr("manifest.json",json.dumps({"schema":1,"exporter":self.exporter() if self.exporter else {},"examples":count,"dropped":self.dropped,"label":"unverified translation observations; review before sharing"},ensure_ascii=False,indent=2))
+            if os.name == "nt":
+                os.rename(temp, destination)  # Fails if the destination already exists.
+            else:
+                os.link(temp, destination)
+            return count
         finally:
             if temp.exists():temp.unlink()
 

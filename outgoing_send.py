@@ -4,13 +4,12 @@ import ctypes
 import os
 import time
 from ctypes import wintypes
+from functools import lru_cache
+
+from server_catalog import MULTIPLAYER_IMAGE_NAMES
 
 
-COD2_EXE_NAMES = {
-    "cod2mp_s.exe",
-    "cod2mp.exe",
-    "cod2.exe",
-}
+COD2_EXE_NAMES = MULTIPLAYER_IMAGE_NAMES | {"cod2.exe"}
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
@@ -75,10 +74,9 @@ class INPUT(ctypes.Structure):
     ]
 
 
-def foreground_process_name() -> str:
-    if os.name != "nt":
-        return ""
-
+@lru_cache(maxsize=1)
+def _foreground_api():
+    # Reuse the DLL bindings. The focused window and its process are checked afresh.
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
@@ -109,6 +107,13 @@ def foreground_process_name() -> str:
     ]
     kernel32.CloseHandle.restype = wintypes.BOOL
 
+    return user32, kernel32
+
+
+def foreground_process_name() -> str:
+    if os.name != "nt":
+        return ""
+    user32, kernel32 = _foreground_api()
     hwnd = user32.GetForegroundWindow()
     if not hwnd:
         return ""
@@ -399,10 +404,14 @@ def send_cod2_chat_message(text: str) -> tuple[bool, str]:
         time.sleep(0.10)
 
         # CoD2 у пользователя подтверждённо принимает Ctrl+V в чате.
+        if not is_cod2_foreground():
+            return False, "Фокус ушёл с CoD2 — отправка отменена"
         _paste()
         time.sleep(0.12)
 
         # Реальная отправка сообщения.
+        if not is_cod2_foreground():
+            return False, "Фокус ушёл с CoD2 — отправка отменена"
         _tap(SCAN_ENTER)
         time.sleep(0.10)
 

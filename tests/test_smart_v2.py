@@ -80,7 +80,7 @@ class SmartV2Tests(unittest.TestCase):
                     expected)
 
     def test_shared_pack_repairs_omg_for_preexisting_v2_without_installer(self):
-        self.assertEqual(self.runtime.version, 3)
+        self.assertGreaterEqual(self.runtime.version, 3)
         self.assertEqual(self.runtime.lookup("omg", "ru", "auto"), "Боже мой")
         self.assertEqual(self.runtime.lookup("OMG!", "ru", "auto"), "Боже мой!")
         self.assertEqual(self.runtime.lookup("omg", "uk", "en"), "Боже мій")
@@ -290,3 +290,22 @@ class ExperienceTests(unittest.TestCase):
                 self.assertIsNone(s.get(memory.cache_key(2,"incoming","auto","ru","live","hey team")))
                 self.assertIsNone(s.get(memory.cache_key(1,"incoming","auto","ru","raw","hey team")))
             finally:s.close()
+
+
+class ArchiveRegression(unittest.TestCase):
+    def test_reviewed_phrases_without_network(self):
+        runtime = knowledge.KnowledgeRuntime(PACK, PACK)
+        with patch.object(knowledge, "RUNTIME", runtime):
+            for phrase, expected in (
+                (":D", ":D"), (";-P", ";-P"), ("Вперед!", "Вперед!"),
+                ("Граната!", "Граната!"), ("take cover", "В укрытие!"),
+                ("yes", "Да"), ("lul", "ахаха"), ("nono", "нет-нет"),
+                ("i bashed you xd", "Я тебя ударил прикладом XD"),
+                ("dont u camp again", "Не кемпери снова"), ("scared me", "Напугал меня"),
+                ("kursun bitti :D", "Патроны закончились :D"),
+            ):
+                with self.subTest(phrase=phrase):
+                    result = SmartTranslationEngine().try_local(TranslationRequest(phrase, "ru"), gaming_slang_transform)
+                    self.assertEqual(result[0], expected)
+            self.assertIn("encoding", semantic_violations("good evening", "Ð¡ Ñ\x83Ð²", "ru"))
+            self.assertIsNone(memory.clean("discord.gg/private-example"))

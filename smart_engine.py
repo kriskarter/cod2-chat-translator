@@ -10,7 +10,8 @@ import re
 import time
 import knowledge_v2
 import translation_memory
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from protected_chat import technical_fragments, translate_prose
 from typing import Callable
 
 KNOWLEDGE_VERSION = "cod2-smart-v1.0"
@@ -173,6 +174,8 @@ def semantic_violations(source: str, result: str, target: str) -> tuple[str, ...
     objective check is scoped to unambiguous tactical context.
     """
     issues = []
+    if "�" in result and "�" not in source or re.search(r"[\x80-\x9f]", result) and not re.search(r"[\x80-\x9f]", source):
+        issues.append("encoding")
     source_numbers = _NUMBER.findall(source)
     if source_numbers != _NUMBER.findall(result):
         issues.append("numbers")
@@ -267,6 +270,32 @@ class SmartTranslationEngine:
         provider: Callable[[str, str, str], str],
         legacy_transform: Callable[[str, str, str], tuple[str, str | None]] | None = None,
     ) -> TranslationResult:
+        results = []
+        def translate_segment(text):
+            result = self._translate_segment(replace(request, text=text), provider, legacy_transform)
+            results.append(result)
+            return result.text
+
+        value = translate_prose(request.text, translate_segment)
+        if len(results) == 1 and value == results[0].text:
+            return results[0]
+        failed = next((result for result in results if not result.safe), None)
+        if failed:
+            return replace(failed, text=request.text)
+        reasons = semantic_violations(request.text, value, request.target_lang)
+        if technical_fragments(value) != technical_fragments(request.text):
+            reasons += ("technical_fragment",)
+        if reasons:
+            return TranslationResult(request.text, False, 0.0, "abstain", uncertainty_reasons=reasons)
+        return TranslationResult(value, True, min((r.confidence for r in results), default=1.0),
+                                 "protected", detect_script_languages(request.text), classify_intent(request.text))
+
+    def _translate_segment(
+        self,
+        request: TranslationRequest,
+        provider: Callable[[str, str, str], str],
+        legacy_transform: Callable[[str, str, str], tuple[str, str | None]] | None = None,
+    ) -> TranslationResult:
         started = time.monotonic()
         original = request.text.strip()
         if not original:
@@ -276,6 +305,13 @@ class SmartTranslationEngine:
         languages = detect_script_languages(original)
         intent = classify_intent(original)
         key = _clean_key(original)
+        if re.fullmatch(r"[:;=][-^']?[)(DPpOo/]+", original):
+            return TranslationResult(original, True, 1.0, "emoticon", languages, intent)
+        # Shared Cyrillic letters alone do not distinguish Russian and Ukrainian.
+        commands = {"ru": {"вперед", "вперёд", "граната", "за мной", "так точно", "назад", "выполняю", "снайпер", "отличный выстрел", "прошу прощения"},
+                    "uk": {"вперед", "уперед", "граната", "за мною", "так точно", "назад", "виконую", "снайпер"}}
+        if request.source_lang == "auto" and key in commands.get(target, ()):
+            return TranslationResult(original, True, 1.0, "same-language", languages, intent)
         # Source and target may be the same in outgoing chat; respect the
         # explicit language selection. A mixed-script message is not "same".
         if (request.source_lang == target and len(languages) <= 1):

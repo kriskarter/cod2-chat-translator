@@ -25,12 +25,14 @@ from typing import Callable, Optional
 from update_client import UpdateInfo, check_github_release, load_release_config
 from server_catalog import (
     FEATURED_SERVER,
+    MULTIPLAYER_IMAGE_NAMES,
     find_multiplayer_executable,
     launch_connect_command,
     no_window_creationflags,
 )
 
 from outgoing_chat import LANGUAGES, OutgoingChatController
+from protected_chat import translate_prose
 from smart_engine import DEFAULT_ENGINE, ContextMessage, TranslationRequest, semantic_violations
 from translation_fallback import (
     looks_like_service_error as
@@ -76,7 +78,7 @@ SENSITIVE_LINE_TOKENS = (
     "logininfo.cfg",
 )
 
-COD2_EXECUTABLE_NAMES = {"cod2mp_s.exe", "cod2mp.exe", "cod2_mp.exe"}
+COD2_EXECUTABLE_NAMES = MULTIPLAYER_IMAGE_NAMES
 STEAM_EXECUTABLE_NAMES = {"steam.exe"}
 COD2_CONFIG_NAME = "config_mp.cfg"
 COD2_LOGFILE_VALUE = 2
@@ -2690,12 +2692,10 @@ class TranslatorWorker(threading.Thread):
                     observed_provider=self._last_provider if result.provider=="online" else result.provider
                 else:
                     # Instant rollback switch: retain the previous behaviour.
-                    source_text, direct = msg.text, None
-                    if slang:
-                        source_text, direct = gaming_slang_transform(
-                            msg.text, target, style
-                        )
-                    translated = direct if direct is not None else timed_provider(source_text, target)
+                    def classic_segment(text):
+                        source, direct = gaming_slang_transform(text, target, style) if slang else (text, None)
+                        return direct if direct is not None else timed_provider(source, target)
+                    translated = translate_prose(msg.text, classic_segment)
                     uncertain = False
                     observed_provider="classic"
 
@@ -3497,7 +3497,7 @@ def find_cod2_window() -> Optional[int]:
                 user32.GetWindowTextW(hwnd, buf, title_len + 1)
                 title = buf.value
             exe = process_name(int(hwnd))
-            if exe in {"cod2mp_s.exe", "cod2mp.exe", "cod2.exe"}:
+            if exe in MULTIPLAYER_IMAGE_NAMES or exe == "cod2.exe":
                 found.append(int(hwnd))
                 return False
             low = title.lower()

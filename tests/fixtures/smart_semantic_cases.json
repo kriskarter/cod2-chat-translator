@@ -149,7 +149,9 @@
     "target": "ru",
     "mt_stub": "сервер 192.168.1.10:28960",
     "should_accept": true,
-    "provenance": "SYNTHETIC"
+    "provenance": "SYNTHETIC",
+    "provider_input": "server",
+    "provider_reply": "сервер"
   },
   {
     "id": "ip_changed",
@@ -157,7 +159,9 @@
     "target": "ru",
     "mt_stub": "сервер 192.168.1.11:28960",
     "should_accept": false,
-    "provenance": "SYNTHETIC"
+    "provenance": "SYNTHETIC",
+    "provider_input": "server",
+    "provider_reply": "сервер 192.168.1.11:28960"
   },
   {
     "id": "url_keep",
@@ -165,7 +169,9 @@
     "target": "ru",
     "mt_stub": "смотри https://example.com/map",
     "should_accept": true,
-    "provenance": "SYNTHETIC"
+    "provenance": "SYNTHETIC",
+    "provider_input": "see",
+    "provider_reply": "смотри"
   },
   {
     "id": "url_lost",
@@ -173,7 +179,10 @@
     "target": "ru",
     "mt_stub": "смотри сайт",
     "should_accept": false,
-    "provenance": "SYNTHETIC"
+    "provenance": "SYNTHETIC",
+    "provider_input": "see",
+    "provider_reply": "смотри сайт",
+    "protected_output": "смотри сайт https://example.com/map"
   },
   {
     "id": "mp40_keep",
