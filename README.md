@@ -40,6 +40,12 @@ Select Add server. Enter the host and port separately or paste a full address su
 
 ![Servers and friends](docs/images/stable_release/en/add-server.webp)
 
+## Knowledge and local experience
+
+Open Settings → Knowledge. The shared dictionary translates reviewed phrases offline. Automatic dictionary updates run at startup and can be disabled. Enable local collection to count observations on this PC. Save the ZIP to review it yourself or share it manually. Check the contents before sharing. The separate disk cache retains eligible translations for seven days.
+
+![Knowledge and local experience](docs/images/stable_release/en/knowledge.webp)
+
 ## Updates and saved settings
 
 Open About to check for updates. The candidate checks the stable channel. On first launch it imports compatible settings from the old stable and preview profiles. Existing stable Qt settings take precedence. Keep the original profiles and the before-1.22 backup until you have checked your friends, servers and both HUDs.

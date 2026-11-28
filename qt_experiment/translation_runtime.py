@@ -143,6 +143,10 @@ class TranslationState(LiveMonitorState):
                 collect=bool(config.get("experience_collect", False)),
                 cache=bool(config.get("experience_cache", False)), exporter=self._export_metadata)
             translation_memory.configure(self._experience)
+            if self._experience.path.exists():
+                self.refreshStats()
+            else:
+                self._observation_count = 0
             if self._experience.cache: self._experience.set_options(self._experience.collect, True)
         self._shared = TranslationWorkerSharedState()
         self._workers = [TranslatorWorker(

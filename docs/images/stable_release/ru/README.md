@@ -55,3 +55,7 @@
 ### Завершение установки
 
 ![Завершение установки](https://github.com/kriskarter/cod2-chat-translator/releases/download/stable-candidate-1.22.0-1/installer-ru-finish.png)
+
+### База знаний и локальный опыт
+
+![База знаний и локальный опыт](knowledge.webp)

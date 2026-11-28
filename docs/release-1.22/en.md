@@ -11,3 +11,7 @@ For missing incoming chat, check F8 and whether the selected log receives new li
 Windows x64 · CoD2ChatTranslator_Setup.exe · SHA-256: SHA256SUMS.txt
 
 [Report an issue](https://github.com/kriskarter/cod2-chat-translator/issues)
+
+Open Settings → Knowledge. The shared dictionary translates reviewed phrases offline. Automatic dictionary updates run at startup and can be disabled. Enable local collection to count observations on this PC. Save the ZIP to review it yourself or share it manually. Check the contents before sharing. The separate disk cache retains eligible translations for seven days.
+
+Existing v1.17.4 shortcuts continue to work after a ZIP upgrade. Run the full installer in the existing folder to refresh Windows uninstall information.

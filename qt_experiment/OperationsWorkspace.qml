@@ -97,6 +97,7 @@ MetalPanel {
             }
             Flickable {
                 id: knowledgeScroll
+                Component.onCompleted: if (visible && prototype.experienceAvailable) prototype.refreshStats()
                 onVisibleChanged: if (visible && prototype.experienceAvailable) prototype.refreshStats()
                 Timer { interval: 15000; running: knowledgeScroll.visible && prototype.experienceAvailable; repeat: true; onTriggered: prototype.refreshStats() }
                 clip:true;contentWidth:width;contentHeight:knowledgeScrollContent.implicitHeight+8

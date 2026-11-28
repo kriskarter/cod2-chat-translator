@@ -55,3 +55,7 @@
 ### Installation complete
 
 ![Installation complete](https://github.com/kriskarter/cod2-chat-translator/releases/download/stable-candidate-1.22.0-1/installer-en-finish.png)
+
+### Knowledge and local experience
+
+![Knowledge and local experience](knowledge.webp)

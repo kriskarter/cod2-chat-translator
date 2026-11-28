@@ -345,6 +345,8 @@ jobs:
           (Get-FileHash $setup).Hash.ToLower() + "  CoD2ChatTranslator_Setup.exe" | Set-Content -Encoding ascii release-qt/SHA256SUMS.txt
           python tools/prepare_installer_manifest.py release-qt 1.22.0
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/prepare_legacy_bridge.py dist/CoD2ChatTranslatorQt release-qt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Exercise the stable installer and both existing player profiles
         shell: pwsh
         env:
@@ -393,6 +395,25 @@ jobs:
             if (Test-Path $settings) { Move-Item $settings "$env:RUNNER_TEMP/$tag-previous-profile.json" }
             @{ui_language="uk";server_monitor=@{servers=@(@{address="example.com:12345";favorite=$true});friends=@($tag)}} | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8NoBOM $source
             $before = (Get-FileHash $source).Hash
+            if ($tag -eq "v1.17.4") {
+              # Verify the genuine updater applies our archive in its original directory.
+              # A local file URI isolates this compatibility test from public release discovery.
+              $manifest = Get-Content release-qt/update.json -Raw | ConvertFrom-Json
+              $package = (Resolve-Path "release-qt/$($manifest.asset)").Path
+              if ((Get-FileHash $package).Hash.ToLower() -ne $manifest.sha256) { throw "Bridge checksum mismatch" }
+              $updater = "$env:RUNNER_TEMP/original-updater.exe"
+              Copy-Item "$dir/CoD2ChatTranslatorUpdater.exe" $updater
+              $bridgeDir = "$env:RUNNER_TEMP/legacy-bridge-test"
+              New-Item -ItemType Directory -Force $bridgeDir | Out-Null
+              Copy-Item "$dir/CoD2ChatTranslator.exe" $bridgeDir
+              $uri = [Uri]::new($package).AbsoluteUri
+              $p = Start-Process $updater -ArgumentList @("--install-dir", "`"$bridgeDir`"", "--download-url", $uri, "--sha256", $manifest.sha256, "--main-exe", "CoD2ChatTranslator.exe", "--version", "1.22.0") -PassThru
+              if (!$p.WaitForExit(180000) -or $p.ExitCode) { throw "Original updater failed to apply bridge" }
+              $bridgeExe = "$bridgeDir/CoD2ChatTranslator.exe"
+              if ((Get-FileHash $bridgeExe).Hash -ne (Get-FileHash dist/CoD2ChatTranslatorQt/CoD2ChatTranslatorQt.exe).Hash) { throw "Bridge entry point mismatch" }
+              Get-Process -Name CoD2ChatTranslator -ErrorAction SilentlyContinue | Where-Object Path -eq $bridgeExe | Stop-Process
+              if (Test-Path $settings) { Move-Item $settings "$env:RUNNER_TEMP/bridge-profile.json" }
+            }
             Install $setup $dir
             Capture $tag
             $saved = Get-Content -Raw $settings | ConvertFrom-Json
@@ -441,8 +462,9 @@ jobs:
           UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
         run: |
           python -m pip install cryptography==49.0.0
+          python tools/sign_update.py release-qt/update.json
           python tools/sign_update.py release-qt/installer-update.json
-          python -c "import json; from update_client import verify_update_manifest_signature as verify; assert verify(json.load(open('release-qt/installer-update.json')))"
+          python -c "import json; from update_client import verify_update_manifest_signature as verify; assert all(verify(json.load(open('release-qt/'+name))) for name in ('update.json','installer-update.json'))"
       - name: Verify the approved commit and publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -451,7 +473,7 @@ jobs:
           test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/main --jq .object.sha)" = "$GITHUB_SHA"
           gh run list --workflow qt-quick-smoke.yml --commit "$GITHUB_SHA" --json conclusion --jq '.[].conclusion' | grep -qx success
           (cd release-qt && sha256sum --check SHA256SUMS.txt)
-          gh release create v1.22.0 release-qt/CoD2ChatTranslator_Setup.exe release-qt/SHA256SUMS.txt release-qt/installer-update.json --target "$GITHUB_SHA" --latest --title "CoD2 Chat Translator 1.22.0" --notes-file release-qt/RELEASE_NOTES.md
+          gh release create v1.22.0 release-qt/update.json release-qt/CoD2ChatTranslator_Update.zip release-qt/CoD2ChatTranslator_Setup.exe release-qt/SHA256SUMS.txt release-qt/installer-update.json --target "$GITHUB_SHA" --latest --title "CoD2 Chat Translator 1.22.0" --notes-file release-qt/RELEASE_NOTES.md
   publish:
     needs: build
     # Keep candidate artifacts available for native visual and migration acceptance.

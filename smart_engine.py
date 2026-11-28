@@ -174,6 +174,8 @@ def semantic_violations(source: str, result: str, target: str) -> tuple[str, ...
     objective check is scoped to unambiguous tactical context.
     """
     issues = []
+    if "�" in result and "�" not in source or re.search(r"[\x80-\x9f]", result) and not re.search(r"[\x80-\x9f]", source):
+        issues.append("encoding")
     source_numbers = _NUMBER.findall(source)
     if source_numbers != _NUMBER.findall(result):
         issues.append("numbers")
