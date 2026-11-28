@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   qt-smoke:
-    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui'
+    if: github.ref == 'refs/heads/experiment/qt-premium-game-ui' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: windows-latest
     env:
       QT_QPA_PLATFORM: offscreen

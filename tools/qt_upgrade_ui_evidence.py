@@ -11,6 +11,7 @@ from pywinauto import Desktop, mouse
 from pywinauto.keyboard import send_keys
 
 OLD, NEW, INSTALL, PROFILE, EVIDENCE = map(lambda x: Path(x).resolve(), sys.argv[1:6])
+CANDIDATE = os.environ.get("COD2_STABLE_CANDIDATE") == "1"
 PREVIOUS = Path(sys.argv[6]).resolve() if len(sys.argv)>6 else None
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from qt_experiment.shortcut_diagnostics import elevated
@@ -499,7 +500,8 @@ def installed_processes():
 def launch_shortcut(path, name):
     assert path.is_file(), f"Missing installed {name} shortcut: {path}"
     assert not installed_processes(), "Previous installed process still active"
-    default_settings=Path(os.environ["APPDATA"])/"CoD2ChatTranslatorQtPreview"/"qt_settings.json"
+    profile_name = "CoD2ChatTranslator" if CANDIDATE else "CoD2ChatTranslatorQtPreview"
+    default_settings=Path(os.environ["APPDATA"])/profile_name/"qt_settings.json"
     before=json.loads(default_settings.read_text(encoding="utf-8-sig"))
     os.startfile(str(path))
     try:
@@ -531,9 +533,10 @@ def launch_shortcut(path, name):
                 pass
 
 
+shortcut_name = ("CoD2 Chat Translator" if CANDIDATE else "CoD2 Chat Translator Qt Preview") + ".lnk"
 shortcuts=[
-    launch_shortcut(shell_folder(0x10)/"CoD2 Chat Translator Qt Preview.lnk","desktop"),
-    launch_shortcut(shell_folder(0x02)/"CoD2 Chat Translator Qt Preview.lnk","start_menu"),
+    launch_shortcut(shell_folder(0x10)/shortcut_name,"desktop"),
+    launch_shortcut(shell_folder(0x02)/shortcut_name,"start_menu"),
 ]
 
 (EVIDENCE/"native_startup_policy.json").write_text(json.dumps({
@@ -546,7 +549,7 @@ shortcuts=[
 },indent=2),encoding="utf-8")
 
 (EVIDENCE/"native_ui_upgrade.json").write_text(json.dumps({
-    "old_release":"c9ec1acd8ca2","legacy_required_explicit_save":True,
+    "old_release":"9333bb561122" if CANDIDATE else "c9ec1acd8ca2","legacy_required_explicit_save":True,
     "server_entered_through_ui":SERVER,"friend_entered_through_ui":FRIEND,
     "reopen_upgrade_reinstall":True,"new_autosave_without_save_button":True,
     "native_uac_gameplay":"not exercised"

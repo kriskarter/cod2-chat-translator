@@ -3,6 +3,11 @@ on:
   push:
     branches: ['experiment/qt-premium-game-ui']
   workflow_dispatch:
+    inputs:
+      publish_stable:
+        description: Publish the verified stable installer from the current main commit
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -396,6 +401,15 @@ jobs:
           $before = (Get-FileHash $settings).Hash
           Install $setup $dir
           Capture reinstall
+          if ((Get-FileHash $settings).Hash -ne $before) { throw "Reinstall changed the migrated profile" }
+          $env:QT_QPA_PLATFORM = "windows"
+          $env:QT_SCALE_FACTOR = "1"
+          $env:QT_ACCESSIBILITY = "1"
+          $env:COD2_STABLE_CANDIDATE = "1"
+          $old = "$env:RUNNER_TEMP/qt-preview-9333bb561122/CoD2ChatTranslator_QtPreview_Setup.exe"
+          python tools/qt_upgrade_ui_evidence.py $old $setup $dir "$env:RUNNER_TEMP/candidate-ui-profile" candidate-evidence
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $before = (Get-FileHash $settings).Hash
           $p = Start-Process "$dir/unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
           if ($p.ExitCode -or (Test-Path $exe) -or $before -ne (Get-FileHash $settings).Hash) { throw "Uninstall failed" }
       - uses: actions/upload-artifact@v4
@@ -407,6 +421,37 @@ jobs:
         with:
           name: stable-candidate-evidence
           path: candidate-evidence/
+  stable-release:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.publish_stable
+    needs: [candidate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: stable-candidate-installer
+          path: release-qt
+      - name: Sign the installer manifest
+        env:
+          UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.UPDATE_SIGNING_PRIVATE_KEY }}
+        run: |
+          python -m pip install cryptography==49.0.0
+          python tools/sign_update.py release-qt/installer-update.json
+          python -c "import json; from update_client import verify_update_manifest_signature as verify; assert verify(json.load(open('release-qt/installer-update.json')))"
+      - name: Verify the approved commit and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/main --jq .object.sha)" = "$GITHUB_SHA"
+          gh run list --workflow qt-quick-smoke.yml --commit "$GITHUB_SHA" --json conclusion --jq '.[].conclusion' | grep -qx success
+          (cd release-qt && sha256sum --check SHA256SUMS.txt)
+          gh release create v1.22.0 release-qt/CoD2ChatTranslator_Setup.exe release-qt/SHA256SUMS.txt release-qt/installer-update.json --target "$GITHUB_SHA" --latest --title "CoD2 Chat Translator 1.22.0" --notes-file release-qt/RELEASE_NOTES.md
   publish:
     needs: build
     # Keep candidate artifacts available for native visual and migration acceptance.
