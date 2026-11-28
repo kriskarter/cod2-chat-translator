@@ -11,7 +11,7 @@ import time
 import knowledge_v2
 import translation_memory
 from dataclasses import dataclass, replace
-from protected_chat import translate_prose
+from protected_chat import technical_fragments, translate_prose
 from typing import Callable
 
 KNOWLEDGE_VERSION = "cod2-smart-v1.0"
@@ -280,6 +280,11 @@ class SmartTranslationEngine:
         failed = next((result for result in results if not result.safe), None)
         if failed:
             return replace(failed, text=request.text)
+        reasons = semantic_violations(request.text, value, request.target_lang)
+        if technical_fragments(value) != technical_fragments(request.text):
+            reasons += ("technical_fragment",)
+        if reasons:
+            return TranslationResult(request.text, False, 0.0, "abstain", uncertainty_reasons=reasons)
         return TranslationResult(value, True, min((r.confidence for r in results), default=1.0),
                                  "protected", detect_script_languages(request.text), classify_intent(request.text))
 

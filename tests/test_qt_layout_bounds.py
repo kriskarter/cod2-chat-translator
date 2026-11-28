@@ -109,3 +109,51 @@ def test_panorama_is_exact_original_artwork():
     assert approved.size==(1536,864)
     assert panorama.size==(1534,198)
     assert ImageChops.difference(approved.crop((1,34,1535,232)),panorama).getbbox() is None
+
+
+def test_about_links_and_localized_controls(tmp_path):
+    from PySide6.QtCore import Slot
+    from PySide6.QtGui import QDesktopServices
+
+    class LinkRecorder(QObject):
+        @Slot(QUrl)
+        def receive(self, url):
+            opened.append(url.toString())
+
+    opened = []
+    app = QGuiApplication.instance() or QGuiApplication([])
+    receiver = LinkRecorder()
+    previous = knowledge_v2.RUNTIME
+    config = dict(read_translation_config(None), server_monitor={"servers":[]})
+    state = TranslationState(config, settings_store=SettingsStore(tmp_path/"qt.json"))
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("prototype",state)
+    engine.load(QUrl.fromLocalFile(str(ROOT/"qt_experiment/Home.qml")))
+    window = engine.rootObjects()[0]
+    base = "https://github.com/kriskarter/cod2-chat-translator"
+    expected = [base,base+"/issues",base+"/blob/main/COPYRIGHT.md"]
+    QDesktopServices.setUrlHandler("https",receiver,"receive")
+    try:
+        assert window.title() == "CoD2 Chat Translator — 1.22.0"
+        window.setProperty("activePage","about")
+        for language in ("en","ru","uk"):
+            state.setUiLanguage(language)
+            for width,height in ((1366,768),(1093,614),(911,512),(1536,864),(1229,691),
+                                 (1024,576),(1920,1080),(1280,720)):
+                window.resize(width,height)
+                QTest.qWait(30)
+                buttons = {obj.property("text"): obj for obj in window.findChildren(QObject)
+                           if obj.metaObject().indexOfSignal("clicked()") >= 0 and obj.property("visible")}
+                labels = ["★ "+state.trText("Поставить звезду на GitHub"),
+                          state.trText("Сообщить об ошибке"),state.trText("Авторские права")]
+                for label in labels:
+                    button = buttons[label]
+                    assert not button.findChild(QObject,"button_caption").property("truncated")
+                    button.clicked.emit()
+                assert opened[-3:] == expected
+    finally:
+        QDesktopServices.unsetUrlHandler("https")
+        window.close()
+        state.stop()
+        del engine
+        knowledge_v2.configure(previous)

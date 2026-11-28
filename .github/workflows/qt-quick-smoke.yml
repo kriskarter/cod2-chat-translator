@@ -31,6 +31,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force qt-smoke | Out-Null
           python -m pytest -q
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/smart_quality_check.py
       - name: Capture development UI
         shell: pwsh
         run: |

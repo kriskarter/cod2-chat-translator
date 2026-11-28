@@ -11,6 +11,10 @@ _ADDRESS = re.compile(
 )
 
 
+def technical_fragments(text):
+    return tuple(match.group() for match in _ADDRESS.finditer(text))
+
+
 def translate_prose(text, translate):
     """Invoke translate only for prose and preserve whitespace at boundaries."""
     pieces = []

@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from smart_engine import SmartTranslationEngine, TranslationRequest  # noqa: E402
+from smart_engine import SmartTranslationEngine, TranslationRequest, semantic_violations  # noqa: E402
 
 
 def main() -> int:
@@ -27,6 +27,17 @@ def main() -> int:
     rejected_by_reason: dict[str, int] = {}
     for case in cases:
         response = case["mt_stub"]
+        # Original full-response fixtures still exercise the guard directly.
+        violations = semantic_violations(case["source"], response, case["target"])
+        if (not violations) != case["should_accept"]:
+            print("FAIL raw semantic guard", case["id"], violations)
+            continue
+        # The transport now receives just the prose beside an address.
+        # Model its reply to that input independently from the old full-message fixture.
+        def provider(text, *_):
+            if "provider_input" in case:
+                assert text == case["provider_input"], (case["id"], text)
+            return case.get("provider_reply", response)
         result = SmartTranslationEngine().translate(
             TranslationRequest(
                 text=case["source"],
@@ -34,9 +45,15 @@ def main() -> int:
                 source_lang="auto",
                 use_slang=False,
             ),
-            provider=lambda *_: response,
+            provider=provider,
         )
-        expected_safe = case["should_accept"]
+        expected_safe = case["should_accept"] or "protected_output" in case
+        if "protected_output" in case and result.text != case["protected_output"]:
+            print("FAIL protected output", case["id"], result.text)
+            continue
+        if result.safe and semantic_violations(case["source"], result.text, case["target"]):
+            print("FAIL reassembled message", case["id"], result.text)
+            continue
         if result.safe == expected_safe:
             passed += 1
         elif expected_safe:
