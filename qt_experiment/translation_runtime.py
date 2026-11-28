@@ -130,7 +130,8 @@ class TranslationState(LiveMonitorState):
         self._experience = None
         self._previous_experience = translation_memory.RUNTIME
         self._experience_stats = []
-        self._observation_count = 0
+        self._observation_count = -1
+        self._knowledge_auto = bool(config.get("knowledge_auto_update", True))
         self._knowledge_previous = knowledge_v2.RUNTIME
         bundled = ROOT / "assets" / "knowledge_v2.json"
         runtime = knowledge_v2.KnowledgeRuntime(bundled, installed_knowledge or bundled)
@@ -140,7 +141,7 @@ class TranslationState(LiveMonitorState):
             self._experience = translation_memory.LocalExperience(
                 self._store.path.parent / "translation_experience.sqlite3",
                 collect=bool(config.get("experience_collect", False)),
-                cache=bool(config.get("experience_cache", False)))
+                cache=bool(config.get("experience_cache", False)), exporter=self._export_metadata)
             translation_memory.configure(self._experience)
             if self._experience.cache: self._experience.set_options(self._experience.collect, True)
         self._shared = TranslationWorkerSharedState()
@@ -239,7 +240,7 @@ class TranslationState(LiveMonitorState):
                       log_path=str(self._log_path or ""), active_profile_path=str(self._log_path or ""),
                       server_monitor=dump_qt_monitor_settings(self._settings), ui_language=self.ui_language,
                       server_profiles=self._profiles, auto_detect_profile=self._auto_profile,
-                      knowledge_v2_enabled=knowledge_v2.RUNTIME.enabled,
+                      knowledge_v2_enabled=knowledge_v2.RUNTIME.enabled, knowledge_auto_update=self._knowledge_auto,
                       hide_same_language=self._hide, gaming_slang=self._slang,
                       deduplicate_messages=self._dedupe, slang_style=self._style,
                       show_original=self._hud.show_original, overlay=dict(self._hud.config),
@@ -630,6 +631,16 @@ class TranslationState(LiveMonitorState):
         if self._experience:
             self._experience.clear(lambda ok, data: self.ui_queue.put(("experience_action", "clear", ok, data)))
 
+    def _export_metadata(self):
+        from .preview_updates import installed_build
+        from smart_engine import KNOWLEDGE_VERSION
+        return dict(app_version=APP_VERSION, build_sha=installed_build().get("sha"),
+                    dictionary_version=knowledge_v2.version(), algorithm_version=KNOWLEDGE_VERSION)
+
+    @Slot("QUrl")
+    def exportExperienceUrl(self, url):
+        if url.isLocalFile(): self.exportExperience(url.toLocalFile())
+
     @Slot(str)
     def exportExperience(self, filename):
         if not self._experience or not filename.strip(): return
@@ -638,7 +649,8 @@ class TranslationState(LiveMonitorState):
             self.game_status(self.trText("Укажите новый ZIP-файл"))
             self.feedback.emit("knowledge", self.translationStatus, True)
             return
-        self._experience.export(path, lambda ok, data: self.ui_queue.put(("experience_action", "export", ok, data)))
+        if not self._experience.export(path, lambda ok, data: self.ui_queue.put(("experience_action", "export", ok, data)), with_counts=True):
+            self.feedback.emit("knowledge", self.trText("Ошибка"), True)
 
     @Property(bool, notify=translationChanged)
     def knowledgeEnabled(self): return bool(knowledge_v2.RUNTIME.enabled)
@@ -658,15 +670,32 @@ class TranslationState(LiveMonitorState):
         self._on_log_control("map_change", "knowledge_toggle")
         self.translationChanged.emit()
 
+    @Property(bool, notify=translationChanged)
+    def knowledgeAutoUpdate(self): return self._knowledge_auto
+
+    @Slot(bool)
+    def setKnowledgeAutoUpdate(self, enabled):
+        self._knowledge_auto = enabled
+        self.translationChanged.emit()
+
+    def checkKnowledgeOnStartup(self):
+        if self._knowledge_auto and self._knowledge_writable:
+            self._updateKnowledge(True)
+
     @Slot()
     def refreshKnowledge(self):
-        if self._maintenance_busy or not self._knowledge_writable: return
-        self._maintenance_busy = True
-        self.translationChanged.emit()
+        self._updateKnowledge(False)
+
+    def _updateKnowledge(self, background):
+        if (self._maintenance_busy and not background) or not self._knowledge_writable: return
+        if not background:
+            self._maintenance_busy = True
+            self.translationChanged.emit()
+        task = "knowledge_auto" if background else "knowledge"
         runtime = knowledge_v2.RUNTIME
         def worker():
-            try: self.ui_queue.put(("qt_maintenance", "knowledge", runtime.refresh(), ""))
-            except Exception as e: self.ui_queue.put(("qt_maintenance", "knowledge", False, str(e)))
+            try: self.ui_queue.put(("qt_maintenance", task, runtime.refresh(), ""))
+            except Exception as e: self.ui_queue.put(("qt_maintenance", task, False, str(e)))
         threading.Thread(target=worker, daemon=True, name="QtKnowledgeUpdate").start()
 
     @Property(str, notify=translationChanged)
@@ -1043,6 +1072,9 @@ class TranslationState(LiveMonitorState):
         QGuiApplication.clipboard().setText(text)
 
     def record_sent(self, original, translated):
+        if self._experience:
+            self._experience.record("outgoing", self._out_source, self._out_target, self._style,
+                                    original, translated, "ok", "f9-confirmed", 0)
         if self._history_enabled:
             self._history.appendleft(dict(nickname=self.trText("Вы"), original=original, translated=translated,
                                           direction="out", received=time.strftime("%H:%M:%S"), outcome="sent"))
@@ -1195,13 +1227,19 @@ class TranslationState(LiveMonitorState):
         self._dispatcher.submit(self._outgoing_id, text, source, target, self._f8_settings)
 
     def _translate_outgoing(self, request_id, text, source, target, settings):
+        started = time.monotonic()
+        diagnostics = {}
         try:
             result = translate_outgoing_text(
                 text, target, source, style=settings[3], slang_enabled=settings[2],
                 smart_enabled=settings[4], legacy_transform=gaming_slang_transform,
-                transport=self._transport)
+                transport=self._transport, diagnostics=diagnostics)
+            if self._experience:
+                self._experience.record("outgoing", source, target, settings[3], text, result, "ok", diagnostics.get("provider", "protected"), (time.monotonic()-started)*1000)
             self.ui_queue.put(("outgoing", request_id, True, result))
         except Exception as error:
+            if self._experience:
+                self._experience.record("outgoing", source, target, settings[3], text, "", "failed", diagnostics.get("provider", "unknown"), (time.monotonic()-started)*1000)
             self.ui_queue.put(("outgoing", request_id, False, str(error)))
 
     @Slot()
@@ -1220,6 +1258,7 @@ class TranslationState(LiveMonitorState):
             kind = event[0]
             if kind == "experience_action":
                 _, task, ok, data = event
+                if task == "stats" and not ok: self._observation_count = -1
                 if not ok:
                     self._translation_status = self.trText("Ошибка") + ": " + str(data)
                 elif task == "stats":
@@ -1231,13 +1270,18 @@ class TranslationState(LiveMonitorState):
                     self._experience_stats = []
                     self._translation_status = self.trText("Локальный опыт очищен")
                 elif task == "export":
-                    self._translation_status = self.trText("Экспорт сохранён") + ": " + str(data)
+                    self._translation_status = self.trText("Экспорт сохранён") + ": " + str(data[0]) + " · " + self.trText("Записи") + ": " + str(data[1])
                 if task != "stats" or not ok:
                     self.feedback.emit("stats" if task == "stats" else "knowledge", self.translationStatus, not ok)
                 changed = True
                 continue
             if kind == "qt_maintenance":
                 _, task, result, error = event
+                if task == "knowledge_auto":
+                    if result:
+                        self._on_log_control("map_change", "knowledge_update")
+                        self.translationChanged.emit()
+                    continue
                 self._maintenance_busy = False
                 if error:
                     self._translation_status = self.trText("Ошибка") + ": " + error
@@ -1255,6 +1299,7 @@ class TranslationState(LiveMonitorState):
                 elif task == "logging":
                     self._translation_status = self.trText("Журнал игры") + f": {result.enabled_count}/{result.configs_found}; " + self.trText("После выхода из игры") + f": {result.deferred_count}; " + self.trText("Ошибка") + f": {result.failed_count}"
                 elif task == "knowledge":
+                    if result: self._on_log_control("map_change", "knowledge_update")
                     self._translation_status = self.trText("База знаний обновлена" if result else "База знаний актуальна")
                 elif task == "updates":
                     self._update_candidate = result

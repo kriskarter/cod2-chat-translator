@@ -2,6 +2,7 @@
 from __future__ import annotations
 import os
 import sys
+import sqlite3
 from pathlib import Path
 
 def main():
@@ -18,7 +19,7 @@ def main():
             from qt_experiment.stable_profile import migrate
             try:
                 migrate(stable, preview)
-            except (OSError, ValueError) as exc:
+            except (OSError, ValueError, sqlite3.Error) as exc:
                 from PySide6.QtWidgets import QApplication, QMessageBox
                 app = QApplication.instance() or QApplication(sys.argv)
                 QMessageBox.critical(None, "CoD2 Chat Translator", str(exc))

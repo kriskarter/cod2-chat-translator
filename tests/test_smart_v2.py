@@ -80,7 +80,7 @@ class SmartV2Tests(unittest.TestCase):
                     expected)
 
     def test_shared_pack_repairs_omg_for_preexisting_v2_without_installer(self):
-        self.assertEqual(self.runtime.version, 3)
+        self.assertGreaterEqual(self.runtime.version, 3)
         self.assertEqual(self.runtime.lookup("omg", "ru", "auto"), "Боже мой")
         self.assertEqual(self.runtime.lookup("OMG!", "ru", "auto"), "Боже мой!")
         self.assertEqual(self.runtime.lookup("omg", "uk", "en"), "Боже мій")

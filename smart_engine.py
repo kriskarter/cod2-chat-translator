@@ -303,6 +303,13 @@ class SmartTranslationEngine:
         languages = detect_script_languages(original)
         intent = classify_intent(original)
         key = _clean_key(original)
+        if re.fullmatch(r"[:;=][-^']?[)(DPpOo/]+", original):
+            return TranslationResult(original, True, 1.0, "emoticon", languages, intent)
+        # Shared Cyrillic letters alone do not distinguish Russian and Ukrainian.
+        commands = {"ru": {"вперед", "вперёд", "граната", "за мной", "так точно", "назад", "выполняю", "снайпер", "отличный выстрел", "прошу прощения"},
+                    "uk": {"вперед", "уперед", "граната", "за мною", "так точно", "назад", "виконую", "снайпер"}}
+        if request.source_lang == "auto" and key in commands.get(target, ()):
+            return TranslationResult(original, True, 1.0, "same-language", languages, intent)
         # Source and target may be the same in outgoing chat; respect the
         # explicit language selection. A mixed-script message is not "same".
         if (request.source_lang == target and len(languages) <= 1):

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtCore
 MetalPanel {
     id: root
     function showEvidenceDialog(name) { if (name==="knowledge_clear_dialog") clearDialog.open(); else if (name==="game_logging_dialog") loggingDialog.open();else if(name==="update_install_dialog") updateConfirm.open() }
@@ -12,11 +13,11 @@ MetalPanel {
     function tr(s) { let l = uiLocale; return prototype.trText(s) }
     FileDialog {
         id: exportDialog; fileMode: FileDialog.SaveFile; nameFilters: ["ZIP (*.zip)"]; defaultSuffix: "zip"
-        onAccepted: {
-            let path = decodeURIComponent(selectedFile.toString().replace(/^file:\/\//, ""))
-            if (Qt.platform.os === "windows" && path.startsWith("/")) path = path.substring(1)
-            prototype.exportExperience(path)
+        function choose() {
+            selectedFile = StandardPaths.writableLocation(StandardPaths.DocumentsLocation) + "/CoD2_Experience_" + Qt.formatDateTime(new Date(), "yyyy-MM-dd_HH-mm") + ".zip"
+            open()
         }
+        onAccepted: prototype.exportExperienceUrl(selectedFile)
     }
     MetalDialog {
         id: clearDialog; objectName:"knowledge_clear_dialog"; title: root.tr("Очистить опыт"); anchors.centerIn: parent
@@ -96,11 +97,21 @@ MetalPanel {
             }
             Flickable {
                 id: knowledgeScroll
+                onVisibleChanged: if (visible && prototype.experienceAvailable) prototype.refreshStats()
+                Timer { interval: 15000; running: knowledgeScroll.visible && prototype.experienceAvailable; repeat: true; onTriggered: prototype.refreshStats() }
                 clip:true;contentWidth:width;contentHeight:knowledgeScrollContent.implicitHeight+8
                 boundsBehavior:Flickable.StopAtBounds
                 ScrollBar.vertical:MetalScrollBar { parent:knowledgeScroll;anchors.right:knowledgeScroll.right;anchors.top:knowledgeScroll.top;anchors.bottom:knowledgeScroll.bottom }
-                ColumnLayout {
-                    id: knowledgeScrollContent; width: Math.min(660, knowledgeScroll.width - 16); spacing: 9
+                GridLayout {
+                    id: knowledgeScrollContent
+                    width: knowledgeScroll.width - 20
+                    columns: width >= 840 ? 2 : 1
+                    columnSpacing: 32
+                    rowSpacing: 12
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 480
+                        Layout.alignment: Qt.AlignTop
                 RowLayout {
                     Text { font.bold: true; font.pixelSize: 17; text: root.tr("Локальный словарь"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.knowledgeEnabled; onClicked: prototype.setKnowledgeEnabled(checked) }
@@ -109,22 +120,31 @@ MetalPanel {
                 Text { text: root.tr("Обновления содержат только проверяемые данные словаря, без исполняемого кода."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 AmberButton { text: root.tr("Обновить базу знаний"); enabled: prototype.knowledgeWritable && !prototype.maintenanceBusy; onClicked: prototype.refreshKnowledge() }
                 Rectangle { Layout.fillWidth: true; height: 1; color: "#494637" }
-                Text { text: root.tr("Локальный опыт"); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
+                RowLayout {
+                    Text { text: root.tr("Автоматическое обновление словаря"); color: "#e6d5b8"; Layout.fillWidth: true }
+                    TacticalSwitch { checked: prototype.knowledgeAutoUpdate; onClicked: prototype.setKnowledgeAutoUpdate(checked) }
+                }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 480
+                        Layout.alignment: Qt.AlignTop
+                Text { text: root.tr("Локальный опыт") + "  ·  " + root.tr("Наблюдения") + "  " + (prototype.observationCount < 0 ? "—" : prototype.observationCount); color: "#e4c291"; font.bold: true; font.pixelSize: 17 }
                 RowLayout {
                     Text { text: root.tr("Собирать примеры локально"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.experienceCollect; enabled: prototype.experienceAvailable; onClicked: prototype.setExperienceOption("collect", checked) }
                 }
                 Text { text: root.tr("Перед передачей архива проверьте его содержимое. Автоотправки нет."); color: "#c6b79e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 RowLayout {
-                    MetalButton { text: root.tr("Экспорт ZIP"); enabled: prototype.experienceAvailable; onClicked: exportDialog.open() }
+                    MetalButton { text: root.tr("Сохранить архив опыта (ZIP)"); enabled: prototype.experienceAvailable; onClicked: exportDialog.choose() }
                     MetalButton { text: root.tr("Очистить опыт"); enabled: prototype.experienceAvailable; onClicked: clearDialog.open() }
                 }
-                Rectangle { Layout.fillWidth: true; height: 1; color: "#494637" }
                 Text { text: root.tr("Кэш перевода"); color:"#e4c291"; font.bold: true; font.pixelSize:17 }
                 RowLayout {
                     Text { text: root.tr("Дисковый кэш на 7 дней"); color: "#e6d5b8"; Layout.fillWidth: true }
                     TacticalSwitch { checked: prototype.experienceCache; enabled: prototype.experienceAvailable; onClicked: prototype.setExperienceOption("cache", checked) }
-                }
+                }                    }
+
 
 
             }

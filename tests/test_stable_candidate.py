@@ -86,3 +86,26 @@ def test_signed_stable_installer_round_trip(tmp_path, monkeypatch):
     manifest["sha256"] = "0"*64
     with pytest.raises(ValueError,match="signed"):
         check_preview_release(getter,installed)
+
+
+def test_experience_merge_uses_wal_and_does_not_duplicate(tmp_path):
+    import sqlite3
+    from contextlib import closing
+    from translation_memory import initialize_schema
+    preview = tmp_path / "preview"
+    preview.mkdir()
+    for folder, count in [(tmp_path, 2), (preview, 5)]:
+        with closing(sqlite3.connect(folder / "translation_experience.sqlite3")) as db:
+            initialize_schema(db)
+            db.execute("INSERT INTO observations VALUES(NULL,'incoming','auto','ru','live','hello','привет','ok','local',0,'[]',1,?)",(count,))
+            db.commit()
+    with closing(sqlite3.connect(preview / "translation_experience.sqlite3")) as writer:
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("UPDATE observations SET count=count+1")
+        writer.commit()
+        writer.execute("UPDATE observations SET count=99")
+        for _ in range(2):
+            migrate(tmp_path / "config.json", preview)
+        with closing(sqlite3.connect(tmp_path / "translation_experience.sqlite3")) as db:
+            assert db.execute("SELECT count FROM observations").fetchall() == [(8,)]
+            assert db.execute("PRAGMA integrity_check").fetchone() == ("ok",)

@@ -97,6 +97,8 @@ def main():
             # Normal tray/desktop quit saves current preferences. Explicit
             # elevation and updater paths already require a successful save.
             app.aboutToQuit.connect(state.saveSettings)
+        if interactive:
+            state.checkKnowledgeOnStartup()
         app.aboutToQuit.connect(state.stop)
         if settings_recovered:
             state.game_status("Настройки восстановлены из резервной копии")
